@@ -129,3 +129,58 @@ class Election(db.Model):
     @classmethod
     def get_by_short_name(cls, short_name):
         return cls.query.filter_by(short_name=short_name).first()
+
+    @classmethod
+    def get_by_uuid(cls, uuid):
+        return cls.query.filter_by(uuid=uuid).first()
+
+    @classmethod
+    def update_or_create(cls, **kwargs):
+        election = cls.get_by_uuid(kwargs['uuid'])
+        if election:
+            for key, value in kwargs.items():
+                setattr(election, key, value)
+        else:
+            election = cls(**kwargs)
+
+        db.session.add(election)
+        db.session.commit()
+        return election
+
+
+class Voter(db.Model):
+
+    __tablename__ = "helios_voter"
+
+    id = db.Column(db.Integer, primary_key=True)
+    election = db.Column(db.Integer, db.ForeignKey('helios_election.id'))
+
+    uuid = db.Column(db.String(50), nullable=False)
+
+    user = db.relationship("Election", backref=backref(
+        'helios_voter', uselist=False))
+
+    voter_login_id = db.Column(db.String(100))
+    voter_password = db.Column(db.String(100))
+    voter_name = db.Column(db.String(200))
+    voter_email = db.Column(db.String(250))
+    voter_weight = db.Column(db.Integer)
+
+    alias = db.Column(db.String(100))
+
+    vote = db.Column(db.JSON)
+    vote_hash = db.Column(db.String(100))
+    cast_at = db.Column(db.DateTime, default=None, nullable=True)
+
+    @classmethod
+    def update_or_create(cls, **kwargs):
+        voter = cls.query.filter_by(
+            election=kwargs['election'], alias=kwargs['alias']).first()
+        if voter:
+            for key, value in kwargs.items():
+                setattr(voter, key, value)
+        else:
+            voter = cls(**kwargs)
+        db.session.add(voter)
+        db.session.commit()
+        return voter
