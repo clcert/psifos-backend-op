@@ -2,7 +2,7 @@ from flask import request, jsonify, make_response
 from helios import app
 from helios.models import Election, Voter
 from helios import db
-from helios.shemas import ElectionDetailSchema
+from helios.shemas import ElectionDetailSchema, VoterSchema
 from helios.helios_auth.utils import token_required
 from helios.forms import ElectionForm
 
@@ -84,11 +84,10 @@ def edit_election(current_user, election_uuid):
         form = ElectionForm.from_json(data)
 
         if form.validate():
-
-            if Election.get_by_short_name(form.short_name.data):
+            election = Election.query.filter_by(uuid=election_uuid).first()
+            if Election.get_by_short_name(form.short_name.data) and election.short_name != form.short_name.data:
                 return make_response({'message': 'La elección ya existe'}, 400)
 
-            election = Election.query.filter_by(uuid=election_uuid).first()
             if election.admin == current_user.get_id():
                 Election.update_or_create(
                     admin=current_user.get_id(),
@@ -177,3 +176,37 @@ def send_voters(current_user, election_uuid):
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al enviar los votantes"}), 400)
+
+
+@app.route("/<election_uuid>/get_voters", methods=['GET'])
+@token_required
+def get_voters(current_user, election_uuid):
+    try:
+        election = Election.query.filter_by(uuid=election_uuid).first()
+        if election.admin == current_user.get_id():
+            voters = Voter.query.filter_by(election=election.id).all()
+            result = VoterSchema(many=True).dump(voters)
+            return make_response(jsonify(result), 200)
+        else:
+            return make_response(jsonify({"message": "No tiene permisos para ver esta elección"}), 401)
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al obtener los votantes"}), 400)
+
+
+@app.route("/<election_uuid>/resume", methods=['GET'])
+@token_required
+def resume(current_user, election_uuid):
+    try:
+
+        election = Election.query.filter_by(uuid=election_uuid).first()
+        voters_election = Voter.query.filter_by(election=election.id).all()
+        if election.admin == current_user.get_id():
+            election.resume()
+            return make_response(jsonify({"election": "Elección reanudada con exito!"}), 200)
+        else:
+            return make_response(jsonify({"message": "No tiene permisos para reanudar esta elección"}), 401)
+
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al reanudar la elección"}), 400)
