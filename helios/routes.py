@@ -210,3 +210,20 @@ def resume(current_user, election_uuid):
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al reanudar la elección"}), 400)
+
+
+@app.route("/<election_uuid>/openreg", methods=['POST'])
+@token_required
+def openreg(current_user, election_uuid):
+    try:
+        data = request.get_json()
+        election = Election.query.filter_by(uuid=election_uuid).first()
+        if election.admin == current_user.get_id():
+            election.openreg = data["openreg"]
+            db.session.commit()
+            return make_response(jsonify({"message": "Elección reanudada con exito!"}), 200)
+        else:
+            return make_response(jsonify({"message": "No tiene permisos para abrir esta elección"}), 401)
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al abrir la elección"}), 400)
