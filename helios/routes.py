@@ -2,7 +2,7 @@ from flask import request, jsonify, make_response
 from helios import app
 from helios.models import Election, Voter
 from helios import db
-from helios.shemas import ElectionDetailSchema, VoterSchema
+from helios.schemas import ElectionDetailSchema, VoterSchema
 from helios.helios_auth.utils import token_required
 from helios.forms import ElectionForm
 

@@ -1,9 +1,73 @@
-from helios import db
+from __future__ import annotations
+from typing import Union
+from helios import db, ma
 from sqlalchemy.orm import backref
 from helios.helios_auth.models import User
+import json
+class PsifosModel():
+    """
+    Abstraction layer for database I/O, allows the developer to:
 
+    (1) Save instances of db.Model with Python objects as column values by
+        serializing them.
 
-class Election(db.Model):
+    (2) Retrieve tuples from the database with their serialized columns 
+        instantiated as their corresponding class.
+    
+    Usage of the methods:
+        Let test_schema = TestSchema(), test_model an instance 
+        of TestModel and json_data a version of test_model serilized
+        as a JSON like string:
+
+        -> To serialize test_model:
+            TestModel.serialize(test_schema, test_model)
+            >>> json_data
+
+        -> To deserialize json_data:
+            TestModel.deserialize(test_schema, json_data)
+            >>> test_model
+        
+        -> To save test_model:
+            TestModel.save(test_schema, test_model)
+        
+        -> To execute a query (Ex: TestModel.query.filter_by(id=1)):
+            TestModel.execute(test_schema, TestModel.query.filter_by, id=1)
+
+    """
+    @classmethod
+    def serialize(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], obj: PsifosModel) -> str:
+        """
+        Serializes a PsifosModel object into a JSON like string.
+        """
+        return schema.dumps(obj)
+
+    @classmethod
+    def deserialize(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], json_data: str) -> PsifosModel:
+        """
+        Deserializes a JSON like string into it's corresponding PsifosModel subclass.
+        """
+        return schema.loads(json_data)
+
+    @classmethod
+    def save(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], obj: PsifosModel) -> None:
+        """
+        Saves in the database an instance of the model (serializes all columns with a python object as value).
+        """
+        json_data : str = cls.serialize(schema, obj)
+        db.session.add(cls(**json.loads(json_data)))
+        db.session.commit()
+    
+    @classmethod
+    def execute(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], fun, *args, **kwargs):
+        """
+        Executes a md.Model function and after that, deserializes the output.
+        """
+        def __deserialize_model_instance(x):
+            return cls.deserialize(schema, cls.serialize(schema, x))
+
+        return [__deserialize_model_instance(x) for x in fun(*args, **kwargs)]
+    
+class Election(PsifosModel, db.Model):
 
     __tablename__ = "helios_election"
 
@@ -148,7 +212,7 @@ class Election(db.Model):
         return election
 
 
-class Voter(db.Model):
+class Voter(PsifosModel, db.Model):
 
     __tablename__ = "helios_voter"
 
@@ -184,3 +248,10 @@ class Voter(db.Model):
         db.session.add(voter)
         db.session.commit()
         return voter
+
+
+class TestModel(PsifosModel, db.Model):
+    __tablename__ = "test_model"
+
+    id = db.Column(db.Integer, primary_key=True)
+    test_object = db.Column(db.String(255), nullable=False)
