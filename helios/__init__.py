@@ -5,6 +5,13 @@ from flask_marshmallow import Marshmallow
 from datetime import timedelta
 import configparser
 import wtforms_json
+from cas import CASClient
+
+
+# Configuring Environment Variables
+config = configparser.ConfigParser()
+config.read('.env')
+
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -13,13 +20,15 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 app.config['SECRET_KEY']='Th1s1ss3cr3t'
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1000)
 
+CORS(app)
 
+cas_client = CASClient(
+    version=3,
+    service_url=config['URL']['back']+ '/vote/',
+    server_url='https://cas.labs.clcert.cl/'
+)
 
 wtforms_json.init()
-
-# Configuring Environment Variables
-config = configparser.ConfigParser()
-config.read('.env')
 
 # Schemas
 ma = Marshmallow(app) 
