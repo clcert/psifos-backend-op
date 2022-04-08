@@ -1,6 +1,7 @@
+from urllib import response
 from flask import request, jsonify, make_response
 from helios import app
-from helios.models import Election, Voter
+from helios.models import Election, Voter, User
 from helios import db
 from helios.schemas import ElectionDetailSchema, VoterSchema
 from helios.helios_auth.utils import token_required
@@ -12,7 +13,12 @@ import json
 
 @app.route("/create_election", methods=['POST'])
 @token_required
-def create_election(current_user):
+def create_election(current_user: User) -> response:
+    """
+    Route for create a new election
+    Require a valid token to access >>> token_required
+
+    """
 
     try:
         data = request.get_json()
@@ -52,6 +58,10 @@ def create_election(current_user):
 @app.route("/get_election/<election_uuid>", methods=['GET'])
 @token_required
 def get_election(current_user, election_uuid):
+    """
+    Route for get a election by uuid
+    Require a valid token to access >>> token_required
+    """
     try:
         election = Election.query.filter_by(uuid=election_uuid).first()
         if election.admin == current_user.get_id():
@@ -67,6 +77,12 @@ def get_election(current_user, election_uuid):
 @app.route("/get_elections", methods=['GET'])
 @token_required
 def get_elections(current_user):
+    """
+    Route for get all elections
+    Require a valid token to access >>> token_required
+
+    """
+
     try:
         elections = Election.query.filter_by(admin=current_user.get_id()).all()
         result = ElectionDetailSchema(many=True).dump(elections)
@@ -78,6 +94,10 @@ def get_elections(current_user):
 @app.route("/edit_election/<election_uuid>", methods=['POST'])
 @token_required
 def edit_election(current_user, election_uuid):
+    """
+    Route for edit a election
+    Require a valid token to access >>> token_required   
+    """
     try:
 
         data = request.get_json()
@@ -119,6 +139,11 @@ def edit_election(current_user, election_uuid):
 @app.route("/create_questions/<election_uuid>", methods=['POST'])
 @token_required
 def create_questions(current_user, election_uuid):
+    """
+    Route for create questions
+    Require a valid token to access >>> token_required
+    """
+
     try:
         data = request.get_json()
         election = Election.query.filter_by(uuid=election_uuid).first()
@@ -134,7 +159,12 @@ def create_questions(current_user, election_uuid):
 
 @app.route("/get_questions/<election_uuid>", methods=['GET'])
 @token_required
-def get_questions(current_user, election_uuid):
+def get_questions(current_user: User, election_uuid: str) -> response:
+    """
+    Route for get questions
+    Require a valid token to access >>> token_required
+
+    """
     try:
         election = Election.query.filter_by(uuid=election_uuid).first()
         if not election.questions:
@@ -152,7 +182,11 @@ def get_questions(current_user, election_uuid):
 
 @app.route("/<election_uuid>/send_voters", methods=['POST'])
 @token_required
-def send_voters(current_user, election_uuid):
+def send_voters(current_user, election_uuid) -> response:
+    """
+    Route for send voters   
+    Require a valid token to access >>> token_required  
+    """
     try:
         file_input = request.files["file"]
         file_str = file_input.read().decode("utf-8")
@@ -180,7 +214,12 @@ def send_voters(current_user, election_uuid):
 
 @app.route("/<election_uuid>/get_voters", methods=['GET'])
 @token_required
-def get_voters(current_user, election_uuid):
+def get_voters(current_user: User, election_uuid) -> response:
+    """
+    Route for get voters
+    Require a valid token to access >>> token_required
+    """
+
     try:
         election = Election.query.filter_by(uuid=election_uuid).first()
         if election.admin == current_user.get_id():
@@ -196,7 +235,12 @@ def get_voters(current_user, election_uuid):
 
 @app.route("/<election_uuid>/resume", methods=['GET'])
 @token_required
-def resume(current_user, election_uuid):
+def resume(current_user: User, election_uuid: str) -> response:
+    """
+    Route for get a resume election
+    Require a valid token to access >>> token_required
+
+    """
     try:
 
         election = Election.query.filter_by(uuid=election_uuid).first()
@@ -214,7 +258,12 @@ def resume(current_user, election_uuid):
 
 @app.route("/<election_uuid>/openreg", methods=['POST'])
 @token_required
-def openreg(current_user, election_uuid):
+def openreg(current_user: User, election_uuid: str) -> response:
+    """
+
+    Route for open election
+    Require a valid token to access >>> token_required
+    """
     try:
         data = request.get_json()
         election = Election.query.filter_by(uuid=election_uuid).first()
