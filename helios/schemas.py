@@ -1,10 +1,16 @@
+"""
+Marshmallow Schemas for Psifos models.
+
+01-04-2022
+"""
+
 from helios import ma
 from helios.fields import JSONField
 from helios.models import Election, Voter, TestModel
 from helios.utils import TestObject
 from marshmallow import fields
 
-class ElectionDetailSchema(ma.SQLAlchemyAutoSchema):
+class ElectionSchema(ma.SQLAlchemyAutoSchema):
 
     # Schema for the election detail
 

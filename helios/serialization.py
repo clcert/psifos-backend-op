@@ -1,3 +1,9 @@
+"""
+Serialization for Psifos objects.
+
+01-04-2022
+"""
+
 from __future__ import annotations
 import json
 

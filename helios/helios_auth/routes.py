@@ -1,21 +1,22 @@
-from urllib import response
-from flask import request, jsonify, make_response, redirect, session
 from helios import app
-from werkzeug.security import check_password_hash
-from helios.helios_auth.models import User
-from helios import cas_client
 from helios import config
-from functools import wraps
-from flask_cors import cross_origin
+from helios import cas_client
+from helios.helios_auth.models import User
 from helios.helios_auth.utils import cas_requires, verify_voter
 
+from werkzeug.security import check_password_hash
+from functools import wraps
+
+from flask_cors import cross_origin
+from flask.wrappers import Response
+from flask import request, jsonify, make_response, redirect, session
 
 import datetime
 import jwt
 
 
 @app.route('/login', methods=['GET', 'POST'])
-def login_user() -> response:
+def login_user() -> Response:
     """
     Login a admin user
 
@@ -39,7 +40,7 @@ def login_user() -> response:
         return make_response({'message': 'Usuario o contraseñas incorrectos'}, 401)
 
 
-def redirect_cas(election_uuid: str) -> response:
+def redirect_cas(election_uuid: str) -> Response:
 
     cas_client.service_url = config['URL']['back'] + \
         '/vote/' + election_uuid
@@ -48,7 +49,7 @@ def redirect_cas(election_uuid: str) -> response:
 
 
 @app.route('/vote/<election_uuid>', methods=['GET', 'POST'])
-def cas_login(election_uuid: str) -> response:
+def cas_login(election_uuid: str) -> Response:
     """
     Make the connection and verification with the CAS service
     """
@@ -80,7 +81,7 @@ def cas_login(election_uuid: str) -> response:
 @cross_origin
 @app.route('/election_questions/<election_uuid>', methods=['GET'])
 @cas_requires
-def get_election_cas(election_uuid: str) -> response:
+def get_election_cas(election_uuid: str) -> Response:
 
     if not verify_voter(session['username'], election_uuid):
         response = make_response({'message': 'Votante no esta en la elección'}, 401)

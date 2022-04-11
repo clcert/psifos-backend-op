@@ -1,9 +1,19 @@
+"""
+SQLAlchemy Models for Psifos.
+
+01-04-2022
+"""
+
+
 from __future__ import annotations
 from typing import Union
 from helios import db, ma
 from sqlalchemy.orm import backref
+from helios.exceptions import TupleNotFound
 from helios.helios_auth.models import User
-import json
+from helios.serialization import SerializableObject
+
+
 class PsifosModel():
     """
     Abstraction layer for database I/O, allows the developer to:
@@ -27,12 +37,12 @@ class PsifosModel():
             TestModel.deserialize(test_schema, json_data)
             >>> test_model
         
-        -> To save test_model:
-            TestModel.save(test_schema, test_model)
         
         -> To execute a query (Ex: TestModel.query.filter_by(id=1)):
             TestModel.execute(test_schema, TestModel.query.filter_by, id=1)
 
+        -> To save test_model:
+            TestModel.save(test_schema, test_model)
     """
     @classmethod
     def serialize(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], obj: PsifosModel) -> str:
@@ -47,15 +57,6 @@ class PsifosModel():
         Deserializes a JSON like string into it's corresponding PsifosModel subclass.
         """
         return schema.loads(json_data)
-
-    @classmethod
-    def save(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], obj: PsifosModel) -> None:
-        """
-        Saves in the database an instance of the model (serializes all columns with a python object as value).
-        """
-        json_data : str = cls.serialize(schema, obj)
-        db.session.add(cls(**json.loads(json_data)))
-        db.session.commit()
     
     @classmethod
     def execute(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], fun, *args, **kwargs):
@@ -67,15 +68,30 @@ class PsifosModel():
 
         return [__deserialize_model_instance(x) for x in fun(*args, **kwargs)]
     
+    @classmethod
+    def filter_by(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], *args, **kwargs):
+        """
+        Makes more readable the execution of the filter_by method of SQLAlchemy.
+        """
+        return cls.execute(schema, cls.query.filter_by, *args, **kwargs)
+    
+    def save(self) -> None:
+        """
+        Saves in the database an instance of the model (serializes all columns with a python object as value).
+        """
+        class_attributes = [attr for attr in dir(self) if not attr.startswith("_")]
+        for attr in class_attributes:
+            attr_value = getattr(self, attr)
+            if isinstance(attr_value, SerializableObject):
+                setattr(self, attr, SerializableObject.serialize(attr_value))
+        db.session.add(self)
+        db.session.commit()
+
 class Election(PsifosModel, db.Model):
 
     __tablename__ = "helios_election"
 
     id = db.Column(db.Integer, primary_key=True)
-    admin = db.Column(db.Integer, db.ForeignKey('auth_user.id'))
-
-    elections = db.relationship(
-        'User', backref=backref('helios_election', uselist=False))
 
     uuid = db.Column(db.String(50), nullable=False)
     datatype = db.Column(db.String(250), nullable=False,
@@ -84,7 +100,7 @@ class Election(PsifosModel, db.Model):
     short_name = db.Column(db.String(100), unique=True)
     name = db.Column(db.String(250))
 
-    ELECTION_TYPES = (
+    _ELECTION_TYPES = (
         ('election', 'Election'),
         ('referendum', 'Referendum'),
         ('query', 'Query')
@@ -191,24 +207,29 @@ class Election(PsifosModel, db.Model):
         return '<Election %r>' % self.name
 
     @classmethod
-    def get_by_short_name(cls, short_name):
-        return cls.query.filter_by(short_name=short_name).first()
+    def get_by_short_name(cls, schema, short_name) -> Election:
+        query = cls.filter_by(schema=schema, short_name=short_name)
+        if len(query) > 0:
+            return query[0]
+        raise TupleNotFound("Election", "short_name", short_name)
 
     @classmethod
-    def get_by_uuid(cls, uuid):
-        return cls.query.filter_by(uuid=uuid).first()
+    def get_by_uuid(cls, schema, uuid):
+        query = cls.filter_by(schema=schema, uuid=uuid)
+        if len(query) > 0:
+            return query[0]
+        raise TupleNotFound("Election", "uuid", uuid)
 
     @classmethod
-    def update_or_create(cls, **kwargs):
-        election = cls.get_by_uuid(kwargs['uuid'])
-        if election:
+    def update_or_create(cls, schema, **kwargs):
+        election = cls.get_by_uuid(schema=schema, uuid=kwargs['uuid'])
+        if election is not None:
             for key, value in kwargs.items():
                 setattr(election, key, value)
         else:
             election = cls(**kwargs)
 
-        db.session.add(election)
-        db.session.commit()
+        election.save()
         return election
 
 
@@ -238,15 +259,14 @@ class Voter(PsifosModel, db.Model):
 
     @classmethod
     def update_or_create(cls, **kwargs):
-        voter = cls.query.filter_by(
-            election=kwargs['election'], alias=kwargs['alias']).first()
+        voter = cls.filter_by(
+            election=kwargs['election'], voter_name=kwargs['voter_name']).first()
         if voter:
             for key, value in kwargs.items():
                 setattr(voter, key, value)
         else:
             voter = cls(**kwargs)
-        db.session.add(voter)
-        db.session.commit()
+        voter.save()
         return voter
 
 
