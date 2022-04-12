@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Union
 from helios import db, ma
 from sqlalchemy.orm import backref
-from helios.exceptions import TupleNotFound
 from helios.helios_auth.models import User
 from helios.serialization import SerializableObject
 
@@ -209,16 +208,12 @@ class Election(PsifosModel, db.Model):
     @classmethod
     def get_by_short_name(cls, schema, short_name) -> Election:
         query = cls.filter_by(schema=schema, short_name=short_name)
-        if len(query) > 0:
-            return query[0]
-        raise TupleNotFound("Election", "short_name", short_name)
+        return query[0] if len(query) > 0 else None
 
     @classmethod
     def get_by_uuid(cls, schema, uuid):
         query = cls.filter_by(schema=schema, uuid=uuid)
-        if len(query) > 0:
-            return query[0]
-        raise TupleNotFound("Election", "uuid", uuid)
+        return query[0] if len(query) > 0 else None
 
     @classmethod
     def update_or_create(cls, schema, **kwargs):
