@@ -87,10 +87,13 @@ class PsifosModel():
         db.session.commit()
 
 class Election(PsifosModel, db.Model):
-
     __tablename__ = "helios_election"
 
     id = db.Column(db.Integer, primary_key=True)
+    admin = db.Column(db.Integer, db.ForeignKey('auth_user.id'))
+
+    elections = db.relationship(
+        'User', backref=backref('helios_election', uselist=False))
 
     uuid = db.Column(db.String(50), nullable=False)
     datatype = db.Column(db.String(250), nullable=False,
