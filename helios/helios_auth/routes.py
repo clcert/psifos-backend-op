@@ -56,7 +56,7 @@ def cas_login(election_uuid: str) -> Response:
 
     cookie = request.cookies.get('session')
     if 'username' in session:
-
+        
         # Already logged in
         response = redirect(config['URL']['front'] +
                             "/cabina/" + election_uuid, code=302)
@@ -76,6 +76,18 @@ def cas_login(election_uuid: str) -> Response:
         response = redirect(config['URL']['front'] +
                             "/cabina/" + election_uuid, code=302)
         return response
+
+@app.route('/logout/<election_uuid>', methods=['GET'])
+def logout(election_uuid: str) -> Response:
+    """
+    Logout a user
+    """
+    cas_logout_url = cas_client.get_logout_url(config['URL']['front'] +
+                        "/cabina/" + election_uuid + "?logout=true")
+    
+    response = redirect(cas_logout_url, code=302)
+    response.set_cookie('session', expires=0)
+    return response
 
 
 @cross_origin

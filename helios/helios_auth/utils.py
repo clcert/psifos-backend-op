@@ -98,3 +98,14 @@ def verify_voter(voter_name, election_uuid):
         return False
 
     return True
+
+def create_response_cors(response):
+    """
+    Create a response with CORS headers
+
+    :param response: response to be returned
+    """
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response

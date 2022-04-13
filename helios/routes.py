@@ -6,6 +6,8 @@ Routes for Psifos.
 
 
 from helios import db
+from urllib import response
+from flask import request, jsonify, make_response, session
 from helios import app
 from helios.forms import ElectionForm
 from helios.models import Election, Voter, User
@@ -14,9 +16,15 @@ from helios.helios_auth.utils import token_required
 
 from flask import request, jsonify, make_response
 from flask.wrappers import Response
+from helios import db
+from helios.helios_auth.utils import token_required, verify_voter, create_response_cors
+from helios.forms import ElectionForm
 
 import uuid
 import json
+
+
+# Admin routes
 
 
 @app.route("/create_election", methods=['POST'])
@@ -173,7 +181,7 @@ def create_questions(current_user, election_uuid):
 
 @app.route("/get_questions/<election_uuid>", methods=['GET'])
 @token_required
-def get_questions(current_user: User, election_uuid: str) -> Response:
+def get_questions(current_user, election_uuid: str) -> response:
     """
     Route for get questions
     Require a valid token to access >>> token_required
@@ -183,16 +191,17 @@ def get_questions(current_user: User, election_uuid: str) -> Response:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if not election.questions:
-            return make_response({}, 200)
+            response = make_response({}, 200)
+            return response
 
-        if election.admin == current_user.get_id():
+        response = make_response(jsonify(json.loads(election.questions)), 200)
+        return response
 
-            return make_response(jsonify(json.loads(election.questions)), 200)
-        else:
-            return make_response(jsonify({"message": "No tiene permisos para ver esta elección"}), 401)
     except Exception as e:
         print(e)
-        return make_response(jsonify({"message": "Error al obtener la elección"}), 400)
+        response = make_response(
+            jsonify({"message": "Error al obtener la elección"}), 400)
+        return response
 
 
 @app.route("/<election_uuid>/send_voters", methods=['POST'])
@@ -299,3 +308,36 @@ def openreg(current_user: User, election_uuid: str) -> Response:
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al abrir la elección"}), 400)
+
+
+
+# Voters routes
+
+@app.route("/<election_uuid>/questions")
+def get_questions_voters(election_uuid):
+    """
+    Route for get questions
+    Require a cookie valid in session >>> CAS
+
+    """
+    try:
+
+        if verify_voter(session['username'], election_uuid):
+            election = Election.query.filter_by(uuid=election_uuid).first()
+            if not election.questions:
+                response = create_response_cors(make_response({}, 200))
+                return response
+
+            response = create_response_cors(
+                make_response(jsonify(json.loads(election.questions)), 200))
+            return response
+
+        else:
+            response = create_response_cors(make_response(
+                jsonify({"message": "No tiene permisos para acceder a esta elección"}), 401))
+            return response
+
+    except Exception as e:
+        response = create_response_cors(make_response(
+            jsonify({"message": "Error al obtener la elección"}), 400))
+        return response
