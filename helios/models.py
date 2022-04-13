@@ -1,10 +1,16 @@
+"""
+SQLAlchemy Models for Psifos.
+
+01-04-2022
+"""
+
+from __future__ import annotations
 from helios import db
 from sqlalchemy.orm import backref
 from helios.helios_auth.models import User
+from helios.psifos_model import PsifosModel
 
-
-class Election(db.Model):
-
+class Election(PsifosModel, db.Model):
     __tablename__ = "helios_election"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -20,7 +26,7 @@ class Election(db.Model):
     short_name = db.Column(db.String(100), unique=True)
     name = db.Column(db.String(250))
 
-    ELECTION_TYPES = (
+    _ELECTION_TYPES = (
         ('election', 'Election'),
         ('referendum', 'Referendum'),
         ('query', 'Query')
@@ -127,28 +133,29 @@ class Election(db.Model):
         return '<Election %r>' % self.name
 
     @classmethod
-    def get_by_short_name(cls, short_name):
-        return cls.query.filter_by(short_name=short_name).first()
+    def get_by_short_name(cls, schema, short_name) -> Election:
+        query = cls.filter_by(schema=schema, short_name=short_name)
+        return query[0] if len(query) > 0 else None
 
     @classmethod
-    def get_by_uuid(cls, uuid):
-        return cls.query.filter_by(uuid=uuid).first()
+    def get_by_uuid(cls, schema, uuid):
+        query = cls.filter_by(schema=schema, uuid=uuid)
+        return query[0] if len(query) > 0 else None
 
     @classmethod
-    def update_or_create(cls, **kwargs):
-        election = cls.get_by_uuid(kwargs['uuid'])
-        if election:
+    def update_or_create(cls, schema, **kwargs):
+        election = cls.get_by_uuid(schema=schema, uuid=kwargs['uuid'])
+        if election is not None:
             for key, value in kwargs.items():
                 setattr(election, key, value)
         else:
             election = cls(**kwargs)
 
-        db.session.add(election)
-        db.session.commit()
+        election.save()
         return election
 
 
-class Voter(db.Model):
+class Voter(PsifosModel, db.Model):
 
     __tablename__ = "helios_voter"
 
@@ -173,14 +180,29 @@ class Voter(db.Model):
     cast_at = db.Column(db.DateTime, default=None, nullable=True)
 
     @classmethod
-    def update_or_create(cls, **kwargs):
-        voter = cls.query.filter_by(
-            election=kwargs['election'], alias=kwargs['alias']).first()
-        if voter:
+    def get_by_name_and_election(cls, schema, voter_name, election):
+        query = cls.filter_by(schema=schema, voter_name=voter_name, election=election)
+        return query[0] if len(query) > 0 else None
+
+    
+    @classmethod
+    def update_or_create(cls, schema, **kwargs):
+        voter = cls.get_by_name_and_election(
+            schema=schema,
+            voter_name=kwargs["voter_name"],
+            election=kwargs["election"]
+        )
+        if voter is not None:
             for key, value in kwargs.items():
                 setattr(voter, key, value)
         else:
             voter = cls(**kwargs)
-        db.session.add(voter)
-        db.session.commit()
+        voter.save()
         return voter
+
+
+class TestModel(PsifosModel, db.Model):
+    __tablename__ = "test_model"
+
+    id = db.Column(db.Integer, primary_key=True)
+    test_object = db.Column(db.String(255), nullable=False)
