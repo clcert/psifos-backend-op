@@ -2,6 +2,7 @@ from helios import app
 from helios import config
 from helios import cas_client
 from helios.helios_auth.models import User
+
 from helios.helios_auth.utils import cas_requires, verify_voter
 
 from werkzeug.security import check_password_hash
@@ -41,7 +42,6 @@ def login_user() -> Response:
 
 
 def redirect_cas(election_uuid: str) -> Response:
-
     cas_client.service_url = config['URL']['back'] + \
         '/vote/' + election_uuid
     cas_login_url = cas_client.get_login_url()
@@ -82,7 +82,6 @@ def cas_login(election_uuid: str) -> Response:
 @app.route('/election_questions/<election_uuid>', methods=['GET'])
 @cas_requires
 def get_election_cas(election_uuid: str) -> Response:
-
     if not verify_voter(session['username'], election_uuid):
         response = make_response({'message': 'Votante no esta en la elección'}, 401)
         response.headers['Access-Control-Allow-Credentials'] = 'true'

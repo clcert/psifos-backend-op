@@ -1,9 +1,9 @@
-
 """
 Routes for Psifos.
 
 24-03-2022
 """
+
 
 from helios import db
 from helios import app
@@ -197,6 +197,7 @@ def get_questions(current_user: User, election_uuid: str) -> Response:
 
 @app.route("/<election_uuid>/send_voters", methods=['POST'])
 @token_required
+
 def send_voters(current_user, election_uuid) -> Response:
     """
     Route for send voters   
@@ -234,6 +235,7 @@ def send_voters(current_user, election_uuid) -> Response:
 
 @app.route("/<election_uuid>/get_voters", methods=['GET'])
 @token_required
+
 def get_voters(current_user: User, election_uuid) -> Response:
     """
     Route for get voters
@@ -260,7 +262,6 @@ def resume(current_user: User, election_uuid: str) -> Response:
     """
     Route for get a resume election
     Require a valid token to access >>> token_required
-
     """
     try:
         election_schema = ElectionSchema()
@@ -282,7 +283,6 @@ def resume(current_user: User, election_uuid: str) -> Response:
 @token_required
 def openreg(current_user: User, election_uuid: str) -> Response:
     """
-
     Route for open election
     Require a valid token to access >>> token_required
     """
