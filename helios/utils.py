@@ -4,18 +4,9 @@ Utilities for Psifos.
 08-04-2022
 """
 
-from math import exp
-from helios.serialization import SerializableObject
 from flask import abort
 from helios.models import Election
 from functools import update_wrapper
-class TestObject(SerializableObject):
-    """
-    Allows testing object serializarion.
-    """
-    def __init__(self, public_key = None, secret_key = None) -> None:
-        self.public_key = public_key
-        self.secret_key = secret_key
 
 def __verify_election_status(election, expected_status):
     """

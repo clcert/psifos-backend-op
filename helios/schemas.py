@@ -6,8 +6,7 @@ Marshmallow Schemas for Psifos models.
 
 from helios import ma
 from helios.fields import JSONField
-from helios.models import Election, Voter, TestModel
-from helios.utils import TestObject
+from helios.models import Election, Voter
 from marshmallow import fields
 
 class ElectionSchema(ma.SQLAlchemyAutoSchema):
@@ -29,10 +28,11 @@ class VoterSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
 
 
-class TestSchema(ma.SQLAlchemySchema):
+"""class TestSchema(ma.SQLAlchemySchema):
     class Meta:
         model = TestModel
         load_instance = True
     
     id = fields.Integer()
     test_object = JSONField(TestObject)
+"""

@@ -97,7 +97,7 @@ def get_elections(current_user):
     try:
         election_schema = ElectionSchema()
         elections = Election.filter_by(schema=election_schema, admin=current_user.get_id())
-        result = [Election.serialize(schema=election_schema, obj=e) for e in elections]
+        result = [Election.to_dict(schema=election_schema, obj=e) for e in elections]
         return make_response(jsonify(result), 200)
     except Exception as e:
         return make_response(jsonify({"message": "Error al obtener la elección"}), 400)
@@ -117,11 +117,12 @@ def edit_election(current_user, election_uuid):
 
         if form.validate():
             election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            if Election.get_by_short_name(form.short_name.data) and election.short_name != form.short_name.data:
+            if Election.get_by_short_name(schema=election, short_name=form.short_name.data) and election.short_name != form.short_name.data:
                 return make_response({'message': 'La elección ya existe'}, 400)
 
             if election.admin == current_user.get_id():
                 Election.update_or_create(
+                    schema=election_schema,
                     admin=current_user.get_id(),
                     uuid=election_uuid,
                     short_name=data['short_name'],
@@ -210,14 +211,17 @@ def send_voters(current_user, election_uuid) -> Response:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin == current_user.get_id():
+            voter_schema = VoterSchema()
             for voter in file_str:
                 Voter.update_or_create(
+                    schema=voter_schema,
                     election=election.id,
                     uuid=str(uuid.uuid1()),
                     voter_name=voter[0],
                     voter_email=voter[1],
                     alias=voter[2],
-                    voter_weight=voter[3])
+                    voter_weight=voter[3]
+                )
 
         else:
             return make_response(jsonify({"message": "No tiene permisos para enviar votantes a esta elección"}), 401)
@@ -288,7 +292,7 @@ def openreg(current_user: User, election_uuid: str) -> Response:
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin == current_user.get_id():
             election.openreg = data["openreg"]
-            db.session.commit()
+            election.save()
             return make_response(jsonify({"message": "Elección reanudada con exito!"}), 200)
         else:
             return make_response(jsonify({"message": "No tiene permisos para abrir esta elección"}), 401)

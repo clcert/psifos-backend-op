@@ -4,87 +4,11 @@ SQLAlchemy Models for Psifos.
 01-04-2022
 """
 
-
 from __future__ import annotations
-from typing import Union
-from helios import db, ma
+from helios import db
 from sqlalchemy.orm import backref
 from helios.helios_auth.models import User
-from helios.serialization import SerializableObject
-
-
-class PsifosModel():
-    """
-    Abstraction layer for database I/O, allows the developer to:
-
-    (1) Save instances of db.Model with Python objects as column values by
-        serializing them.
-
-    (2) Retrieve tuples from the database with their serialized columns 
-        instantiated as their corresponding class.
-    
-    Usage of the methods:
-        Let test_schema = TestSchema(), test_model an instance 
-        of TestModel and json_data a version of test_model serilized
-        as a JSON like string:
-
-        -> To serialize test_model:
-            TestModel.serialize(test_schema, test_model)
-            >>> json_data
-
-        -> To deserialize json_data:
-            TestModel.deserialize(test_schema, json_data)
-            >>> test_model
-        
-        
-        -> To execute a query (Ex: TestModel.query.filter_by(id=1)):
-            TestModel.execute(test_schema, TestModel.query.filter_by, id=1)
-
-        -> To save test_model:
-            TestModel.save(test_schema, test_model)
-    """
-    @classmethod
-    def serialize(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], obj: PsifosModel) -> str:
-        """
-        Serializes a PsifosModel object into a JSON like string.
-        """
-        return schema.dumps(obj)
-
-    @classmethod
-    def deserialize(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], json_data: str) -> PsifosModel:
-        """
-        Deserializes a JSON like string into it's corresponding PsifosModel subclass.
-        """
-        return schema.loads(json_data)
-    
-    @classmethod
-    def execute(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], fun, *args, **kwargs):
-        """
-        Executes a md.Model function and after that, deserializes the output.
-        """
-        def __deserialize_model_instance(x):
-            return cls.deserialize(schema, cls.serialize(schema, x))
-
-        return [__deserialize_model_instance(x) for x in fun(*args, **kwargs)]
-    
-    @classmethod
-    def filter_by(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], *args, **kwargs):
-        """
-        Makes more readable the execution of the filter_by method of SQLAlchemy.
-        """
-        return cls.execute(schema, cls.query.filter_by, *args, **kwargs)
-    
-    def save(self) -> None:
-        """
-        Saves in the database an instance of the model (serializes all columns with a python object as value).
-        """
-        class_attributes = [attr for attr in dir(self) if not attr.startswith("_")]
-        for attr in class_attributes:
-            attr_value = getattr(self, attr)
-            if isinstance(attr_value, SerializableObject):
-                setattr(self, attr, SerializableObject.serialize(attr_value))
-        db.session.add(self)
-        db.session.commit()
+from helios.psifos_model import PsifosModel
 
 class Election(PsifosModel, db.Model):
     __tablename__ = "helios_election"
@@ -256,10 +180,19 @@ class Voter(PsifosModel, db.Model):
     cast_at = db.Column(db.DateTime, default=None, nullable=True)
 
     @classmethod
-    def update_or_create(cls, **kwargs):
-        voter = cls.filter_by(
-            election=kwargs['election'], voter_name=kwargs['voter_name']).first()
-        if voter:
+    def get_by_name_and_election(cls, schema, voter_name, election):
+        query = cls.filter_by(schema=schema, voter_name=voter_name, election=election)
+        return query[0] if len(query) > 0 else None
+
+    
+    @classmethod
+    def update_or_create(cls, schema, **kwargs):
+        voter = cls.get_by_name_and_election(
+            schema=schema,
+            voter_name=kwargs["voter_name"],
+            election=kwargs["election"]
+        )
+        if voter is not None:
             for key, value in kwargs.items():
                 setattr(voter, key, value)
         else:
