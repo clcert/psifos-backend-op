@@ -169,6 +169,7 @@ class Trustee(PsifosModel, db.Model):
 class SharedPoint(PsifosModel, db.Model):
     __table_name__ = "psifos_shared_point"
 
+    id = db.Column(db.Integer, primary_key=True)
     election_id = db.Column(db.Integer, db.ForeignKey("psifos_election.id"))
     sender = db.Column(db.Integer, nullable=False)
     recipient = db.Column(db.Integer, nullable=False)
