@@ -43,5 +43,5 @@ app.app_context()
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
-from helios import routes
-from .helios_auth import routes
+from psifos import routes
+from .psifos_auth import routes

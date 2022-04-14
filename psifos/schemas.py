@@ -4,9 +4,9 @@ Marshmallow Schemas for Psifos models.
 01-04-2022
 """
 
-from helios import ma
-from helios.fields import JSONField
-from helios.models import Election, Voter
+from psifos import ma
+from psifos.fields import JSONField
+from psifos.models import Election, Voter
 from marshmallow import fields
 
 class ElectionSchema(ma.SQLAlchemyAutoSchema):

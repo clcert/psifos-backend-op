@@ -5,9 +5,9 @@ Abstraction layer for Psifos models.
 """
 
 from __future__ import annotations
-from helios import db, ma
+from psifos import db, ma
 from typing import Union
-from helios.serialization import SerializableObject
+from psifos.serialization import SerializableObject
 
 class PsifosModel():
     """

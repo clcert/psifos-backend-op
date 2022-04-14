@@ -1,6 +1,6 @@
 from wtforms import StringField, SubmitField, PasswordField, IntegerField, Form, ValidationError, DateTimeField, BooleanField, validators
 from wtforms.validators import DataRequired, Email, Length
-from helios.models import Election
+from psifos.models import Election
 
 
 class ElectionForm(Form):

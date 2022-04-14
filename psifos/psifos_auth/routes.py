@@ -1,9 +1,9 @@
-from helios import app
-from helios import config
-from helios import cas_client
-from helios.helios_auth.models import User
+from psifos import app
+from psifos import config
+from psifos import cas_client
+from psifos.psifos_auth.models import User
 
-from helios.helios_auth.utils import cas_requires, verify_voter
+from psifos.psifos_auth.utils import cas_requires, verify_voter
 
 from werkzeug.security import check_password_hash
 from functools import wraps

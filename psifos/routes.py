@@ -5,20 +5,20 @@ Routes for Psifos.
 """
 
 
-from helios import db
+from psifos import db
 from urllib import response
 from flask import request, jsonify, make_response, session
-from helios import app
-from helios.forms import ElectionForm
-from helios.models import Election, Voter, User
-from helios.schemas import ElectionSchema, VoterSchema
-from helios.helios_auth.utils import token_required
+from psifos import app
+from psifos.forms import ElectionForm
+from psifos.models import Election, Voter, User
+from psifos.schemas import ElectionSchema, VoterSchema
+from psifos.psifos_auth.utils import token_required
 
 from flask import request, jsonify, make_response
 from flask.wrappers import Response
-from helios import db
-from helios.helios_auth.utils import token_required, verify_voter, create_response_cors
-from helios.forms import ElectionForm
+from psifos import db
+from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
+from psifos.forms import ElectionForm
 
 import uuid
 import json

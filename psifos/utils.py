@@ -5,8 +5,15 @@ Utilities for Psifos.
 """
 
 from flask import abort
-from helios.models import Election
+from psifos.models import Election
 from functools import update_wrapper
+
+import enum
+
+class ElectionTypeEnum(enum.Enum):
+    query = "Query"
+    election = "Election"
+
 
 def __verify_election_status(election, expected_status):
     """

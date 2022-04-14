@@ -1,9 +1,11 @@
-from helios import db
+from psifos import db
 
 
 class User(db.Model):
 
     __tablename__ = "auth_user"
+
+    elections = db.relationship("Election", backref="auth_user")
 
     id = db.Column(db.Integer, primary_key=True)
 
