@@ -395,3 +395,27 @@ def delete_trustee(current_user: User, election_uuid: str) -> Response:
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al eliminar el trustee"}), 400)
+
+@app.route("/<election_uuid>/get_trustees", methods=['GET'])
+@token_required
+def get_trustees(current_user: User, election_uuid: str) -> Response:
+    """
+    Route for get trustees
+    Require a valid token to access >>> token_required
+    """
+    try:
+        election_schema = ElectionSchema()
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
+        if election.admin == current_user.get_id():
+            trustee_schema = TrusteeSchema()
+            trustees = Trustee.filter_by(
+                schema=trustee_schema, election_id=election.id)
+            response = create_response_cors(
+                make_response(jsonify(trustees), 200))
+            return response
+        else:
+            return make_response(jsonify({"message": "No tiene permisos para obtener los trustees"}), 401)
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al obtener los trustees"}), 400)
