@@ -341,3 +341,57 @@ def get_questions_voters(election_uuid):
         response = create_response_cors(make_response(
             jsonify({"message": "Error al obtener la elección"}), 400))
         return response
+
+
+# Trustee Routes
+@app.route("/<election_uuid>/create_trustee", methods=['POST'])
+@token_required
+def create_trustee(current_user: User, election_uuid: str) -> Response:
+    """
+    Route for create trustee
+    Require a valid token to access >>> token_required
+    """
+    try:
+        data = request.get_json()
+        election_schema = ElectionSchema()
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
+        if election.admin == current_user.get_id():
+            trustee_schema = TrusteeSchema()
+            Trustee.update_or_create(
+                schema=trustee_schema,
+                election_id=election.id,
+                uuid=str(uuid.uuid1()),
+                name=data["trustee_name"],
+                email=data["trustee_email"],
+            )
+            return make_response(jsonify({"message": "Creado con exito!"}), 200)
+        else:
+            return make_response(jsonify({"message": "No tiene permisos para crear un trustee"}), 401)
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al crear el trustee"}), 400)
+
+@app.route("/<election_uuid>/delete_trustee", methods=['POST'])
+@token_required
+def delete_trustee(current_user: User, election_uuid: str) -> Response:
+    """
+    Route for delete trustee
+    Require a valid token to access >>> token_required
+    """
+    try:
+        data = request.get_json()
+        election_schema = ElectionSchema()
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
+        if election.admin == current_user.get_id():
+            trustee_schema = TrusteeSchema()
+            trustee = Trustee.get_by_uuid(
+                schema=trustee_schema, uuid=data["trustee_uuid"])
+            trustee.delete()
+            return make_response(jsonify({"message": "Eliminado con exito!"}), 200)
+        else:
+            return make_response(jsonify({"message": "No tiene permisos para eliminar un trustee"}), 401)
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al eliminar el trustee"}), 400)
