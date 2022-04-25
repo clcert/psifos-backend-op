@@ -76,7 +76,8 @@ class PsifosModel():
         def __deserialize_model_instance(x):
             return cls.from_json(schema, cls.to_json(schema, x))
 
-        return [__deserialize_model_instance(x) for x in fun(*args, **kwargs)]
+        res = fun(*args, **kwargs)
+        return [__deserialize_model_instance(x) for x in res]
     
     @classmethod
     def filter_by(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], *args, **kwargs):

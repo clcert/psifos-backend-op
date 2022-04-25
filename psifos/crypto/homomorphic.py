@@ -3,19 +3,19 @@ Ballot crypto classes for Psifos.
 
 14-04-2022
 """
+from psifos.serialization import SerializableObject
 
-
-class EncryptedAnswer:
+class EncryptedAnswer(SerializableObject):
     pass
 
 
-class EncryptedVote:
+class EncryptedVote(SerializableObject):
     pass
 
 
-class EncryptedVoteWithRandomness:
+class EncryptedVoteWithRandomness(SerializableObject):
     pass
 
 
-class Tally:
+class Tally(SerializableObject):
     pass

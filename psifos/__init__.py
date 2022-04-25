@@ -37,11 +37,11 @@ db_host = config['local']['host']
 db_name = config['local']['database']
 
 # configuring our database uri
-app.config["SQLALCHEMY_DATABASE_URI"] = "mysql://{0}:{1}@{2}/{3}".format(db_user, db_pass, db_host, db_name)
+app.config["SQLALCHEMY_DATABASE_URI"] = "postgres://{0}:{1}@{2}/{3}".format(db_user, db_pass, db_host, db_name)
 app.app_context()
 
-db = SQLAlchemy(app)
+db = SQLAlchemy(app, session_options={"autoflush": False})
 ma = Marshmallow(app)
 
-from psifos import routes
+from psifos import routes   
 from .psifos_auth import routes

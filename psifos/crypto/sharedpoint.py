@@ -4,18 +4,19 @@ SharedPoint classes for Psifos.
 14-04-2022
 """
 
+from psifos.serialization import SerializableObject
 
-class Signature:
+class Signature(SerializableObject):
     pass
 
 
-class Certificate:
+class Certificate(SerializableObject):
     pass
 
 
-class Coefficient:
+class Coefficient(SerializableObject):
     pass
 
 
-class Point:
+class Point(SerializableObject):
     pass

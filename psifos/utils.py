@@ -8,13 +8,6 @@ from flask import abort
 from psifos.models import Election
 from functools import update_wrapper
 
-import enum
-
-class ElectionTypeEnum(enum.Enum):
-    query = "Query"
-    election = "Election"
-
-
 def __verify_election_status(election, expected_status):
     """
     Verifies the election status is coherent with the status

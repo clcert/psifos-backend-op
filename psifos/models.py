@@ -9,15 +9,10 @@ from enum import unique
 from psifos import db
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel 
-from psifos.utils import ElectionTypeEnum
+from psifos.enums import ElectionTypeEnum
 
 class Election(PsifosModel, db.Model):
     __tablename__ = "psifos_election"
-
-    voters = db.relationship("Voter", backref="psifos_election")
-    trustees = db.relationship("Trustee", backref="psifos_election")
-    sharedpoints = db.relationship("SharedPoint", backref="psifos_election")
-    audited_ballots = db.relationship("AuditedBallot", backref="psifos_election")
 
     id = db.Column(db.Integer, primary_key=True)
     admin_id = db.Column(db.Integer, db.ForeignKey('auth_user.id'))
@@ -26,7 +21,7 @@ class Election(PsifosModel, db.Model):
     short_name = db.Column(db.String(100), nullable=False, unique=True)
     name = db.Column(db.String(250), nullable=False)
     election_type = db.Column(db.Enum(ElectionTypeEnum), nullable=False)
-    is_private = db.Column(db.Boolean, default=False, nullable=False)
+    private_p = db.Column(db.Boolean, default=False, nullable=False)
     description = db.Column(db.Text)
 
     public_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGPublicKey
@@ -37,7 +32,7 @@ class Election(PsifosModel, db.Model):
     obscure_voter_names = db.Column(db.Boolean, default=False, nullable=False) 
     randomize_answer_order = db.Column(db.Boolean, default=False, nullable=False)
     normalization = db.Column(db.Boolean, default=False, nullable=False)
-    max_weight = db.Column(db.Integer, null=False)
+    max_weight = db.Column(db.Integer, nullable=False)
     
     total_voters = db.Column(db.Integer, nullable=True)
     total_trustes = db.Column(db.Integer, nullable=True)
@@ -54,6 +49,11 @@ class Election(PsifosModel, db.Model):
     voting_started_at = db.Column(db.DateTime, nullable=True)
     voting_ended_at = db.Column(db.DateTime, nullable=True)
     
+    # One-to-many relationships
+    voters = db.relationship("Voter", backref="psifos_election")
+    trustees = db.relationship("Trustee", backref="psifos_election")
+    sharedpoints = db.relationship("SharedPoint", backref="psifos_election")
+    audited_ballots = db.relationship("AuditedBallot", backref="psifos_election")
 
     def __repr__(self):
         return '<Election %r>' % self.name
@@ -83,7 +83,6 @@ class Election(PsifosModel, db.Model):
 
 class Voter(PsifosModel, db.Model):
     __tablename__ = "psifos_voter"
-    cast_vote = db.relationship("CastVote", backref="psifos_voter", uselist=False)
 
     id = db.Column(db.Integer, primary_key=True)
     election_id = db.Column(db.Integer, db.ForeignKey('psifos_election.id'))
@@ -92,6 +91,10 @@ class Voter(PsifosModel, db.Model):
     voter_login_id = db.Column(db.String(100), nullable=False)
     voter_name = db.Column(db.String(200), nullable=False)
     voter_weight = db.Column(db.Integer, nullable=False)
+
+    # One-to-many relationship
+    casted_votes = db.relationship("CastVote", backref="psifos_voter", uselist=False)
+    
 
     @classmethod
     def get_by_name_and_election(cls, schema, voter_name, election):

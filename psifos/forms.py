@@ -1,7 +1,5 @@
-from wtforms import StringField, SubmitField, PasswordField, IntegerField, Form, ValidationError, DateTimeField, BooleanField, validators
+from wtforms import StringField, IntegerField, Form, BooleanField, validators
 from wtforms.validators import DataRequired, Email, Length
-from psifos.models import Election
-
 
 class ElectionForm(Form):
 
@@ -14,11 +12,9 @@ class ElectionForm(Form):
     election_type = StringField('election_type', validators=[
                                 DataRequired(), Length(max=50)])
 
-    help_email = StringField('help_email', validators=[
-                             validators.Optional(), Email()])
     max_weight = IntegerField('max_weight', validators=[DataRequired()])
 
-    obscure_voter_names = BooleanField('obscure_voter_names')
+    obscure_voter_names = BooleanField('use_voter_aliases')
     randomize_answer_order = BooleanField('randomize_answer_order')
-    is_private = BooleanField('is_private')
+    private_p = BooleanField('private_p')
     normalization = BooleanField('normalization')

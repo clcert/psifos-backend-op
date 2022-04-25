@@ -3,25 +3,20 @@ Routes for Psifos.
 
 24-03-2022
 """
+import uuid
+import json
 
+from urllib import response
+
+from flask import request, jsonify, make_response, session
+from flask.wrappers import Response
 
 from psifos import db
-from urllib import response
-from flask import request, jsonify, make_response, session
 from psifos import app
 from psifos.forms import ElectionForm
 from psifos.models import Election, Voter, User
 from psifos.schemas import ElectionSchema, VoterSchema
-from psifos.psifos_auth.utils import token_required
-
-from flask import request, jsonify, make_response
-from flask.wrappers import Response
-from psifos import db
 from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
-from psifos.forms import ElectionForm
-
-import uuid
-import json
 
 
 # Admin routes
@@ -53,11 +48,10 @@ def create_election(current_user: User) -> Response:
                 name=data['name'],
                 description=data['description'],
                 election_type=data['election_type'],
-                help_email=data["help_email"],
                 max_weight=data['max_weight'],
-                obscure_voter_names=data["obscure_voter_names"],
+                obscure_voter_names=data["use_voter_aliases"],
                 randomize_answer_order=data["randomize_answer_order"],
-                is_private=data["is_private"],
+                private_p=data["private_p"],
                 normalization=data["normalization"],
                 openreg=False)
 
@@ -102,10 +96,12 @@ def get_elections(current_user):
 
     try:
         election_schema = ElectionSchema()
+        print(f"current_user.id = {current_user.get_id()}")
         elections = Election.filter_by(schema=election_schema, admin_id=current_user.get_id())
         result = [Election.to_dict(schema=election_schema, obj=e) for e in elections]
         return make_response(jsonify(result), 200)
     except Exception as e:
+        print(e)
         return make_response(jsonify({"message": "Error al obtener la elección"}), 400)
 
 
@@ -135,12 +131,11 @@ def edit_election(current_user, election_uuid):
                     name=data['name'],
                     description=data['description'],
                     election_type=data['election_type'],
-                    help_email=data["help_email"],
                     max_weight=data['max_weight'],
                     voting_ends_at=data["voting_ends_at"],
-                    obscure_voter_names=data["obscure_voter_names"],
+                    obscure_voter_names=data["use_voter_aliases"],
                     randomize_answer_order=data["randomize_answer_order"],
-                    is_private=data["is_private"],
+                    private_p=data["private_p"],
                     normalization=data["normalization"])
                 return make_response(jsonify({"message": "Elección editada con exito!"}), 200)
             else:

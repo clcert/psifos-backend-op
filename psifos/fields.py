@@ -24,4 +24,7 @@ class SerializableField(fields.Field):
         """
         Same as _serialize but for deserializing.
         """
+        if value == "":
+            return None
+
         return self.class_type.deserialize(value)

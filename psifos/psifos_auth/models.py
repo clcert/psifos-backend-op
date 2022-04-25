@@ -5,8 +5,6 @@ class User(db.Model):
 
     __tablename__ = "auth_user"
 
-    elections = db.relationship("Election", backref="auth_user")
-
     id = db.Column(db.Integer, primary_key=True)
 
     # Id for token
@@ -19,6 +17,9 @@ class User(db.Model):
 
     # administrator
     admin_p = db.Column(db.Boolean, default=False)
+
+    # One-to-many relationship
+    elections = db.relationship("Election", backref="auth_user")
 
     def __repr__(self):
         return '<User %r>' % self.id
