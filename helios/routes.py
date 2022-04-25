@@ -265,6 +265,27 @@ def get_voters(current_user: User, election_uuid) -> Response:
         return make_response(jsonify({"message": "Error al obtener los votantes"}), 400)
 
 
+@app.route("/<election_uuid>/delete_voters", methods=['POST'])
+@token_required
+def delete_voters(current_user: User, election_uuid) -> Response:
+    """
+    Route for delete voters
+    Require a valid token to access >>> token_required
+    """
+    try:
+        election_schema = ElectionSchema()
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        if election.admin == current_user.get_id():
+            Voter.query.filter_by(election=election.id).delete()
+            db.session.commit() 
+            return make_response(jsonify({"message": "Votantes eliminados con exito!"}), 200)
+        else:
+            return make_response(jsonify({"message": "No tiene permisos para eliminar votantes en esta elección"}), 401)
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al eliminar los votantes"}), 400)
+
+
 @app.route("/<election_uuid>/resume", methods=['GET'])
 @token_required
 def resume(current_user: User, election_uuid: str) -> Response:
