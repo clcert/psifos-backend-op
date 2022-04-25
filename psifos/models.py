@@ -26,7 +26,7 @@ class Election(PsifosModel, db.Model):
     short_name = db.Column(db.String(100), nullable=False, unique=True)
     name = db.Column(db.String(250), nullable=False)
     election_type = db.Column(db.Enum(ElectionTypeEnum), nullable=False)
-    private_p = db.Column(db.Boolean, default=False, nullable=False)
+    is_private = db.Column(db.Boolean, default=False, nullable=False)
     description = db.Column(db.Text)
 
     public_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGPublicKey
@@ -34,13 +34,13 @@ class Election(PsifosModel, db.Model):
     questions = db.Column(db.Text, nullable=True)   # PsifosObject: Questions
     openreg = db.Column(db.Boolean, default=False)
 
-    obscure_voter_nams = db.Column(db.Boolean, default=False, nullable=False) 
+    obscure_voter_names = db.Column(db.Boolean, default=False, nullable=False) 
     randomize_answer_order = db.Column(db.Boolean, default=False, nullable=False)
     normalization = db.Column(db.Boolean, default=False, nullable=False)
     max_weight = db.Column(db.Integer, null=False)
     
-    total_voters = db.Column(db.Integer, nullable=False)
-    total_trustes = db.Column(db.Integer, nullable=False)
+    total_voters = db.Column(db.Integer, nullable=True)
+    total_trustes = db.Column(db.Integer, nullable=True)
 
     cast_url = db.Column(db.String(500))
     encrypted_tally = db.Column(db.Text, nullable=True) # PsifosObject: Tally
@@ -50,6 +50,9 @@ class Election(PsifosModel, db.Model):
 
     result = db.Column(db.Text, nullable=True)  # PsifosObject: Result
     open_answers_result = db.Column(db.Text, nullable=True) # PsifosObject: Result (?)
+
+    voting_started_at = db.Column(db.DateTime, nullable=True)
+    voting_ended_at = db.Column(db.DateTime, nullable=True)
     
 
     def __repr__(self):
@@ -122,8 +125,8 @@ class CastVote(PsifosModel, db.Model):
     vote_hash = db.Column(db.String(500), nullable=True, unique=True)
     vote_tinyhash = db.Column(db.String(500), nullable=True, unique=True)
     cast_at = db.Column(db.DateTime, default=db.func.now())
-    verified_at = db.Column(db.DateTimeField, nullable=True)
-    invalidated_at = db.Column(db.DateTimeField, nullable=True)
+    verified_at = db.Column(db.DateTime, nullable=True)
+    invalidated_at = db.Column(db.DateTime, nullable=True)
     hash_cast_ip = db.Column(db.String(500), nullable=True)
 
 
@@ -135,7 +138,7 @@ class AuditedBallot(PsifosModel, db.Model):
 
     raw_vote = db.Column(db.Text)
     vote_hash = db.Column(db.String(500))
-    added_at = db.Column(db.DateTimeField, default=db.func.now())
+    added_at = db.Column(db.DateTime, default=db.func.now())
 
 
 class Trustee(PsifosModel, db.Model):

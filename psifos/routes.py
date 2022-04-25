@@ -47,7 +47,7 @@ def create_election(current_user: User) -> Response:
 
             Election.update_or_create(
                 schema=election_schema,
-                admin=current_user.get_id(),
+                admin_id=current_user.get_id(),
                 uuid=str(uuid.uuid1()),
                 short_name=data['short_name'],
                 name=data['name'],
@@ -55,11 +55,9 @@ def create_election(current_user: User) -> Response:
                 election_type=data['election_type'],
                 help_email=data["help_email"],
                 max_weight=data['max_weight'],
-                voting_started_at=data["voting_started_at"],
-                voting_ends_at=data["voting_ends_at"],
-                use_voter_aliases=data["use_voter_aliases"],
+                obscure_voter_names=data["obscure_voter_names"],
                 randomize_answer_order=data["randomize_answer_order"],
-                private_p=data["private_p"],
+                is_private=data["is_private"],
                 normalization=data["normalization"],
                 openreg=False)
 
@@ -83,7 +81,7 @@ def get_election(current_user, election_uuid):
     try:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        if election.admin == current_user.get_id():
+        if election.admin_id == current_user.get_id():
             result = ElectionSchema().dump(election)
             return jsonify(result)
         else:
@@ -104,7 +102,7 @@ def get_elections(current_user):
 
     try:
         election_schema = ElectionSchema()
-        elections = Election.filter_by(schema=election_schema, admin=current_user.get_id())
+        elections = Election.filter_by(schema=election_schema, admin_id=current_user.get_id())
         result = [Election.to_dict(schema=election_schema, obj=e) for e in elections]
         return make_response(jsonify(result), 200)
     except Exception as e:
@@ -128,10 +126,10 @@ def edit_election(current_user, election_uuid):
             if Election.get_by_short_name(schema=election, short_name=form.short_name.data) and election.short_name != form.short_name.data:
                 return make_response({'message': 'La elección ya existe'}, 400)
 
-            if election.admin == current_user.get_id():
+            if election.admin_id == current_user.get_id():
                 Election.update_or_create(
                     schema=election_schema,
-                    admin=current_user.get_id(),
+                    admin_id=current_user.get_id(),
                     uuid=election_uuid,
                     short_name=data['short_name'],
                     name=data['name'],
@@ -139,11 +137,10 @@ def edit_election(current_user, election_uuid):
                     election_type=data['election_type'],
                     help_email=data["help_email"],
                     max_weight=data['max_weight'],
-                    voting_started_at=data["voting_started_at"],
                     voting_ends_at=data["voting_ends_at"],
-                    use_voter_aliases=data["use_voter_aliases"],
+                    obscure_voter_names=data["obscure_voter_names"],
                     randomize_answer_order=data["randomize_answer_order"],
-                    private_p=data["private_p"],
+                    is_private=data["is_private"],
                     normalization=data["normalization"])
                 return make_response(jsonify({"message": "Elección editada con exito!"}), 200)
             else:
@@ -169,7 +166,7 @@ def create_questions(current_user, election_uuid):
         data = request.get_json()
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        if election.admin == current_user.get_id():
+        if election.admin_id == current_user.get_id():
             election.questions = json.dumps(data)
             db.session.commit()
             return make_response(jsonify({"message": "Preguntas creadas con exito!"}), 200)
@@ -220,7 +217,7 @@ def send_voters(current_user, election_uuid) -> Response:
 
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        if election.admin == current_user.get_id():
+        if election.admin_id == current_user.get_id():
             voter_schema = VoterSchema()
             for voter in file_str:
                 Voter.update_or_create(
@@ -254,7 +251,7 @@ def get_voters(current_user: User, election_uuid) -> Response:
     try:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        if election.admin == current_user.get_id():
+        if election.admin_id == current_user.get_id():
             voters = Voter.query.filter_by(election=election.id).all()
             result = VoterSchema(many=True).dump(voters)
             return make_response(jsonify(result), 200)
@@ -277,7 +274,7 @@ def resume(current_user: User, election_uuid: str) -> Response:
         voter_schema = VoterSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         voters_election = Voter.filter_by(schema=voter_schema, election=election.id)
-        if election.admin == current_user.get_id():
+        if election.admin_id == current_user.get_id():
             election.resume()
             return make_response(jsonify({"election": "Elección reanudada con exito!"}), 200)
         else:
@@ -299,7 +296,7 @@ def openreg(current_user: User, election_uuid: str) -> Response:
         data = request.get_json()
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        if election.admin == current_user.get_id():
+        if election.admin_id == current_user.get_id():
             election.openreg = data["openreg"]
             election.save()
             return make_response(jsonify({"message": "Elección reanudada con exito!"}), 200)

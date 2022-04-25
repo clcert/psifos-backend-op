@@ -18,9 +18,7 @@ class ElectionForm(Form):
                              validators.Optional(), Email()])
     max_weight = IntegerField('max_weight', validators=[DataRequired()])
 
-    voting_started_at = DateTimeField('voting_started_at')
-    voting_ends_at = DateTimeField('voting_ends_at')
-    use_voter_aliases = BooleanField('use_voter_aliases')
+    obscure_voter_names = BooleanField('obscure_voter_names')
     randomize_answer_order = BooleanField('randomize_answer_order')
-    private_p = BooleanField('private_p')
+    is_private = BooleanField('is_private')
     normalization = BooleanField('normalization')

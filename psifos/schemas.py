@@ -29,7 +29,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
     short_name = ma.auto_field()
     name = ma.auto_field()
     election_type = ma.auto_field()
-    private_p = ma.auto_field()
+    is_private = ma.auto_field()
     description = ma.auto_field() 
     public_key = SerializableField(EGPublicKey)
     private_key = SerializableField(EGSecretKey)
