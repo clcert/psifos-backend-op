@@ -96,7 +96,6 @@ def get_elections(current_user):
 
     try:
         election_schema = ElectionSchema()
-        print(f"current_user.id = {current_user.get_id()}")
         elections = Election.filter_by(schema=election_schema, admin_id=current_user.get_id())
         result = [Election.to_dict(schema=election_schema, obj=e) for e in elections]
         return make_response(jsonify(result), 200)
