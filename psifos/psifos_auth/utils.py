@@ -3,15 +3,15 @@ from sqlalchemy import true
 from werkzeug.security import generate_password_hash
 from functools import wraps
 from flask import request, jsonify, session, redirect, make_response
-from helios import app, db
-from helios.helios_auth.models import User
-from helios.models import Election, Voter
-from helios import config
+from psifos import app, db
+from psifos.psifos_auth.models import User
+from psifos.models import Election, Voter
+from psifos import config
 
 import jwt
 import uuid
 
-from helios.models import Voter
+from psifos.models import Voter
 
 
 def token_required(f):

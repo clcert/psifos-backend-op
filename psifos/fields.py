@@ -1,8 +1,9 @@
 from marshmallow import fields
 
-class JSONField(fields.Field):
+class SerializableField(fields.Field):
     """
-    Extension of a marshmallow Field to support JSONFields.
+    Extension of a marshmallow Field to support serializable 
+    Python objects as fields in a table.
     """
     def __init__(self, class_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -12,7 +13,7 @@ class JSONField(fields.Field):
         """
         This method gets called in the background when we
         serialize a Psifos Model instance. It's called for 
-        each JSONField in it's schema.
+        each SerializableField in it's schema.
         """
         if value is None:
             return ""
@@ -23,4 +24,7 @@ class JSONField(fields.Field):
         """
         Same as _serialize but for deserializing.
         """
+        if value == "":
+            return None
+
         return self.class_type.deserialize(value)

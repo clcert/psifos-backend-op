@@ -1,4 +1,4 @@
-from helios import db
+from psifos import db
 
 
 class User(db.Model):
@@ -17,6 +17,9 @@ class User(db.Model):
 
     # administrator
     admin_p = db.Column(db.Boolean, default=False)
+
+    # One-to-many relationship
+    elections = db.relationship("Election", backref="auth_user")
 
     def __repr__(self):
         return '<User %r>' % self.id

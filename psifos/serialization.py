@@ -17,6 +17,7 @@ class SerializableObject(object):
         """ 
         Serializes an object to a JSON like string. 
         """
+        
         if isinstance(obj, str):
             return obj
 
