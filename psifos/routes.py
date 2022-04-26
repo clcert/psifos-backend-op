@@ -49,7 +49,7 @@ def create_election(current_user: User) -> Response:
                 description=data['description'],
                 election_type=data['election_type'],
                 max_weight=data['max_weight'],
-                obscure_voter_names=data["use_voter_aliases"],
+                obscure_voter_names=data["obscure_voter_names"],
                 randomize_answer_order=data["randomize_answer_order"],
                 private_p=data["private_p"],
                 normalization=data["normalization"],
@@ -132,7 +132,7 @@ def edit_election(current_user, election_uuid):
                     election_type=data['election_type'],
                     max_weight=data['max_weight'],
                     voting_ends_at=data["voting_ends_at"],
-                    obscure_voter_names=data["use_voter_aliases"],
+                    obscure_voter_names=data["obscure_voter_names"],
                     randomize_answer_order=data["randomize_answer_order"],
                     private_p=data["private_p"],
                     normalization=data["normalization"])
