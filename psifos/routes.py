@@ -14,8 +14,8 @@ from flask.wrappers import Response
 from psifos import db
 from psifos import app
 from psifos.forms import ElectionForm
-from psifos.models import Election, Voter, User
-from psifos.schemas import ElectionSchema, VoterSchema
+from psifos.models import Election, Voter, User, Trustee
+from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema
 from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
 
 
@@ -347,14 +347,14 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(
             schema=election_schema, uuid=election_uuid)
-        if election.admin == current_user.get_id():
+        if election.admin_id == current_user.get_id():
             trustee_schema = TrusteeSchema()
             Trustee.update_or_create(
                 schema=trustee_schema,
                 election_id=election.id,
                 uuid=str(uuid.uuid1()),
-                name=data["trustee_name"],
-                email=data["trustee_email"],
+                name=data["name"],
+                email=data["email"],
             )
             return make_response(jsonify({"message": "Creado con exito!"}), 200)
         else:
@@ -398,12 +398,12 @@ def get_trustees(current_user: User, election_uuid: str) -> Response:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(
             schema=election_schema, uuid=election_uuid)
-        if election.admin == current_user.get_id():
+        if election.admin_id == current_user.get_id():
             trustee_schema = TrusteeSchema()
             trustees = Trustee.filter_by(
                 schema=trustee_schema, election_id=election.id)
-            response = create_response_cors(
-                make_response(jsonify(trustees), 200))
+            result = [Trustee.to_dict(schema=trustee_schema, obj=e) for e in trustees]
+            response = make_response(jsonify(result), 200)
             return response
         else:
             return make_response(jsonify({"message": "No tiene permisos para obtener los trustees"}), 401)

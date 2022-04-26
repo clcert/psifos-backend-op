@@ -171,6 +171,22 @@ class Trustee(PsifosModel, db.Model):
     coefficients = db.Column(db.Text, nullable=True)  # PsifosObject: Coefficient
     acknowledgements = db.Column(db.Text, nullable=True)  # PsifosObject: Signature
 
+    @classmethod
+    def get_by_uuid(cls, schema, uuid):
+        query = cls.filter_by(schema=schema, uuid=uuid)
+        return query[0] if len(query) > 0 else None
+
+    @classmethod
+    def update_or_create(cls, schema, **kwargs):
+        trustee = cls.get_by_uuid(schema=schema, uuid=kwargs['uuid'])
+        if trustee is not None:
+            for key, value in kwargs.items():
+                setattr(trustee, key, value)
+        else:
+            trustee = cls(**kwargs)
+        trustee.save()
+        return trustee
+
 
 class SharedPoint(PsifosModel, db.Model):
     __table_name__ = "psifos_shared_point"
