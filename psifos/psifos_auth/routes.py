@@ -2,6 +2,7 @@ from psifos import app
 from psifos import config
 from psifos import cas_client
 from psifos.psifos_auth.models import User
+from psifos.psifos_auth.schemas import UserSchema
 
 from psifos.psifos_auth.utils import cas_requires, verify_voter
 
@@ -27,7 +28,8 @@ def login_user() -> Response:
     if not auth or not auth.username or not auth.password:
         return make_response({'message': 'Ocurrio un error, intente nuevamente'}, 401)
 
-    user = User.query.filter_by(name=auth.username).first()
+    user_schema = UserSchema()
+    user = User.filter_by_name(schema=user_schema, name=auth.username)
 
     if not user:
         return make_response({'message': 'Usuario o contraseñas incorrectos'}, 401)

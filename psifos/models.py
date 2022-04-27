@@ -97,17 +97,17 @@ class Voter(PsifosModel, db.Model):
     
 
     @classmethod
-    def get_by_name_and_election(cls, schema, voter_name, election):
-        query = cls.filter_by(schema=schema, voter_name=voter_name, election=election)
+    def get_by_login_id_and_election(cls, schema, voter_login_id, election):
+        query = cls.filter_by(schema=schema, voter_login_id=voter_login_id, election=election)
         return query[0] if len(query) > 0 else None
 
     
     @classmethod
     def update_or_create(cls, schema, **kwargs):
-        voter = cls.get_by_name_and_election(
+        voter = cls.get_by_login_id_and_election(
             schema=schema,
-            voter_name=kwargs["voter_name"],
-            election=kwargs["election"]
+            voter_login_id=kwargs["voter_login_id"],
+            election_id=kwargs["election_id"]
         )
         if voter is not None:
             for key, value in kwargs.items():

@@ -1,7 +1,8 @@
 from psifos import db
+from psifos.psifos_model import PsifosModel
 
 
-class User(db.Model):
+class User(db.Model, PsifosModel):
 
     __tablename__ = "auth_user"
 
@@ -26,3 +27,13 @@ class User(db.Model):
 
     def get_id(self):
         return self.id
+    
+    @classmethod
+    def get_by_name(cls, schema, name):
+        query = cls.filter_by(schema=schema, name=name)
+        return query[0] if len(query) > 0 else None
+    
+    @classmethod
+    def get_by_public_id(cls, schema, public_id):
+        query = cls.filter_by(schema=schema, public_id=public_id)
+        return query[0] if len(query) > 0 else None
