@@ -36,6 +36,7 @@ def token_required(f):
                 token, app.config["SECRET_KEY"], algorithms=['HS256'])
             user_schema = UserSchema()
             current_user = User.get_by_public_id(schema=user_schema, public_id=data['public_id'])
+
         except Exception as e:
             return jsonify({'message': 'token is invalid'})
 

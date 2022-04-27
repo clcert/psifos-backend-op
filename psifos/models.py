@@ -97,8 +97,8 @@ class Voter(PsifosModel, db.Model):
     
 
     @classmethod
-    def get_by_login_id_and_election(cls, schema, voter_login_id, election):
-        query = cls.filter_by(schema=schema, voter_login_id=voter_login_id, election=election)
+    def get_by_login_id_and_election(cls, schema, voter_login_id, election_id):
+        query = cls.filter_by(schema=schema, voter_login_id=voter_login_id, election_id=election_id)
         return query[0] if len(query) > 0 else None
 
     
@@ -131,6 +131,27 @@ class CastVote(PsifosModel, db.Model):
     verified_at = db.Column(db.DateTime, nullable=True)
     invalidated_at = db.Column(db.DateTime, nullable=True)
     hash_cast_ip = db.Column(db.String(500), nullable=True)
+
+    
+    @classmethod
+    def get_by_voter_id(cls, schema, voter_id):
+        query = cls.filter_by(schema=schema, voter_id=voter_id)
+        return query[0] if len(query) > 0 else None
+
+
+    @classmethod
+    def update_or_create(cls, schema, **kwargs):
+        cast_vote = cls.get_by_voter_id(
+            schema=schema,
+            voter_id=kwargs["voter_id"],
+        )
+        if cast_vote is not None:
+            for key, value in kwargs.items():
+                setattr(cast_vote, key, value)
+        else:
+            cast_vote = cls(**kwargs)
+        cast_vote.save()
+        return cast_vote
 
 
 class AuditedBallot(PsifosModel, db.Model):

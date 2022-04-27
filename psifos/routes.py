@@ -3,6 +3,7 @@ Routes for Psifos.
 
 24-03-2022
 """
+from ctypes import cast
 import uuid
 import json
 
@@ -14,8 +15,8 @@ from flask.wrappers import Response
 from psifos import db
 from psifos import app
 from psifos.forms import ElectionForm
-from psifos.models import Election, Voter, User
-from psifos.schemas import ElectionSchema, VoterSchema
+from psifos.models import CastVote, Election, Voter, User
+from psifos.schemas import CastVoteSchema, ElectionSchema, VoterSchema
 from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
 
 
@@ -213,14 +214,19 @@ def send_voters(current_user, election_uuid) -> Response:
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             voter_schema = VoterSchema()
+            cast_vote_schema = CastVoteSchema()
             for voter in file_str:
-                Voter.update_or_create(
+                a_voter = Voter.update_or_create(
                     schema=voter_schema,
                     election_id=election.id,
                     uuid=str(uuid.uuid1()),
                     voter_login_id=voter[0],
                     voter_name=voter[1],
                     voter_weight=voter[2],
+                )
+                CastVote.update_or_create(
+                    schema=cast_vote_schema,
+                    voter_id=a_voter.id,
                 )
 
         else:
