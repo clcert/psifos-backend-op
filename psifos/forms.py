@@ -1,5 +1,5 @@
 from wtforms import StringField, IntegerField, Form, BooleanField, validators
-from wtforms.validators import DataRequired, Email, Length
+from wtforms.validators import DataRequired, Length
 
 class ElectionForm(Form):
 

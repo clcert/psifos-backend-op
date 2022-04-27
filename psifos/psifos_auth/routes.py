@@ -29,7 +29,7 @@ def login_user() -> Response:
         return make_response({'message': 'Ocurrio un error, intente nuevamente'}, 401)
 
     user_schema = UserSchema()
-    user = User.filter_by_name(schema=user_schema, name=auth.username)
+    user = User.get_by_name(schema=user_schema, name=auth.username)
 
     if not user:
         return make_response({'message': 'Usuario o contraseñas incorrectos'}, 401)
