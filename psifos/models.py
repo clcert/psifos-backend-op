@@ -92,7 +92,7 @@ class Voter(PsifosModel, db.Model):
     voter_name = db.Column(db.String(200), nullable=False)
     voter_weight = db.Column(db.Integer, nullable=False)
 
-    # One-to-many relationship
+    # One-to-one relationship
     casted_votes = db.relationship("CastVote", backref="psifos_voter", uselist=False)
     
 
@@ -124,10 +124,10 @@ class CastVote(PsifosModel, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     voter_id = db.Column(db.Integer, db.ForeignKey("psifos_voter.id"), unique=True)
     
-    vote = db.Column(db.Text, nullable=True, unique=True)   # PsifosObject: EncryptedVote
-    vote_hash = db.Column(db.String(500), nullable=True, unique=True)
-    vote_tinyhash = db.Column(db.String(500), nullable=True, unique=True)
-    cast_at = db.Column(db.DateTime, default=db.func.now())
+    vote = db.Column(db.Text, nullable=True)   # PsifosObject: EncryptedVote
+    vote_hash = db.Column(db.String(500), nullable=True)
+    vote_tinyhash = db.Column(db.String(500), nullable=True)
+    cast_at = db.Column(db.DateTime, default=db.func.now(), nullable=True)
     verified_at = db.Column(db.DateTime, nullable=True)
     invalidated_at = db.Column(db.DateTime, nullable=True)
     hash_cast_ip = db.Column(db.String(500), nullable=True)
