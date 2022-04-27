@@ -14,7 +14,7 @@ class ElectionForm(Form):
 
     max_weight = IntegerField('max_weight', validators=[DataRequired()])
 
-    obscure_voter_names = BooleanField('use_voter_aliases')
+    obscure_voter_names = BooleanField('obscure_voter_names')
     randomize_answer_order = BooleanField('randomize_answer_order')
     private_p = BooleanField('private_p')
     normalization = BooleanField('normalization')
