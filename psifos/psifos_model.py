@@ -97,3 +97,10 @@ class PsifosModel():
                 setattr(self, attr, SerializableObject.serialize(attr_value))
         db.session.add(self)
         db.session.commit()
+    
+    def delete(self) -> None:
+        """
+        Deletes the instance from the database.
+        """
+        db.session.delete(self)
+        db.session.commit()
