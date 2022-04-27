@@ -9,7 +9,7 @@ from psifos.psifos_auth.models import User
 from psifos.schemas import ElectionSchema
 
 
-class ElectionSchema(ma.SQLAlchemySchema):
+class UserSchema(ma.SQLAlchemySchema):
 
     # Schema for the User detail
 

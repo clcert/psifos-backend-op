@@ -3,6 +3,7 @@ Routes for Psifos.
 
 24-03-2022
 """
+from ctypes import cast
 import uuid
 import json
 
@@ -14,8 +15,8 @@ from flask.wrappers import Response
 from psifos import db
 from psifos import app
 from psifos.forms import ElectionForm
-from psifos.models import Election, Voter, User, Trustee
-from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema
+from psifos.models import Election, Voter, User, Trustee, CastVote
+from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteSchema
 from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
 
 
@@ -213,15 +214,20 @@ def send_voters(current_user, election_uuid) -> Response:
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             voter_schema = VoterSchema()
+            cast_vote_schema = CastVoteSchema()
             for voter in file_str:
-                Voter.update_or_create(
+                print(voter)
+                a_voter = Voter.update_or_create(
                     schema=voter_schema,
-                    election=election.id,
+                    election_id=election.id,
                     uuid=str(uuid.uuid1()),
-                    voter_name=voter[0],
-                    voter_email=voter[1],
-                    alias=voter[2],
-                    voter_weight=voter[3]
+                    voter_login_id=voter[0],
+                    voter_name=voter[1],
+                    voter_weight=voter[2],
+                )
+                CastVote.update_or_create(
+                    schema=cast_vote_schema,
+                    voter_id=a_voter.id,
                 )
 
         else:
@@ -229,7 +235,7 @@ def send_voters(current_user, election_uuid) -> Response:
         return make_response(jsonify({"message": "Votantes creados con exito!"}), 200)
 
     except Exception as e:
-        print(e)
+        raise e
         return make_response(jsonify({"message": "Error al enviar los votantes"}), 400)
 
 
@@ -246,7 +252,8 @@ def get_voters(current_user: User, election_uuid) -> Response:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            voters = Voter.query.filter_by(election=election.id).all()
+            voter_schema = VoterSchema()
+            voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
             result = VoterSchema(many=True).dump(voters)
             return make_response(jsonify(result), 200)
         else:
@@ -267,7 +274,7 @@ def resume(current_user: User, election_uuid: str) -> Response:
         election_schema = ElectionSchema()
         voter_schema = VoterSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        voters_election = Voter.filter_by(schema=voter_schema, election=election.id)
+        voters_election = Voter.filter_by(schema=voter_schema, election_id=election.id)
         if election.admin_id == current_user.get_id():
             election.resume()
             return make_response(jsonify({"election": "Elección reanudada con exito!"}), 200)
@@ -314,7 +321,8 @@ def get_questions_voters(election_uuid):
     try:
 
         if verify_voter(session['username'], election_uuid):
-            election = Election.query.filter_by(uuid=election_uuid).first()
+            election_schema = ElectionSchema()
+            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
             if not election.questions:
                 response = create_response_cors(make_response({}, 200))
                 return response
@@ -375,10 +383,10 @@ def delete_trustee(current_user: User, election_uuid: str) -> Response:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(
             schema=election_schema, uuid=election_uuid)
-        if election.admin == current_user.get_id():
+        if election.admin_id == current_user.get_id():
             trustee_schema = TrusteeSchema()
             trustee = Trustee.get_by_uuid(
-                schema=trustee_schema, uuid=data["trustee_uuid"])
+                schema=trustee_schema, uuid=data["uuid"])
             trustee.delete()
             return make_response(jsonify({"message": "Eliminado con exito!"}), 200)
         else:
