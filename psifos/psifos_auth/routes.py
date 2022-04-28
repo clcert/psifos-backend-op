@@ -1,9 +1,10 @@
-from helios import app
-from helios import config
-from helios import cas_client
-from helios.helios_auth.models import User
+from psifos import app
+from psifos import config
+from psifos import cas_client
+from psifos.psifos_auth.models import User
+from psifos.psifos_auth.schemas import UserSchema
 
-from helios.helios_auth.utils import cas_requires, verify_voter
+from psifos.psifos_auth.utils import cas_requires, verify_voter
 
 from werkzeug.security import check_password_hash
 from functools import wraps
@@ -27,7 +28,8 @@ def login_user() -> Response:
     if not auth or not auth.username or not auth.password:
         return make_response({'message': 'Ocurrio un error, intente nuevamente'}, 401)
 
-    user = User.query.filter_by(name=auth.username).first()
+    user_schema = UserSchema()
+    user = User.get_by_name(schema=user_schema, name=auth.username)
 
     if not user:
         return make_response({'message': 'Usuario o contraseñas incorrectos'}, 401)

@@ -3,15 +3,17 @@ from sqlalchemy import true
 from werkzeug.security import generate_password_hash
 from functools import wraps
 from flask import request, jsonify, session, redirect, make_response
-from helios import app, db
-from helios.helios_auth.models import User
-from helios.models import Election, Voter
-from helios import config
+from psifos import app, db
+from psifos.psifos_auth.models import User
+from psifos.psifos_auth.schemas import UserSchema
+from psifos.models import Election, Voter
+from psifos import config
 
 import jwt
 import uuid
 
-from helios.models import Voter
+from psifos.models import Voter
+from psifos.schemas import ElectionSchema, VoterSchema
 
 
 def token_required(f):
@@ -32,8 +34,9 @@ def token_required(f):
         try:
             data = jwt.decode(
                 token, app.config["SECRET_KEY"], algorithms=['HS256'])
-            current_user = User.query.filter_by(
-                public_id=data['public_id']).first()
+            user_schema = UserSchema()
+            current_user = User.get_by_public_id(schema=user_schema, public_id=data['public_id'])
+
         except Exception as e:
             return jsonify({'message': 'token is invalid'})
 
@@ -74,25 +77,26 @@ def create_user(username: str, password: str) -> str:
     return "Usuario creado"
 
 
-def verify_voter(voter_name, election_uuid):
+def verify_voter(voter_login_id, election_uuid):
     """
     Verify if the voter is registered in the election
 
     if the voter name finish with '@uchile.cl' it is verified 
     that the user is found without the '@uchile.cl'
 
-    :param voter_name: name of the voter
+    :param voter_login_id: name of the voter
     :param election_uuid: uuid of the election
 
     """
-
-    election = Election.query.filter_by(uuid=election_uuid).first()
+    election_schema = ElectionSchema()
+    election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
     if not election:
         return False
-    voter = Voter.query.filter_by(voter_name=voter_name, election=election.id).first()
+    voter_schema = VoterSchema()
+    voter = Voter.get_by_login_id_and_election(schema=voter_schema, voter_login_id=voter_login_id, election_id=election.id)
     if not voter:
-        if voter_name[-10:] == '@uchile.cl':
-            voter  = Voter.query.filter_by(voter_name=voter_name[:-10], election=election.id).first()
+        if voter_login_id[-10:] == '@uchile.cl':
+            voter = Voter.get_by_login_id_and_election(schema=voter_schema, voter_login_id=voter_login_id[:-10], election_id=election.id)
             if not voter:
                 return False
         return False

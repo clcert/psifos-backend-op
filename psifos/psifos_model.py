@@ -5,9 +5,9 @@ Abstraction layer for Psifos models.
 """
 
 from __future__ import annotations
-from helios import db, ma
+from psifos import db, ma
 from typing import Union
-from helios.serialization import SerializableObject
+from psifos.serialization import SerializableObject
 
 class PsifosModel():
     """
@@ -76,7 +76,8 @@ class PsifosModel():
         def __deserialize_model_instance(x):
             return cls.from_json(schema, cls.to_json(schema, x))
 
-        return [__deserialize_model_instance(x) for x in fun(*args, **kwargs)]
+        res = fun(*args, **kwargs)
+        return [__deserialize_model_instance(x) for x in res]
     
     @classmethod
     def filter_by(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], *args, **kwargs):
@@ -95,4 +96,11 @@ class PsifosModel():
             if isinstance(attr_value, SerializableObject):
                 setattr(self, attr, SerializableObject.serialize(attr_value))
         db.session.add(self)
+        db.session.commit()
+    
+    def delete(self) -> None:
+        """
+        Deletes the instance from the database.
+        """
+        db.session.delete(self)
         db.session.commit()
