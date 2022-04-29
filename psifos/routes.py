@@ -41,10 +41,11 @@ def create_election(current_user: User) -> Response:
             if Election.get_by_short_name(schema=election_schema, short_name=form.short_name.data):
                 return make_response({'message': 'La elección ya existe'}, 400)
 
+            uuid_election = str(uuid.uuid4())
             Election.update_or_create(
                 schema=election_schema,
                 admin_id=current_user.get_id(),
-                uuid=str(uuid.uuid1()),
+                uuid=uuid_election,
                 short_name=data['short_name'],
                 name=data['name'],
                 description=data['description'],
@@ -56,7 +57,7 @@ def create_election(current_user: User) -> Response:
                 normalization=data["normalization"],
                 openreg=False)
 
-            return make_response(jsonify({"message": "Elección creada con exito!"}), 200)
+            return make_response(jsonify({"message": "Elección creada con exito!", "uuid": uuid_election}), 200)
 
         else:
             return make_response(jsonify({"message": form.errors}), 400)
@@ -75,7 +76,8 @@ def get_election(current_user, election_uuid):
     """
     try:
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             result = ElectionSchema().dump(election)
             return jsonify(result)
@@ -97,8 +99,10 @@ def get_elections(current_user):
 
     try:
         election_schema = ElectionSchema()
-        elections = Election.filter_by(schema=election_schema, admin_id=current_user.get_id())
-        result = [Election.to_dict(schema=election_schema, obj=e) for e in elections]
+        elections = Election.filter_by(
+            schema=election_schema, admin_id=current_user.get_id())
+        result = [Election.to_dict(schema=election_schema, obj=e)
+                  for e in elections]
         return make_response(jsonify(result), 200)
     except Exception as e:
         print(e)
@@ -115,10 +119,11 @@ def edit_election(current_user, election_uuid):
     try:
         data = request.get_json()
         form = ElectionForm.from_json(data)
-        election_schema = ElectionSchema() 
+        election_schema = ElectionSchema()
 
         if form.validate():
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+            election = Election.get_by_uuid(
+                schema=election_schema, uuid=election_uuid)
             if Election.get_by_short_name(schema=election_schema, short_name=form.short_name.data) and election.short_name != form.short_name.data:
                 return make_response({'message': 'La elección ya existe'}, 400)
 
@@ -159,7 +164,8 @@ def create_questions(current_user, election_uuid):
     try:
         data = request.get_json()
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             election.questions = json.dumps(data)
             db.session.commit()
@@ -180,7 +186,8 @@ def get_questions(current_user, election_uuid: str) -> response:
     """
     try:
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
         if not election.questions:
             response = make_response({}, 200)
             return response
@@ -197,7 +204,6 @@ def get_questions(current_user, election_uuid: str) -> response:
 
 @app.route("/<election_uuid>/send_voters", methods=['POST'])
 @token_required
-
 def send_voters(current_user, election_uuid) -> Response:
     """
     Route for send voters   
@@ -210,7 +216,8 @@ def send_voters(current_user, election_uuid) -> Response:
         file_str = [x.split(",") for x in file_str]
 
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             voter_schema = VoterSchema()
             cast_vote_schema = CastVoteSchema()
@@ -240,7 +247,6 @@ def send_voters(current_user, election_uuid) -> Response:
 
 @app.route("/<election_uuid>/get_voters", methods=['GET'])
 @token_required
-
 def get_voters(current_user: User, election_uuid) -> Response:
     """
     Route for get voters
@@ -249,10 +255,12 @@ def get_voters(current_user: User, election_uuid) -> Response:
 
     try:
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             voter_schema = VoterSchema()
-            voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
+            voters = Voter.filter_by(
+                schema=voter_schema, election_id=election.id)
             result = VoterSchema(many=True).dump(voters)
             return make_response(jsonify(result), 200)
         else:
@@ -271,10 +279,17 @@ def delete_voters(current_user: User, election_uuid) -> Response:
     """
     try:
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        if election.admin == current_user.get_id():
-            Voter.query.filter_by(election=election.id).delete()
-            db.session.commit() 
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
+
+        voter_schema = VoterSchema()
+        if election.admin_id == current_user.get_id():
+            voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
+            ids = [x.id for x in voters]
+            query = CastVote.query.filter(CastVote.voter_id.in_(ids))
+            query.delete(synchronize_session=False)
+            Voter.query.filter(Voter.election_id==election.id).delete()
+            db.session.commit()
             return make_response(jsonify({"message": "Votantes eliminados con exito!"}), 200)
         else:
             return make_response(jsonify({"message": "No tiene permisos para eliminar votantes en esta elección"}), 401)
@@ -293,8 +308,10 @@ def resume(current_user: User, election_uuid: str) -> Response:
     try:
         election_schema = ElectionSchema()
         voter_schema = VoterSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        voters_election = Voter.filter_by(schema=voter_schema, election_id=election.id)
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
+        voters_election = Voter.filter_by(
+            schema=voter_schema, election_id=election.id)
         if election.admin_id == current_user.get_id():
             election.resume()
             return make_response(jsonify({"election": "Elección reanudada con exito!"}), 200)
@@ -316,7 +333,8 @@ def openreg(current_user: User, election_uuid: str) -> Response:
     try:
         data = request.get_json()
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             election.openreg = data["openreg"]
             election.save()
@@ -326,7 +344,6 @@ def openreg(current_user: User, election_uuid: str) -> Response:
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al abrir la elección"}), 400)
-
 
 
 # Voters routes
@@ -342,7 +359,8 @@ def get_questions_voters(election_uuid):
 
         if verify_voter(session['username'], election_uuid):
             election_schema = ElectionSchema()
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+            election = Election.get_by_uuid(
+                schema=election_schema, uuid=election_uuid)
             if not election.questions:
                 response = create_response_cors(make_response({}, 200))
                 return response
@@ -391,6 +409,7 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
         print(e)
         return make_response(jsonify({"message": "Error al crear el trustee"}), 400)
 
+
 @app.route("/<election_uuid>/delete_trustee", methods=['POST'])
 @token_required
 def delete_trustee(current_user: User, election_uuid: str) -> Response:
@@ -415,6 +434,7 @@ def delete_trustee(current_user: User, election_uuid: str) -> Response:
         print(e)
         return make_response(jsonify({"message": "Error al eliminar el trustee"}), 400)
 
+
 @app.route("/<election_uuid>/get_trustees", methods=['GET'])
 @token_required
 def get_trustees(current_user: User, election_uuid: str) -> Response:
@@ -430,7 +450,8 @@ def get_trustees(current_user: User, election_uuid: str) -> Response:
             trustee_schema = TrusteeSchema()
             trustees = Trustee.filter_by(
                 schema=trustee_schema, election_id=election.id)
-            result = [Trustee.to_dict(schema=trustee_schema, obj=e) for e in trustees]
+            result = [Trustee.to_dict(schema=trustee_schema, obj=e)
+                      for e in trustees]
             response = make_response(jsonify(result), 200)
             return response
         else:
