@@ -119,7 +119,7 @@ def edit_election(current_user, election_uuid):
 
         if form.validate():
             election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            if Election.get_by_short_name(schema=election, short_name=form.short_name.data) and election.short_name != form.short_name.data:
+            if Election.get_by_short_name(schema=election_schema, short_name=form.short_name.data) and election.short_name != form.short_name.data:
                 return make_response({'message': 'La elección ya existe'}, 400)
 
             if election.admin_id == current_user.get_id():
@@ -132,7 +132,6 @@ def edit_election(current_user, election_uuid):
                     description=data['description'],
                     election_type=data['election_type'],
                     max_weight=data['max_weight'],
-                    voting_ends_at=data["voting_ends_at"],
                     obscure_voter_names=data["obscure_voter_names"],
                     randomize_answer_order=data["randomize_answer_order"],
                     private_p=data["private_p"],
