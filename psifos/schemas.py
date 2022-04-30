@@ -31,7 +31,8 @@ class CastVoteSchema(ma.SQLAlchemySchema):
     # Fields:
     id = ma.auto_field()
     voter_id = ma.auto_field()
-    
+    total_cast_votes = ma.auto_field()
+    invalid_cast_votes = ma.auto_field()
     vote = SerializableField(EncryptedVote)   # PsifosObject: EncryptedVote
     vote_hash = ma.auto_field()
     vote_tinyhash = ma.auto_field()
@@ -139,7 +140,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
     description = ma.auto_field() 
     public_key = SerializableField(EGPublicKey)
     private_key = SerializableField(EGSecretKey)
-    questions = SerializableField(Questions)  
+    questions = SerializableField(Questions)
     openreg = ma.auto_field()
     obscure_voter_names = ma.auto_field()
     randomize_answer_order = ma.auto_field()

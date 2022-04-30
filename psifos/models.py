@@ -5,6 +5,7 @@ SQLAlchemy Models for Psifos.
 """
 
 from __future__ import annotations
+from email.policy import default
 from enum import unique
 from psifos import db
 from psifos.psifos_auth.models import User
@@ -123,7 +124,8 @@ class CastVote(PsifosModel, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     voter_id = db.Column(db.Integer, db.ForeignKey("psifos_voter.id"), unique=True)
-    
+    total_cast_votes = db.Column(db.Integer, default=0)
+    invalid_cast_votes = db.Column(db.Integer, default=0)
     vote = db.Column(db.Text, nullable=True)   # PsifosObject: EncryptedVote
     vote_hash = db.Column(db.String(500), nullable=True)
     vote_tinyhash = db.Column(db.String(500), nullable=True)
