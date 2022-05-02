@@ -19,6 +19,8 @@ from psifos.models import Election, Voter, User, Trustee, CastVote
 from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteSchema
 from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
 
+from sqlalchemy import func
+
 
 # Admin routes
 
@@ -141,7 +143,7 @@ def edit_election(current_user, election_uuid):
                     randomize_answer_order=data["randomize_answer_order"],
                     private_p=data["private_p"],
                     normalization=data["normalization"])
-                return make_response(jsonify({"message": "Elección editada con exito!"}), 200)
+                return make_response(jsonify({"message": "Elección editada con exito!", "uuid": election_uuid}), 200)
             else:
                 return make_response(jsonify({"message": "No tiene permisos para editar esta elección"}), 401)
 
@@ -285,11 +287,7 @@ def delete_voters(current_user: User, election_uuid) -> Response:
         voter_schema = VoterSchema()
         if election.admin_id == current_user.get_id():
             voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
-            ids = [x.id for x in voters]
-            query = CastVote.query.filter(CastVote.voter_id.in_(ids))
-            query.delete(synchronize_session=False)
-            Voter.query.filter(Voter.election_id==election.id).delete()
-            db.session.commit()
+            list(map(lambda x: x.delete(), voters))
             return make_response(jsonify({"message": "Votantes eliminados con exito!"}), 200)
         else:
             return make_response(jsonify({"message": "No tiene permisos para eliminar votantes en esta elección"}), 401)
@@ -313,10 +311,11 @@ def resume(current_user: User, election_uuid: str) -> Response:
         voters_election = Voter.filter_by(
             schema=voter_schema, election_id=election.id)
         if election.admin_id == current_user.get_id():
-            election.resume()
-            return make_response(jsonify({"election": "Elección reanudada con exito!"}), 200)
+            count_weight = Voter.query.with_entities(Voter.voter_weight, func.count(Voter.voter_weight)).group_by(Voter.voter_weight).all()
+            total_voters = Voter.query.filter_by(election_id=election.id).count()
+            return make_response(jsonify({"weights": count_weight, "total_voters": total_voters}), 200)
         else:
-            return make_response(jsonify({"message": "No tiene permisos para reanudar esta elección"}), 401)
+            return make_response(jsonify({"message": "No tiene permisos ver esta elección"}), 401)
 
     except Exception as e:
         print(e)

@@ -93,7 +93,7 @@ class Voter(PsifosModel, db.Model):
     voter_weight = db.Column(db.Integer, nullable=False)
 
     # One-to-one relationship
-    casted_votes = db.relationship("CastVote", backref="psifos_voter", uselist=False)
+    casted_votes = db.relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
     
 
     @classmethod
