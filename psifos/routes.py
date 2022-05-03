@@ -6,6 +6,9 @@ Routes for Psifos.
 from ctypes import cast
 import uuid
 import json
+import base64
+import os
+
 
 from urllib import response
 
@@ -25,7 +28,7 @@ from sqlalchemy import func
 # Admin routes
 
 
-@app.route("/create_election", methods=['POST'])
+@app.route("/create_election", methods=["POST"])
 @token_required
 def create_election(current_user: User) -> Response:
     """
@@ -40,26 +43,34 @@ def create_election(current_user: User) -> Response:
 
         if form.validate():
             election_schema = ElectionSchema()
-            if Election.get_by_short_name(schema=election_schema, short_name=form.short_name.data):
-                return make_response({'message': 'La elección ya existe'}, 400)
+            if Election.get_by_short_name(
+                schema=election_schema, short_name=form.short_name.data
+            ):
+                return make_response({"message": "La elección ya existe"}, 400)
 
             uuid_election = str(uuid.uuid4())
             Election.update_or_create(
                 schema=election_schema,
                 admin_id=current_user.get_id(),
                 uuid=uuid_election,
-                short_name=data['short_name'],
-                name=data['name'],
-                description=data['description'],
-                election_type=data['election_type'],
-                max_weight=data['max_weight'],
+                short_name=data["short_name"],
+                name=data["name"],
+                description=data["description"],
+                election_type=data["election_type"],
+                max_weight=data["max_weight"],
                 obscure_voter_names=data["obscure_voter_names"],
                 randomize_answer_order=data["randomize_answer_order"],
                 private_p=data["private_p"],
                 normalization=data["normalization"],
-                openreg=False)
+                openreg=False,
+            )
 
-            return make_response(jsonify({"message": "Elección creada con exito!", "uuid": uuid_election}), 200)
+            return make_response(
+                jsonify(
+                    {"message": "Elección creada con exito!", "uuid": uuid_election}
+                ),
+                200,
+            )
 
         else:
             return make_response(jsonify({"message": form.errors}), 400)
@@ -69,7 +80,7 @@ def create_election(current_user: User) -> Response:
         return make_response(jsonify({"message": "Error al crear la elección"}), 400)
 
 
-@app.route("/get_election/<election_uuid>", methods=['GET'])
+@app.route("/get_election/<election_uuid>", methods=["GET"])
 @token_required
 def get_election(current_user, election_uuid):
     """
@@ -78,19 +89,20 @@ def get_election(current_user, election_uuid):
     """
     try:
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             result = ElectionSchema().dump(election)
             return jsonify(result)
         else:
-            return make_response(jsonify({"message": "No tiene permisos para ver esta elección"}), 401)
+            return make_response(
+                jsonify({"message": "No tiene permisos para ver esta elección"}), 401
+            )
     except Exception as e:
         print(e)
         return jsonify({"message": "Error al obtener la elección"})
 
 
-@app.route("/get_elections", methods=['GET'])
+@app.route("/get_elections", methods=["GET"])
 @token_required
 def get_elections(current_user):
     """
@@ -102,21 +114,21 @@ def get_elections(current_user):
     try:
         election_schema = ElectionSchema()
         elections = Election.filter_by(
-            schema=election_schema, admin_id=current_user.get_id())
-        result = [Election.to_dict(schema=election_schema, obj=e)
-                  for e in elections]
+            schema=election_schema, admin_id=current_user.get_id()
+        )
+        result = [Election.to_dict(schema=election_schema, obj=e) for e in elections]
         return make_response(jsonify(result), 200)
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al obtener la elección"}), 400)
 
 
-@app.route("/edit_election/<election_uuid>", methods=['POST'])
+@app.route("/edit_election/<election_uuid>", methods=["POST"])
 @token_required
 def edit_election(current_user, election_uuid):
     """
     Route for edit a election
-    Require a valid token to access >>> token_required   
+    Require a valid token to access >>> token_required
     """
     try:
         data = request.get_json()
@@ -124,28 +136,44 @@ def edit_election(current_user, election_uuid):
         election_schema = ElectionSchema()
 
         if form.validate():
-            election = Election.get_by_uuid(
-                schema=election_schema, uuid=election_uuid)
-            if Election.get_by_short_name(schema=election_schema, short_name=form.short_name.data) and election.short_name != form.short_name.data:
-                return make_response({'message': 'La elección ya existe'}, 400)
+            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+            if (
+                Election.get_by_short_name(
+                    schema=election_schema, short_name=form.short_name.data
+                )
+                and election.short_name != form.short_name.data
+            ):
+                return make_response({"message": "La elección ya existe"}, 400)
 
             if election.admin_id == current_user.get_id():
                 Election.update_or_create(
                     schema=election_schema,
                     admin_id=current_user.get_id(),
                     uuid=election_uuid,
-                    short_name=data['short_name'],
-                    name=data['name'],
-                    description=data['description'],
-                    election_type=data['election_type'],
-                    max_weight=data['max_weight'],
+                    short_name=data["short_name"],
+                    name=data["name"],
+                    description=data["description"],
+                    election_type=data["election_type"],
+                    max_weight=data["max_weight"],
                     obscure_voter_names=data["obscure_voter_names"],
                     randomize_answer_order=data["randomize_answer_order"],
                     private_p=data["private_p"],
-                    normalization=data["normalization"])
-                return make_response(jsonify({"message": "Elección editada con exito!", "uuid": election_uuid}), 200)
+                    normalization=data["normalization"],
+                )
+                return make_response(
+                    jsonify(
+                        {
+                            "message": "Elección editada con exito!",
+                            "uuid": election_uuid,
+                        }
+                    ),
+                    200,
+                )
             else:
-                return make_response(jsonify({"message": "No tiene permisos para editar esta elección"}), 401)
+                return make_response(
+                    jsonify({"message": "No tiene permisos para editar esta elección"}),
+                    401,
+                )
 
         else:
             return make_response(jsonify({"message": form.errors}), 400)
@@ -155,7 +183,7 @@ def edit_election(current_user, election_uuid):
         return make_response(jsonify({"message": "Error al editar la elección"}), 400)
 
 
-@app.route("/create_questions/<election_uuid>", methods=['POST'])
+@app.route("/create_questions/<election_uuid>", methods=["POST"])
 @token_required
 def create_questions(current_user, election_uuid):
     """
@@ -166,19 +194,27 @@ def create_questions(current_user, election_uuid):
     try:
         data = request.get_json()
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             election.questions = json.dumps(data)
             db.session.commit()
-            return make_response(jsonify({"message": "Preguntas creadas con exito!"}), 200)
+            return make_response(
+                jsonify({"message": "Preguntas creadas con exito!"}), 200
+            )
         else:
-            return make_response(jsonify({"message": "No tiene permisos para crear preguntas en esta elección"}), 401)
+            return make_response(
+                jsonify(
+                    {
+                        "message": "No tiene permisos para crear preguntas en esta elección"
+                    }
+                ),
+                401,
+            )
     except Exception as e:
         return make_response(jsonify({"message": "Error al editar la elección"}), 400)
 
 
-@app.route("/get_questions/<election_uuid>", methods=['GET'])
+@app.route("/get_questions/<election_uuid>", methods=["GET"])
 @token_required
 def get_questions(current_user, election_uuid: str) -> response:
     """
@@ -188,8 +224,7 @@ def get_questions(current_user, election_uuid: str) -> response:
     """
     try:
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if not election.questions:
             response = make_response({}, 200)
             return response
@@ -200,16 +235,17 @@ def get_questions(current_user, election_uuid: str) -> response:
     except Exception as e:
         print(e)
         response = make_response(
-            jsonify({"message": "Error al obtener la elección"}), 400)
+            jsonify({"message": "Error al obtener la elección"}), 400
+        )
         return response
 
 
-@app.route("/<election_uuid>/send_voters", methods=['POST'])
+@app.route("/<election_uuid>/send_voters", methods=["POST"])
 @token_required
 def send_voters(current_user, election_uuid) -> Response:
     """
-    Route for send voters   
-    Require a valid token to access >>> token_required  
+    Route for send voters
+    Require a valid token to access >>> token_required
     """
     try:
         file_input = request.files["file"]
@@ -218,8 +254,7 @@ def send_voters(current_user, election_uuid) -> Response:
         file_str = [x.split(",") for x in file_str]
 
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             voter_schema = VoterSchema()
             cast_vote_schema = CastVoteSchema()
@@ -239,7 +274,14 @@ def send_voters(current_user, election_uuid) -> Response:
                 )
 
         else:
-            return make_response(jsonify({"message": "No tiene permisos para enviar votantes a esta elección"}), 401)
+            return make_response(
+                jsonify(
+                    {
+                        "message": "No tiene permisos para enviar votantes a esta elección"
+                    }
+                ),
+                401,
+            )
         return make_response(jsonify({"message": "Votantes creados con exito!"}), 200)
 
     except Exception as e:
@@ -247,7 +289,7 @@ def send_voters(current_user, election_uuid) -> Response:
         return make_response(jsonify({"message": "Error al enviar los votantes"}), 400)
 
 
-@app.route("/<election_uuid>/get_voters", methods=['GET'])
+@app.route("/<election_uuid>/get_voters", methods=["GET"])
 @token_required
 def get_voters(current_user: User, election_uuid) -> Response:
     """
@@ -257,22 +299,22 @@ def get_voters(current_user: User, election_uuid) -> Response:
 
     try:
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             voter_schema = VoterSchema()
-            voters = Voter.filter_by(
-                schema=voter_schema, election_id=election.id)
+            voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
             result = VoterSchema(many=True).dump(voters)
             return make_response(jsonify(result), 200)
         else:
-            return make_response(jsonify({"message": "No tiene permisos para ver esta elección"}), 401)
+            return make_response(
+                jsonify({"message": "No tiene permisos para ver esta elección"}), 401
+            )
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al obtener los votantes"}), 400)
 
 
-@app.route("/<election_uuid>/delete_voters", methods=['POST'])
+@app.route("/<election_uuid>/delete_voters", methods=["POST"])
 @token_required
 def delete_voters(current_user: User, election_uuid) -> Response:
     """
@@ -281,22 +323,32 @@ def delete_voters(current_user: User, election_uuid) -> Response:
     """
     try:
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
 
         voter_schema = VoterSchema()
         if election.admin_id == current_user.get_id():
             voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
             list(map(lambda x: x.delete(), voters))
-            return make_response(jsonify({"message": "Votantes eliminados con exito!"}), 200)
+            return make_response(
+                jsonify({"message": "Votantes eliminados con exito!"}), 200
+            )
         else:
-            return make_response(jsonify({"message": "No tiene permisos para eliminar votantes en esta elección"}), 401)
+            return make_response(
+                jsonify(
+                    {
+                        "message": "No tiene permisos para eliminar votantes en esta elección"
+                    }
+                ),
+                401,
+            )
     except Exception as e:
         print(e)
-        return make_response(jsonify({"message": "Error al eliminar los votantes"}), 400)
+        return make_response(
+            jsonify({"message": "Error al eliminar los votantes"}), 400
+        )
 
 
-@app.route("/<election_uuid>/resume", methods=['GET'])
+@app.route("/<election_uuid>/resume", methods=["GET"])
 @token_required
 def resume(current_user: User, election_uuid: str) -> Response:
     """
@@ -306,23 +358,31 @@ def resume(current_user: User, election_uuid: str) -> Response:
     try:
         election_schema = ElectionSchema()
         voter_schema = VoterSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
-        voters_election = Voter.filter_by(
-            schema=voter_schema, election_id=election.id)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        voters_election = Voter.filter_by(schema=voter_schema, election_id=election.id)
         if election.admin_id == current_user.get_id():
-            count_weight = Voter.query.with_entities(Voter.voter_weight, func.count(Voter.voter_weight)).group_by(Voter.voter_weight).all()
+            count_weight = (
+                Voter.query.with_entities(
+                    Voter.voter_weight, func.count(Voter.voter_weight)
+                )
+                .group_by(Voter.voter_weight)
+                .all()
+            )
             total_voters = Voter.query.filter_by(election_id=election.id).count()
-            return make_response(jsonify({"weights": count_weight, "total_voters": total_voters}), 200)
+            return make_response(
+                jsonify({"weights": count_weight, "total_voters": total_voters}), 200
+            )
         else:
-            return make_response(jsonify({"message": "No tiene permisos ver esta elección"}), 401)
+            return make_response(
+                jsonify({"message": "No tiene permisos ver esta elección"}), 401
+            )
 
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al reanudar la elección"}), 400)
 
 
-@app.route("/<election_uuid>/openreg", methods=['POST'])
+@app.route("/<election_uuid>/openreg", methods=["POST"])
 @token_required
 def openreg(current_user: User, election_uuid: str) -> Response:
     """
@@ -332,20 +392,24 @@ def openreg(current_user: User, election_uuid: str) -> Response:
     try:
         data = request.get_json()
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             election.openreg = data["openreg"]
             election.save()
-            return make_response(jsonify({"message": "Elección reanudada con exito!"}), 200)
+            return make_response(
+                jsonify({"message": "Elección reanudada con exito!"}), 200
+            )
         else:
-            return make_response(jsonify({"message": "No tiene permisos para abrir esta elección"}), 401)
+            return make_response(
+                jsonify({"message": "No tiene permisos para abrir esta elección"}), 401
+            )
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al abrir la elección"}), 400)
 
 
 # Voters routes
+
 
 @app.route("/<election_uuid>/questions")
 def get_questions_voters(election_uuid):
@@ -356,31 +420,38 @@ def get_questions_voters(election_uuid):
     """
     try:
 
-        if verify_voter(session['username'], election_uuid):
+        if verify_voter(session["username"], election_uuid):
             election_schema = ElectionSchema()
-            election = Election.get_by_uuid(
-                schema=election_schema, uuid=election_uuid)
+            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
             if not election.questions:
                 response = create_response_cors(make_response({}, 200))
                 return response
 
             response = create_response_cors(
-                make_response(jsonify(json.loads(election.questions)), 200))
+                make_response(jsonify(json.loads(election.questions)), 200)
+            )
             return response
 
         else:
-            response = create_response_cors(make_response(
-                jsonify({"message": "No tiene permisos para acceder a esta elección"}), 401))
+            response = create_response_cors(
+                make_response(
+                    jsonify(
+                        {"message": "No tiene permisos para acceder a esta elección"}
+                    ),
+                    401,
+                )
+            )
             return response
 
     except Exception as e:
-        response = create_response_cors(make_response(
-            jsonify({"message": "Error al obtener la elección"}), 400))
+        response = create_response_cors(
+            make_response(jsonify({"message": "Error al obtener la elección"}), 400)
+        )
         return response
 
 
 # Trustee Routes
-@app.route("/<election_uuid>/create_trustee", methods=['POST'])
+@app.route("/<election_uuid>/create_trustee", methods=["POST"])
 @token_required
 def create_trustee(current_user: User, election_uuid: str) -> Response:
     """
@@ -390,8 +461,7 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
     try:
         data = request.get_json()
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             trustee_schema = TrusteeSchema()
             Trustee.update_or_create(
@@ -403,13 +473,15 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
             )
             return make_response(jsonify({"message": "Creado con exito!"}), 200)
         else:
-            return make_response(jsonify({"message": "No tiene permisos para crear un trustee"}), 401)
+            return make_response(
+                jsonify({"message": "No tiene permisos para crear un trustee"}), 401
+            )
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al crear el trustee"}), 400)
 
 
-@app.route("/<election_uuid>/delete_trustee", methods=['POST'])
+@app.route("/<election_uuid>/delete_trustee", methods=["POST"])
 @token_required
 def delete_trustee(current_user: User, election_uuid: str) -> Response:
     """
@@ -419,22 +491,22 @@ def delete_trustee(current_user: User, election_uuid: str) -> Response:
     try:
         data = request.get_json()
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             trustee_schema = TrusteeSchema()
-            trustee = Trustee.get_by_uuid(
-                schema=trustee_schema, uuid=data["uuid"])
+            trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=data["uuid"])
             trustee.delete()
             return make_response(jsonify({"message": "Eliminado con exito!"}), 200)
         else:
-            return make_response(jsonify({"message": "No tiene permisos para eliminar un trustee"}), 401)
+            return make_response(
+                jsonify({"message": "No tiene permisos para eliminar un trustee"}), 401
+            )
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al eliminar el trustee"}), 400)
 
 
-@app.route("/<election_uuid>/get_trustees", methods=['GET'])
+@app.route("/<election_uuid>/get_trustees", methods=["GET"])
 @token_required
 def get_trustees(current_user: User, election_uuid: str) -> Response:
     """
@@ -443,18 +515,90 @@ def get_trustees(current_user: User, election_uuid: str) -> Response:
     """
     try:
         election_schema = ElectionSchema()
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             trustee_schema = TrusteeSchema()
-            trustees = Trustee.filter_by(
-                schema=trustee_schema, election_id=election.id)
-            result = [Trustee.to_dict(schema=trustee_schema, obj=e)
-                      for e in trustees]
+            trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id)
+            result = [Trustee.to_dict(schema=trustee_schema, obj=e) for e in trustees]
             response = make_response(jsonify(result), 200)
             return response
         else:
-            return make_response(jsonify({"message": "No tiene permisos para obtener los trustees"}), 401)
+            return make_response(
+                jsonify({"message": "No tiene permisos para obtener los trustees"}), 401
+            )
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al obtener los trustees"}), 400)
+
+
+@app.route("/<trustee_uuid>/get_trustee", methods=["GET"])
+def get_trustee(trustee_uuid):
+    """
+    Route for get trustee
+    """
+    try:
+        trustee_schema = TrusteeSchema()
+        trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=trustee_uuid)
+        response = make_response(
+            jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
+        )
+        return response
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al obtener el trustee"}), 400)
+
+
+@app.route("/<election_uuid>/get_randomness", methods=["GET"])
+def get_randomness(election_uuid: str) -> Response:
+    """
+    Get some randomness to sprinkle into the sjcl entropy pool
+
+    """
+    response = make_response(
+        jsonify({"randomness": base64.b64encode(os.urandom(32)).decode("utf-8")}), 200
+    )
+
+    return response
+
+
+# Routes for keygenerator trustee
+
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/get_step", methods=["GET"])
+def get_step(election_uuid: str, trustee_uuid: str) -> Response:
+    """
+    Get the step of the trustee
+    """
+    pass
+
+
+
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
+def upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
+    """
+    Upload public key of trustee
+    """
+    pass
+
+
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["POST"])
+def step1(election_uuid: str, trustee_uuid: str) -> Response:
+    """
+    Step 1 of the keygenerator trustee
+    """
+    pass
+
+
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/step2", methods=["POST"])
+def step2(election_uuid: str, trustee_uuid: str) -> Response:
+    """
+    Step 2 of the keygenerator trustee
+    """
+    pass
+
+
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/step3", methods=["POST"])
+def step3(election_uuid: str, trustee_uuid: str) -> Response:
+    """
+    Step 3 of the keygenerator trustee
+    """
+    pass
