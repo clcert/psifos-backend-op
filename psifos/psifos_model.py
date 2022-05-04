@@ -7,7 +7,7 @@ Abstraction layer for Psifos models.
 from __future__ import annotations
 from psifos import db, ma
 from typing import Union
-from psifos.serialization import SerializableObject
+from psifos.serialization import SerializableList, SerializableObject
 
 class PsifosModel():
     """
@@ -95,6 +95,8 @@ class PsifosModel():
             attr_value = getattr(self, attr)
             if isinstance(attr_value, SerializableObject):
                 setattr(self, attr, SerializableObject.serialize(attr_value))
+            elif isinstance(attr_value, SerializableList):
+                setattr(self, attr, SerializableList.serialize(attr_value))
         db.session.add(self)
         db.session.commit()
     

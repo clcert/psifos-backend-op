@@ -18,7 +18,7 @@ class QuestionFactory():
     @staticmethod
     def create(**kwargs):
         q_type = kwargs.get("q_type", None)
-        if q_type == "closed_queston":
+        if q_type == "closed_question":
             return ClosedQuestion(**kwargs)
         elif q_type == "open_question":
             return OpenQuestion(**kwargs)
