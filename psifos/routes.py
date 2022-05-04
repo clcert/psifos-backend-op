@@ -580,25 +580,51 @@ def upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
     pass
 
 
-@app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["POST"])
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["GET", "POST"])
 def step1(election_uuid: str, trustee_uuid: str) -> Response:
     """
     Step 1 of the keygenerator trustee
     """
-    pass
+
+    if request.method == "POST":
+        pass
+
+    elif request.method == "GET":
+        pass
+    
 
 
-@app.route("/<election_uuid>/trustee/<trustee_uuid>/step2", methods=["POST"])
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/step2", methods=["GET", "POST"])
 def step2(election_uuid: str, trustee_uuid: str) -> Response:
     """
     Step 2 of the keygenerator trustee
     """
-    pass
+    if request.method == "POST":
+        pass
+    
+    elif request.method == "GET":
+        pass
 
 
-@app.route("/<election_uuid>/trustee/<trustee_uuid>/step3", methods=["POST"])
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/step3", methods=["GET", "POST"])
 def step3(election_uuid: str, trustee_uuid: str) -> Response:
     """
     Step 3 of the keygenerator trustee
+    """
+    if request.method == "POST":
+        pass
+    
+    elif request.method == "GET":
+        pass
+
+
+# Freeze Ballot
+@app.route("/<election_uuid>/freeze_ballot", methods=["POST"])
+@token_required
+def freeze_ballot(current_user: User, election_uuid: str) -> Response:
+    """
+    Route for freeze ballot
+    check if the process can be done
+    Require a valid token to access >>> token_required
     """
     pass
