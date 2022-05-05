@@ -32,8 +32,7 @@ class SerializableList(object):
         if isinstance(s_list, str):
             return s_list
 
-        serialized_instances = [SerializableObject.serialize(obj) for obj in s_list.instances]
-        return json.dumps(serialized_instances)
+        return json.dumps([obj.__dict__ for obj in s_list.instances])
 
     @classmethod
     def deserialize(cls, json_data: str) -> SerializableObject:
@@ -41,8 +40,7 @@ class SerializableList(object):
         Deserializes a JSON like string to a specific 
         class instance. 
         """
-        serialized_instances = [json.loads(q) for q in json.loads(json_data)]
-        return cls(*serialized_instances)
+        return cls(*json.loads(json_data))
 
 
 class SerializableObject(object):
