@@ -34,6 +34,7 @@ class Questions(SerializableList):
     """
 
     def __init__(self, *args) -> None:
+        super(Questions, self).__init__()
         for q_json in args:
             self.instances.append(QuestionFactory.create(**q_json))
 

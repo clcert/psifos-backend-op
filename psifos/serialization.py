@@ -21,17 +21,19 @@ class SerializableList(object):
     Ex: See class psifos.psifos_object.questions.Questions
     """
 
-    instances = []
+    def __init__(self) -> None:
+        self.instances = []
 
     @classmethod
-    def serialize(cls, s_list: SerializableObject) -> str:
+    def serialize(cls, s_list: SerializableList) -> str:
         """ 
         Serializes an object to a JSON like string. 
         """
+        if s_list is None:
+            return '[]'
 
         if isinstance(s_list, str):
             return s_list
-
         return json.dumps([obj.__dict__ for obj in s_list.instances])
 
     @classmethod
@@ -54,6 +56,9 @@ class SerializableObject(object):
         """ 
         Serializes an object to a JSON like string. 
         """
+
+        if obj is None:
+            return '{}'
 
         if isinstance(obj, str):
             return obj
