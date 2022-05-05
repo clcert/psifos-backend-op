@@ -10,19 +10,16 @@ from psifos.enums import ElectionTypeEnum
 from psifos.models import AuditedBallot, CastVote, Election, SharedPoint, Trustee, Voter
 from psifos.crypto.homomorphic import EncryptedVote, Tally
 from psifos.crypto.sharedpoint import Certificate, Coefficient, Point, Signature
-from psifos.crypto.elgamal import DLogProof, DecryptionFactors, DecryptionProofs, EGPublicKey, EGSecretKey
+from psifos.crypto.elgamal import DLogProof, PublicKey, SecretKey
 from psifos.psifos_object.questions import Questions
 from psifos.psifos_object.result import Result
 from marshmallow_enum import EnumField
 
 
-
-
-
 class CastVoteSchema(ma.SQLAlchemySchema):
 
-    # Schema for CastVote detail 
-    
+    # Schema for CastVote detail
+
     class Meta:
         model = CastVote
         load_instance = True
@@ -44,23 +41,23 @@ class CastVoteSchema(ma.SQLAlchemySchema):
 
 class AuditedBallotSchema(ma.SQLAlchemyAutoSchema):
 
-    # Schema for AuditedBallot detail 
-    
+    # Schema for AuditedBallot detail
+
     class Meta:
         model = AuditedBallot
         load_instance = True
         include_fk = True
-    
+
 
 class TrusteeSchema(ma.SQLAlchemySchema):
 
     # Schema for Trustee detail
-    
+
     class Meta:
         model = Trustee
         load_instance = True
         include_fk = True
-    
+
     # Fields:
     id = ma.auto_field()
     election_id = ma.auto_field()
@@ -69,20 +66,20 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     name = ma.auto_field()
     email = ma.auto_field()
     secret = ma.auto_field()
-    public_key = SerializableField(EGPublicKey)
+    public_key = SerializableField(PublicKey)
     public_key_hash = ma.auto_field()
-    secret_key = SerializableField(EGSecretKey)
+    secret_key = SerializableField(SecretKey)
     pok = SerializableField(DLogProof)
-    answers_decryption_factors = SerializableField(DecryptionFactors)
-    answers_decryption_proofs = SerializableField(DecryptionProofs)
-    open_answers_decryption_factors = SerializableField(DecryptionFactors)
-    open_answers_decryption_proofs = SerializableField(DecryptionProofs)
+    answers_decryption_factors = ma.auto_field()  # SerializableField(DecryptionFactors)
+    answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
+    open_answers_decryption_factors = ma.auto_field()  # SerializableField(DecryptionFactors)
+    open_answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
     certificate = SerializableField(Certificate)
     threshold_step = ma.auto_field()
     coefficients = SerializableField(Coefficient)
     acknowledgements = SerializableField(Signature)
 
-    
+
 class SharedPointSchema(ma.SQLAlchemySchema):
 
     # Schema for SharedPoint detail
@@ -91,13 +88,14 @@ class SharedPointSchema(ma.SQLAlchemySchema):
         model = SharedPoint
         load_instance = True
         include_fk = True
-    
+
     # Fields:
     id = ma.auto_field()
     election_id = ma.auto_field()
     sender = ma.auto_field()
     recipient = ma.auto_field()
     point = SerializableField(Point)
+
 
 class VoterSchema(ma.SQLAlchemySchema):
 
@@ -108,8 +106,8 @@ class VoterSchema(ma.SQLAlchemySchema):
         load_instance = True
         include_relationships = True
         include_fk = True
-    
-    # Fields: 
+
+    # Fields:
     id = ma.auto_field()
     election_id = ma.auto_field()
     uuid = ma.auto_field()
@@ -120,6 +118,7 @@ class VoterSchema(ma.SQLAlchemySchema):
     # One-to-one relationship
     casted_votes = ma.Nested(CastVoteSchema)
 
+
 class ElectionSchema(ma.SQLAlchemySchema):
 
     # Schema for the Election detail
@@ -129,7 +128,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
         load_instance = True
         include_relationships = True
         include_fk = True
-    
+
     id = ma.auto_field()
     admin_id = ma.auto_field()
     uuid = ma.auto_field()
@@ -137,9 +136,9 @@ class ElectionSchema(ma.SQLAlchemySchema):
     name = ma.auto_field()
     election_type = EnumField(ElectionTypeEnum, by_value=True)
     private_p = ma.auto_field()
-    description = ma.auto_field() 
-    public_key = SerializableField(EGPublicKey)
-    private_key = SerializableField(EGSecretKey)
+    description = ma.auto_field()
+    public_key = SerializableField(PublicKey)
+    private_key = SerializableField(SecretKey)
     questions = SerializableField(Questions)
     openreg = ma.auto_field()
     obscure_voter_names = ma.auto_field()
@@ -149,7 +148,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
     total_voters = ma.auto_field()
     total_trustes = ma.auto_field()
     cast_url = ma.auto_field()
-    encrypted_tally = SerializableField(Tally) 
+    encrypted_tally = SerializableField(Tally)
     encrypted_tally_hash = ma.auto_field()
     encrypted_open_answers = ma.auto_field()
     mixnet_open_answers = ma.auto_field()

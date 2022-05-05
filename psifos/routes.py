@@ -19,8 +19,6 @@ from psifos.models import CastVote, Election, Voter, User
 from psifos.psifos_object.questions import Questions
 from psifos.schemas import CastVoteSchema, ElectionSchema, VoterSchema
 from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
-from psifos.serialization import SerializableList
-
 
 
 # Admin routes
@@ -216,7 +214,7 @@ def get_questions(current_user, election_uuid: str) -> response:
     try:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        json_questions = SerializableList.serialize(election.questions)
+        json_questions = Questions.serialize(election.questions)
         if not election.questions:
             response = make_response({}, 200)
             return response
