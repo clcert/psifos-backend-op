@@ -8,11 +8,10 @@ from psifos.serialization import SerializableObject
 
 import logging
 import itertools
-from helios.crypto import algs
-from . import WorkflowObject
+from psifos.crypto import elgamal
 
 
-class EncryptedAnswer(WorkflowObject):
+class EncryptedAnswer(SerializableObject):
     """
     An encrypted answer to a single election question
     """
@@ -36,7 +35,7 @@ class EncryptedAnswer(WorkflowObject):
         for i in range(max+1):
             # if we're in the range, add it to the array
             if i >= min:
-                plaintexts.append(algs.EGPlaintext(running_product, pk))
+                plaintexts.append(elgamal.Plaintext(running_product, pk))
 
             # next value in running product
             running_product = (running_product * pk.g) % pk.p
@@ -71,8 +70,8 @@ class EncryptedAnswer(WorkflowObject):
 
             # verify the proof on the encryption of that choice
             if not choice.verify_disjunctive_encryption_proof(
-                    possible_plaintexts, individual_proof, algs.EG_disjunctive_challenge_generator):
-                #      if not choice.verify_disjunctive_encryption_proof(possible_plaintexts, individual_proof, algs.EG_disjunctive_challenge_generator):
+                    possible_plaintexts, individual_proof, elgamal.disjunctive_challenge_generator):
+                #      if not choice.verify_disjunctive_encryption_proof(possible_plaintexts, individual_proof, elgamal.disjunctive_challenge_generator):
                 return False
 
             # compute homomorphic sum if needed
@@ -85,7 +84,7 @@ class EncryptedAnswer(WorkflowObject):
 
             # verify the sum
             return homomorphic_sum.verify_disjunctive_encryption_proof(
-                sum_possible_plaintexts, self.overall_proof, algs.EG_disjunctive_challenge_generator)
+                sum_possible_plaintexts, self.overall_proof, elgamal.disjunctive_challenge_generator)
         else:
             # approval voting, no need for overall proof verification
             return True
@@ -133,12 +132,12 @@ class EncryptedAnswer(WorkflowObject):
                 num_selected_answers += 1
 
             # randomness and encryption
-            randomness[answer_num] = algs.random.mpz_lt(pk.q)
+            randomness[answer_num] = elgamal.random.mpz_lt(pk.q)
             choices[answer_num] = pk.encrypt_with_r(plaintexts[plaintext_index], randomness[answer_num])
 
             # generate proof
             individual_proofs[answer_num] = choices[answer_num].generate_disjunctive_encryption_proof(
-                plaintexts, plaintext_index, randomness[answer_num], algs.EG_disjunctive_challenge_generator)
+                plaintexts, plaintext_index, randomness[answer_num], elgamal.disjunctive_challenge_generator)
             # sum things up homomorphically if needed
             if max_answers is not None:
                 homomorphic_sum = choices[answer_num] * homomorphic_sum
@@ -155,17 +154,15 @@ class EncryptedAnswer(WorkflowObject):
 
             # need to subtract the min from the offset
             overall_proof = homomorphic_sum.generate_disjunctive_encryption_proof(
-                sum_plaintexts, num_selected_answers - min_answers, randomness_sum, algs.EG_disjunctive_challenge_generator)
+                sum_plaintexts, num_selected_answers - min_answers, randomness_sum, elgamal.disjunctive_challenge_generator)
         else:
             # approval voting
             overall_proof = None
 
         return cls(choices, individual_proofs, overall_proof, randomness, answer_indexes)
 
-# WORK HERE
 
-
-class EncryptedVote(WorkflowObject):
+class EncryptedVote(SerializableObject):
     """
     An encrypted ballot
     """
@@ -275,14 +272,10 @@ class DLogTable(object):
         return self.dlogs.get(value, None)
 
 
-class Tally(WorkflowObject):
+class Tally(SerializableObject):
     """
     A running homomorphic tally
     """
-
-    @property
-    def datatype(self):
-        return "core/Tally"
 
     def __init__(self, *args, **kwargs):
         super(Tally, self).__init__()
@@ -410,7 +403,7 @@ class Tally(WorkflowObject):
         for q_num, q in enumerate(self.tally):
             for a_num, answer_tally in enumerate(q):
                 # parse the proof
-                #proof = algs.EGZKProof.fromJSONDict(decryption_proofs[q_num][a_num])
+                #proof = elgamal.ZKProof.fromJSONDict(decryption_proofs[q_num][a_num])
                 proof = decryption_proofs[q_num][a_num]
 
                 # check that g, alpha, y, dec_factor is a DH tuple
@@ -455,27 +448,3 @@ class Tally(WorkflowObject):
             result.append(q_result)
         final_results = [[dlog_table.lookup(result) for result in q_result] for q_result in result]
         return final_results
-
-    def _process_value_in(self, field_name, field_value):
-        if field_name == 'tally':
-            return [[algs.EGCiphertext.fromJSONDict(a) for a in q] for q in field_value]
-
-    def _process_value_out(self, field_name, field_value):
-        if field_name == 'tally':
-            return [[a.toJSONDict() for a in q] for q in field_value]
-
-
-class EncryptedAnswer(SerializableObject):
-    pass
-
-
-class EncryptedVote(SerializableObject):
-    pass
-
-
-class EncryptedVoteWithRandomness(SerializableObject):
-    pass
-
-
-class Tally(SerializableObject):
-    pass

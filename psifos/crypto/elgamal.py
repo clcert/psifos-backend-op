@@ -4,55 +4,30 @@ ElGamal encryption classes for Psifos.
 Ben Adida
 reworked for Psifos: 14-04-2022
 """
-from helios.utils import to_json
-from helios.crypto.utils import random
+from psifos.crypto.utils import random
 from Crypto.Util import number
 from Crypto.Hash import SHA1
 import logging
 from psifos.serialization import SerializableObject
 
-"""
-Crypto Algorithms for the Helios Voting System
 
-FIXME: improve random number generation.
-
-Ben Adida
-ben@adida.net
-"""
-
-
-class ElGamal:
-    def __init__(self):
-        self.p = None
-        self.q = None
-        self.g = None
+class ElGamal(object):
+    def __init__(self, p, q, g):
+        self.p = p
+        self.q = q
+        self.g = g
 
     def generate_keypair(self):
         """
         generates a keypair in the setting
         """
-
-        keypair = EGKeyPair()
-        keypair.generate(self.p, self.q, self.g)
-
-        return keypair
-
-    def toJSONDict(self):
-        return {'p': str(self.p), 'q': str(self.q), 'g': str(self.g)}
-
-    @classmethod
-    def fromJSONDict(cls, d):
-        eg = cls()
-        eg.p = int(d['p'])
-        eg.q = int(d['q'])
-        eg.g = int(d['g'])
-        return eg
+        return KeyPair().generate(self.p, self.q, self.g)
 
 
-class EGKeyPair:
+class KeyPair(object):
     def __init__(self):
-        self.pk = EGPublicKey()
-        self.sk = EGSecretKey()
+        self.pk = PublicKey()
+        self.sk = SecretKey()
 
     def generate(self, p, q, g):
         """
@@ -68,7 +43,7 @@ class EGKeyPair:
         self.sk.pk = self.pk
 
 
-class EGPublicKey:
+class PublicKey(SerializableObject):
     def __init__(self):
         self.y = None
         self.p = None
@@ -79,7 +54,7 @@ class EGPublicKey:
         """
         expecting plaintext.m to be a big integer
         """
-        ciphertext = EGCiphertext()
+        ciphertext = Ciphertext()
         ciphertext.pk = self
 
         # make sure m is in the right subgroup
@@ -112,18 +87,6 @@ class EGPublicKey:
         """
         return self.encrypt_return_r(plaintext)[0]
 
-    def to_dict(self):
-        """
-        Serialize to dictionary.
-        """
-        return {'y': str(self.y), 'p': str(self.p), 'g': str(self.g), 'q': str(self.q)}
-
-    toJSONDict = to_dict
-
-    # quick hack FIXME
-    def toJSON(self):
-        return to_json(self.toJSONDict())
-
     def __mul__(self, other):
         if other == 0 or other == 1:
             return self
@@ -132,7 +95,7 @@ class EGPublicKey:
         if self.p != other.p or self.q != other.q or self.g != other.g:
             raise Exception("incompatible public keys")
 
-        result = EGPublicKey()
+        result = PublicKey()
         result.p = self.p
         result.q = self.q
         result.g = self.g
@@ -152,7 +115,7 @@ class EGPublicKey:
         return (left_side == right_side) and (dlog_proof.challenge == expected_challenge)
 
     def clone_with_new_y(self, y):
-        result = EGPublicKey()
+        result = PublicKey()
         result.p = self.p
         result.q = self.q
         result.g = self.g
@@ -188,28 +151,8 @@ class EGPublicKey:
         if pow(self.y, self.q, self.p) != 1:
             raise Exception("g does not generate proper group.")
 
-    @classmethod
-    def from_dict(cls, d):
-        """
-        Deserialize from dictionary.
-        """
-        pk = cls()
-        pk.y = int(d['y'])
-        pk.p = int(d['p'])
-        pk.g = int(d['g'])
-        pk.q = int(d['q'])
 
-        try:
-            pk.validate_pk_params()
-        except Exception as e:
-            raise e
-
-        return pk
-
-    fromJSONDict = from_dict
-
-
-class EGSecretKey:
+class SecretKey(SerializableObject):
     def __init__(self):
         self.x = None
         self.pk = None
@@ -223,14 +166,14 @@ class EGSecretKey:
     def decryption_factor_and_proof(self, ciphertext, challenge_generator=None):
         """
         challenge generator is almost certainly
-        EG_fiatshamir_challenge_generator
+        fiatshamir_challenge_generator
         """
         if not challenge_generator:
-            challenge_generator = EG_fiatshamir_challenge_generator
+            challenge_generator = fiatshamir_challenge_generator
 
         dec_factor = self.decryption_factor(ciphertext)
 
-        proof = EGZKProof.generate(self.pk.g, ciphertext.alpha, self.x, self.pk.p, self.pk.q, challenge_generator)
+        proof = ZKProof.generate(self.pk.g, ciphertext.alpha, self.x, self.pk.p, self.pk.q, challenge_generator)
 
         return dec_factor, proof
 
@@ -250,9 +193,9 @@ class EGSecretKey:
             else:
                 y = -m % self.pk.p
 
-            return EGPlaintext(y - 1, self.pk)
+            return Plaintext(y - 1, self.pk)
         else:
-            return EGPlaintext(m, self.pk)
+            return Plaintext(m, self.pk)
 
     def prove_decryption(self, ciphertext):
         """
@@ -285,11 +228,6 @@ class EGSecretKey:
             'response': str(t)
         }
 
-    def to_dict(self):
-        return {'x': str(self.x), 'public_key': self.pk.to_dict()}
-
-    toJSONDict = to_dict
-
     def prove_sk(self, challenge_generator):
         """
         Generate a PoK of the secret key
@@ -304,38 +242,14 @@ class EGSecretKey:
 
         return DLogProof(commitment, challenge, response)
 
-    @classmethod
-    def from_dict(cls, d):
-        if not d:
-            return None
 
-        sk = cls()
-        sk.x = int(d['x'])
-        if 'public_key' in d:
-            sk.pk = EGPublicKey.from_dict(d['public_key'])
-        else:
-            sk.pk = None
-        return sk
-
-    fromJSONDict = from_dict
-
-
-class EGPlaintext:
+class Plaintext(SerializableObject):
     def __init__(self, m=None, pk=None):
         self.m = m
         self.pk = pk
 
-    def to_dict(self):
-        return {'m': self.m}
 
-    @classmethod
-    def from_dict(cls, d):
-        r = cls()
-        r.m = d['m']
-        return r
-
-
-class EGCiphertext:
+class Ciphertext(SerializableObject):
     def __init__(self, alpha=None, beta=None, pk=None):
         self.pk = pk
         self.alpha = alpha
@@ -353,7 +267,7 @@ class EGCiphertext:
             logging.info(other.pk)
             raise Exception('different PKs!')
 
-        new = EGCiphertext()
+        new = Ciphertext()
 
         new.pk = self.pk
         new.alpha = (self.alpha * other.alpha) % self.pk.p
@@ -366,7 +280,7 @@ class EGCiphertext:
         We would do this homomorphically, except
         that's no good when we do plaintext encoding of 1.
         """
-        new_c = EGCiphertext()
+        new_c = Ciphertext()
         new_c.alpha = (self.alpha * pow(self.pk.g, r, self.pk.p)) % self.pk.p
         new_c.beta = (self.beta * pow(self.pk.y, r, self.pk.p)) % self.pk.p
         new_c.pk = self.pk
@@ -404,7 +318,7 @@ class EGCiphertext:
         w = random.mpz_lt(self.pk.q)
 
         # build the proof
-        proof = EGZKProof()
+        proof = ZKProof()
 
         # compute A=g^w, B=y^w
         proof.commitment['A'] = pow(self.pk.g, w, self.pk.p)
@@ -423,7 +337,7 @@ class EGCiphertext:
         if not challenge:
             challenge = random.mpz_lt(self.pk.q)
 
-        proof = EGZKProof()
+        proof = ZKProof()
         proof.challenge = challenge
 
         # compute beta/plaintext, the completion of the DH tuple
@@ -454,7 +368,7 @@ class EGCiphertext:
         # the function that generates the challenge
         def real_challenge_generator(commitment):
             # set up the partial real proof so we're ready to get the hash
-            proofs[real_index] = EGZKProof()
+            proofs[real_index] = ZKProof()
             proofs[real_index].commitment = commitment
 
             # get the commitments in a list and generate the whole disjunctive challenge
@@ -476,7 +390,7 @@ class EGCiphertext:
         # set the real proof
         proofs[real_index] = real_proof
 
-        return EGZKDisjunctiveProof(proofs)
+        return ZKDisjunctiveProof(proofs)
 
     def verify_encryption_proof(self, plaintext, proof):
         """
@@ -524,19 +438,6 @@ class EGCiphertext:
         return (challenge_generator([p.commitment for p in proof.proofs]) == (
                 sum([p.challenge for p in proof.proofs]) % self.pk.q))
 
-    def verify_decryption_proof(self, plaintext, proof):
-        """
-        Checks for the DDH tuple g, alpha, y, beta/plaintext
-        (PoK of secret key x.)
-        """
-        return False
-
-    def verify_decryption_factor(self, dec_factor, dec_proof, public_key):
-        """
-        when a ciphertext is decrypted by a dec factor, the proof needs to be checked
-        """
-        pass
-
     def decrypt(self, decryption_factors, public_key):
         """
         decrypt a ciphertext given a list of decryption factors (from multiple trustees)
@@ -567,34 +468,8 @@ class EGCiphertext:
         else:
             return True
 
-    def to_dict(self):
-        return {'alpha': str(self.alpha), 'beta': str(self.beta)}
 
-    toJSONDict = to_dict
-
-    def to_string(self):
-        return "%s,%s" % (self.alpha, self.beta)
-
-    @classmethod
-    def from_dict(cls, d, pk=None):
-        result = cls()
-        result.alpha = int(d['alpha'])
-        result.beta = int(d['beta'])
-        result.pk = pk
-        return result
-
-    fromJSONDict = from_dict
-
-    @classmethod
-    def from_string(cls, str):
-        """
-        expects alpha,beta
-        """
-        split = str.split(",")
-        return cls.from_dict({'alpha': split[0], 'beta': split[1]})
-
-
-class EGZKProof(object):
+class ZKProof(SerializableObject):
     def __init__(self):
         self.commitment = {'A': None, 'B': None}
         self.challenge = None
@@ -604,7 +479,7 @@ class EGZKProof(object):
     def generate(cls, little_g, little_h, x, p, q, challenge_generator):
         """
         generate a DDH tuple proof, where challenge generator is
-        almost certainly EG_fiatshamir_challenge_generator
+        almost certainly fiatshamir_challenge_generator
         """
 
         # generate random w
@@ -625,25 +500,6 @@ class EGZKProof(object):
 
         # return proof
         return proof
-
-    @classmethod
-    def from_dict(cls, d):
-        p = cls()
-        p.commitment = {'A': int(d['commitment']['A']), 'B': int(d['commitment']['B'])}
-        p.challenge = int(d['challenge'])
-        p.response = int(d['response'])
-        return p
-
-    fromJSONDict = from_dict
-
-    def to_dict(self):
-        return {
-            'commitment': {'A': str(self.commitment['A']), 'B': str(self.commitment['B'])},
-            'challenge': str(self.challenge),
-            'response': str(self.response)
-        }
-
-    toJSONDict = to_dict
 
     def verify(self, little_g, little_h, big_g, big_h, p, q, challenge_generator=None):
         """
@@ -669,20 +525,9 @@ class EGZKProof(object):
         return first_check and second_check and third_check
 
 
-class EGZKDisjunctiveProof:
+class ZKDisjunctiveProof(SerializableObject):
     def __init__(self, proofs=None):
         self.proofs = proofs
-
-    @classmethod
-    def from_dict(cls, d):
-        dp = cls()
-        dp.proofs = [EGZKProof.from_dict(p) for p in d]
-        return dp
-
-    def to_dict(self):
-        return [p.to_dict() for p in self.proofs]
-
-    toJSONDict = to_dict
 
 
 class DLogProof(object):
@@ -691,20 +536,8 @@ class DLogProof(object):
         self.challenge = challenge
         self.response = response
 
-    def to_dict(self):
-        return {'challenge': str(self.challenge), 'commitment': str(self.commitment), 'response': str(self.response)}
 
-    toJSONDict = to_dict
-
-    @classmethod
-    def from_dict(cls, d):
-        dlp = cls(int(d['commitment']), int(d['challenge']), int(d['response']))
-        return dlp
-
-    fromJSONDict = from_dict
-
-
-def EG_disjunctive_challenge_generator(commitments):
+def disjunctive_challenge_generator(commitments):
     array_to_hash = []
     for commitment in commitments:
         array_to_hash.append(str(commitment['A']))
@@ -715,50 +548,10 @@ def EG_disjunctive_challenge_generator(commitments):
 
 
 # a challenge generator for Fiat-Shamir with A,B commitment
-def EG_fiatshamir_challenge_generator(commitment):
-    return EG_disjunctive_challenge_generator([commitment])
+def fiatshamir_challenge_generator(commitment):
+    return disjunctive_challenge_generator([commitment])
 
 
 def DLog_challenge_generator(commitment):
     string_to_hash = str(commitment)
     return int(SHA1.new(bytes(string_to_hash, 'utf-8')).hexdigest(), 16)
-
-
-class EGParams(SerializableObject):
-    pass
-
-
-class EGPublicKey(SerializableObject):
-    pass
-
-
-class EGSecretKey(SerializableObject):
-    pass
-
-
-class EGCiphertext(SerializableObject):
-    pass
-
-
-class EGZKProofCommitment(SerializableObject):
-    pass
-
-
-class EGZKProof(SerializableObject):
-    pass
-
-
-class EGZKDisjunctiveProof(SerializableObject):
-    pass
-
-
-class DLogProof:
-    pass
-
-
-class DecryptionFactors:
-    pass
-
-
-class DecryptionProofs:
-    pass
