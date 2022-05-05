@@ -20,7 +20,12 @@ from psifos import app
 from psifos.forms import ElectionForm
 from psifos.models import Election, Voter, User, Trustee, CastVote
 from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteSchema
+from psifos.models import CastVote, Election, Voter, User
+from psifos.psifos_object.questions import Questions
+from psifos.schemas import CastVoteSchema, ElectionSchema, VoterSchema
 from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
+from psifos.serialization import SerializableList
+
 
 from sqlalchemy import func
 
@@ -196,8 +201,9 @@ def create_questions(current_user, election_uuid):
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            election.questions = json.dumps(data)
-            db.session.commit()
+            questions = Questions(*data["question"])
+            election.questions = questions
+            election.save()
             return make_response(
                 jsonify({"message": "Preguntas creadas con exito!"}), 200
             )
@@ -211,6 +217,7 @@ def create_questions(current_user, election_uuid):
                 401,
             )
     except Exception as e:
+        raise e
         return make_response(jsonify({"message": "Error al editar la elección"}), 400)
 
 
@@ -225,11 +232,12 @@ def get_questions(current_user, election_uuid: str) -> response:
     try:
         election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        
         if not election.questions:
             response = make_response({}, 200)
             return response
-
-        response = make_response(jsonify(json.loads(election.questions)), 200)
+        json_questions = SerializableList.serialize(election.questions)
+        response = make_response(json_questions, 200)
         return response
 
     except Exception as e:

@@ -5,11 +5,11 @@ SQLAlchemy Models for Psifos.
 """
 
 from __future__ import annotations
-from enum import unique
 from psifos import db
 from psifos.psifos_auth.models import User
-from psifos.psifos_model import PsifosModel 
+from psifos.psifos_model import PsifosModel
 from psifos.enums import ElectionTypeEnum
+
 
 class Election(PsifosModel, db.Model):
     __tablename__ = "psifos_election"
@@ -25,30 +25,30 @@ class Election(PsifosModel, db.Model):
     description = db.Column(db.Text)
 
     public_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGPublicKey
-    private_key = db.Column(db.Text, nullable=True) # PsifosObject: EGSecretKey
+    private_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
     questions = db.Column(db.Text, nullable=True)   # PsifosObject: Questions
     openreg = db.Column(db.Boolean, default=False)
 
-    obscure_voter_names = db.Column(db.Boolean, default=False, nullable=False) 
+    obscure_voter_names = db.Column(db.Boolean, default=False, nullable=False)
     randomize_answer_order = db.Column(db.Boolean, default=False, nullable=False)
     normalization = db.Column(db.Boolean, default=False, nullable=False)
     max_weight = db.Column(db.Integer, nullable=False)
-    
+
     total_voters = db.Column(db.Integer, nullable=True)
     total_trustes = db.Column(db.Integer, nullable=True)
 
     cast_url = db.Column(db.String(500))
-    encrypted_tally = db.Column(db.Text, nullable=True) # PsifosObject: Tally
+    encrypted_tally = db.Column(db.Text, nullable=True)  # PsifosObject: Tally
     encrypted_tally_hash = db.Column(db.String(500), nullable=True)
     encrypted_open_answers = db.Column(db.Text, nullable=True)
     mixnet_open_answers = db.Column(db.Text, nullable=True)
 
     result = db.Column(db.Text, nullable=True)  # PsifosObject: Result
-    open_answers_result = db.Column(db.Text, nullable=True) # PsifosObject: Result (?)
+    open_answers_result = db.Column(db.Text, nullable=True)  # PsifosObject: Result (?)
 
     voting_started_at = db.Column(db.DateTime, nullable=True)
     voting_ended_at = db.Column(db.DateTime, nullable=True)
-    
+
     # One-to-many relationships
     voters = db.relationship("Voter", backref="psifos_election")
     trustees = db.relationship("Trustee", backref="psifos_election")
@@ -101,7 +101,6 @@ class Voter(PsifosModel, db.Model):
         query = cls.filter_by(schema=schema, voter_login_id=voter_login_id, election_id=election_id)
         return query[0] if len(query) > 0 else None
 
-    
     @classmethod
     def update_or_create(cls, schema, **kwargs):
         voter = cls.get_by_login_id_and_election(
@@ -123,7 +122,8 @@ class CastVote(PsifosModel, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     voter_id = db.Column(db.Integer, db.ForeignKey("psifos_voter.id"), unique=True)
-    
+    total_cast_votes = db.Column(db.Integer, default=0)
+    invalid_cast_votes = db.Column(db.Integer, default=0)
     vote = db.Column(db.Text, nullable=True)   # PsifosObject: EncryptedVote
     vote_hash = db.Column(db.String(500), nullable=True)
     vote_tinyhash = db.Column(db.String(500), nullable=True)
@@ -132,12 +132,10 @@ class CastVote(PsifosModel, db.Model):
     invalidated_at = db.Column(db.DateTime, nullable=True)
     hash_cast_ip = db.Column(db.String(500), nullable=True)
 
-    
     @classmethod
     def get_by_voter_id(cls, schema, voter_id):
         query = cls.filter_by(schema=schema, voter_id=voter_id)
         return query[0] if len(query) > 0 else None
-
 
     @classmethod
     def update_or_create(cls, schema, **kwargs):
@@ -172,7 +170,7 @@ class Trustee(PsifosModel, db.Model):
     election_id = db.Column(db.Integer, db.ForeignKey("psifos_election.id"))
     trustee_id = db.Column(db.Integer, default=0)
     uuid = db.Column(db.String(50), nullable=False, unique=True)
-    
+
     name = db.Column(db.String(200), nullable=False)
     email = db.Column(db.Text, nullable=False)
     secret = db.Column(db.String(100))
@@ -181,12 +179,12 @@ class Trustee(PsifosModel, db.Model):
     public_key_hash = db.Column(db.String(100), nullable=True)
     secret_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
     pok = db.Column(db.Text, nullable=True)  # PsifosObject: DLogProof
-    
+
     answers_decryption_factors = db.Column(db.Text, nullable=True)  # PsifosObject: Arrayof(Arrayof(BigInteger))
     answers_decryption_proofs = db.Column(db.Text, nullable=True)  # PsifosObject: Arrayof(Arrayof(EGZKProof))
     open_answers_decryption_factors = db.Column(db.Text, nullable=True)  # PsifosObject: Arrayof(Arrayof(BigInteger))
     open_answers_decryption_proofs = db.Column(db.Text, nullable=True)  # PsifosObject: Arrayof(Arrayof(EGZKProof))
-    
+
     certificate = db.Column(db.Text, nullable=True)  # PsifosObject: Certificate
     threshold_step = db.Column(db.Integer, default=0)
     coefficients = db.Column(db.Text, nullable=True)  # PsifosObject: Coefficient

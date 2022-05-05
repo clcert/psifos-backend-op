@@ -7,7 +7,8 @@ Abstraction layer for Psifos models.
 from __future__ import annotations
 from psifos import db, ma
 from typing import Union
-from psifos.serialization import SerializableObject
+from psifos.serialization import SerializableList, SerializableObject
+
 
 class PsifosModel():
     """
@@ -18,7 +19,7 @@ class PsifosModel():
 
     (2) Retrieve tuples from the database with their serialized columns 
         instantiated as their corresponding class.
-    
+
     Usage of the methods:
         Let test_schema = TestSchema(), test_model an instance 
         of TestModel and json_data a version of test_model serialized
@@ -31,9 +32,9 @@ class PsifosModel():
         -> To deserialize json_data:
             TestModel.from_json(test_schema, json_data)
             >>> test_model
-        
+
         (for to_dict/from_dict methods the process is analogous)
-        
+
         -> To execute a query (Ex: TestModel.query.filter_by(id=1)):
             TestModel.execute(test_schema, TestModel.query.filter_by, id=1)
 
@@ -67,7 +68,7 @@ class PsifosModel():
         Deserializes a JSON like string into it's corresponding PsifosModel subclass.
         """
         return schema.load(json_data)
-    
+
     @classmethod
     def execute(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], fun, *args, **kwargs):
         """
@@ -78,14 +79,14 @@ class PsifosModel():
 
         res = fun(*args, **kwargs)
         return [__deserialize_model_instance(x) for x in res]
-    
+
     @classmethod
     def filter_by(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], *args, **kwargs):
         """
         Makes more readable the execution of the filter_by method of SQLAlchemy.
         """
         return cls.execute(schema, cls.query.filter_by, *args, **kwargs)
-    
+
     def save(self) -> None:
         """
         Saves in the database an instance of the model (serializes all columns with a python object as value).
@@ -95,9 +96,11 @@ class PsifosModel():
             attr_value = getattr(self, attr)
             if isinstance(attr_value, SerializableObject):
                 setattr(self, attr, SerializableObject.serialize(attr_value))
+            elif isinstance(attr_value, SerializableList):
+                setattr(self, attr, SerializableList.serialize(attr_value))
         db.session.add(self)
         db.session.commit()
-    
+
     def delete(self) -> None:
         """
         Deletes the instance from the database.
