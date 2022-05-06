@@ -70,22 +70,33 @@ class PsifosModel():
         return schema.load(json_data)
 
     @classmethod
-    def execute(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], fun, *args, **kwargs):
+    def execute(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema],
+                fun, deserialize=False, *args, **kwargs):
         """
         Executes a md.Model function and after that, deserializes the output.
         """
-        def __deserialize_model_instance(x):
-            return cls.from_json(schema, cls.to_json(schema, x))
 
         res = fun(*args, **kwargs)
-        return [__deserialize_model_instance(x) for x in res]
+        def post_process(x): return x
+        if deserialize:
+            def __deserialize_model_instance(x):
+                return cls.from_json(schema, cls.to_json(schema, x))
+            post_process = __deserialize_model_instance
+        return [post_process(x) for x in res]
 
     @classmethod
-    def filter_by(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], *args, **kwargs):
+    def filter_by(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], deserialize=False, *args, **kwargs):
         """
         Makes more readable the execution of the filter_by method of SQLAlchemy.
         """
-        return cls.execute(schema, cls.query.filter_by, *args, **kwargs)
+        return cls.execute(schema, cls.query.filter_by, deserialize, *args, **kwargs)
+
+    def discard_changes(self) -> None:
+        """
+        Discards the changes made to a model instance. MUST be called after a query with
+        deserialize=True and before other instance calling .save() method.
+        """
+        db.session.expunge(self)
 
     def save(self) -> None:
         """

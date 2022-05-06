@@ -5,6 +5,8 @@ SQLAlchemy Models for Psifos.
 """
 
 from __future__ import annotations
+
+from yaml import serialize
 from psifos import db
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
@@ -59,25 +61,27 @@ class Election(PsifosModel, db.Model):
         return '<Election %r>' % self.name
 
     @classmethod
-    def get_by_short_name(cls, schema, short_name) -> Election:
-        query = cls.filter_by(schema=schema, short_name=short_name)
+    def get_by_short_name(cls, schema, short_name, deserialize=False) -> Election:
+        query = cls.filter_by(schema=schema, short_name=short_name, deserialize=deserialize)
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def get_by_uuid(cls, schema, uuid):
-        query = cls.filter_by(schema=schema, uuid=uuid)
+    def get_by_uuid(cls, schema, uuid, deserialize=False):
+        query = cls.filter_by(schema=schema, uuid=uuid, deserialize=deserialize)
         return query[0] if len(query) > 0 else None
 
     @classmethod
     def update_or_create(cls, schema, **kwargs):
-        election = cls.get_by_uuid(schema=schema, uuid=kwargs['uuid'])
+        election = cls.get_by_uuid(
+            schema=schema,
+            uuid=kwargs['uuid'],
+            deserialize=True
+        )
         if election is not None:
             for key, value in kwargs.items():
                 setattr(election, key, value)
         else:
             election = cls(**kwargs)
-
-        election.save()
         return election
 
 
@@ -94,11 +98,15 @@ class Voter(PsifosModel, db.Model):
 
     # One-to-one relationship
     casted_votes = db.relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
-    
 
     @classmethod
-    def get_by_login_id_and_election(cls, schema, voter_login_id, election_id):
-        query = cls.filter_by(schema=schema, voter_login_id=voter_login_id, election_id=election_id)
+    def get_by_login_id_and_election(cls, schema, voter_login_id, election_id, deserialize=False):
+        query = cls.filter_by(
+            schema=schema,
+            voter_login_id=voter_login_id,
+            election_id=election_id,
+            deserialize=deserialize,
+        )
         return query[0] if len(query) > 0 else None
 
     @classmethod
@@ -106,14 +114,14 @@ class Voter(PsifosModel, db.Model):
         voter = cls.get_by_login_id_and_election(
             schema=schema,
             voter_login_id=kwargs["voter_login_id"],
-            election_id=kwargs["election_id"]
+            election_id=kwargs["election_id"],
+            deserialize=True,
         )
         if voter is not None:
             for key, value in kwargs.items():
                 setattr(voter, key, value)
         else:
             voter = cls(**kwargs)
-        voter.save()
         return voter
 
 
@@ -133,8 +141,8 @@ class CastVote(PsifosModel, db.Model):
     hash_cast_ip = db.Column(db.String(500), nullable=True)
 
     @classmethod
-    def get_by_voter_id(cls, schema, voter_id):
-        query = cls.filter_by(schema=schema, voter_id=voter_id)
+    def get_by_voter_id(cls, schema, voter_id, deserialize=False):
+        query = cls.filter_by(schema=schema, voter_id=voter_id, deserialize=deserialize)
         return query[0] if len(query) > 0 else None
 
     @classmethod
@@ -142,13 +150,13 @@ class CastVote(PsifosModel, db.Model):
         cast_vote = cls.get_by_voter_id(
             schema=schema,
             voter_id=kwargs["voter_id"],
+            deserialize=True,
         )
         if cast_vote is not None:
             for key, value in kwargs.items():
                 setattr(cast_vote, key, value)
         else:
             cast_vote = cls(**kwargs)
-        cast_vote.save()
         return cast_vote
 
 
@@ -191,19 +199,22 @@ class Trustee(PsifosModel, db.Model):
     acknowledgements = db.Column(db.Text, nullable=True)  # PsifosObject: Signature
 
     @classmethod
-    def get_by_uuid(cls, schema, uuid):
-        query = cls.filter_by(schema=schema, uuid=uuid)
+    def get_by_uuid(cls, schema, uuid, deserialize=False):
+        query = cls.filter_by(schema=schema, uuid=uuid, deserialize=deserialize)
         return query[0] if len(query) > 0 else None
 
     @classmethod
     def update_or_create(cls, schema, **kwargs):
-        trustee = cls.get_by_uuid(schema=schema, uuid=kwargs['uuid'])
+        trustee = cls.get_by_uuid(
+            schema=schema,
+            uuid=kwargs['uuid'],
+            deserialize=True,
+        )
         if trustee is not None:
             for key, value in kwargs.items():
                 setattr(trustee, key, value)
         else:
             trustee = cls(**kwargs)
-        trustee.save()
         return trustee
 
 

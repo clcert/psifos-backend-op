@@ -1,10 +1,12 @@
 from marshmallow import fields
 
+
 class SerializableField(fields.Field):
     """
     Extension of a marshmallow Field to support serializable 
     Python objects as fields in a table.
     """
+
     def __init__(self, class_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.class_type = class_type

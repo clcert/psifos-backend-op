@@ -19,16 +19,21 @@ from psifos import db
 from psifos import app
 from psifos.forms import ElectionForm
 from psifos.models import Election, Voter, User, Trustee, CastVote
+from psifos.psifos_model import PsifosModel
 from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteSchema
 from psifos.models import CastVote, Election, Voter, User
 from psifos.psifos_object.questions import Questions
-from psifos.schemas import CastVoteSchema, ElectionSchema, VoterSchema
 from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
 
 from sqlalchemy import func
 
 from psifos.serialization import SerializableList
 
+# Schemas Instances
+election_schema = ElectionSchema()
+voter_schema = VoterSchema()
+trustee_schema = TrusteeSchema()
+cast_vote_schema = CastVoteSchema()
 
 # Admin routes
 
@@ -47,14 +52,13 @@ def create_election(current_user: User) -> Response:
         form = ElectionForm.from_json(data)
 
         if form.validate():
-            election_schema = ElectionSchema()
             if Election.get_by_short_name(
                 schema=election_schema, short_name=form.short_name.data
             ):
                 return make_response({"message": "La elección ya existe"}, 400)
 
             uuid_election = str(uuid.uuid4())
-            Election.update_or_create(
+            election = Election.update_or_create(
                 schema=election_schema,
                 admin_id=current_user.get_id(),
                 uuid=uuid_election,
@@ -69,7 +73,7 @@ def create_election(current_user: User) -> Response:
                 normalization=data["normalization"],
                 openreg=False,
             )
-
+            election.save()
             return make_response(
                 jsonify(
                     {"message": "Elección creada con exito!", "uuid": uuid_election}
@@ -93,10 +97,9 @@ def get_election(current_user, election_uuid):
     Require a valid token to access >>> token_required
     """
     try:
-        election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            result = ElectionSchema().dump(election)
+            result = Election.to_dict(schema=election_schema, obj=election)
             return jsonify(result)
         else:
             return make_response(
@@ -117,7 +120,6 @@ def get_elections(current_user):
     """
 
     try:
-        election_schema = ElectionSchema()
         elections = Election.filter_by(
             schema=election_schema, admin_id=current_user.get_id()
         )
@@ -138,7 +140,6 @@ def edit_election(current_user, election_uuid):
     try:
         data = request.get_json()
         form = ElectionForm.from_json(data)
-        election_schema = ElectionSchema()
 
         if form.validate():
             election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
@@ -151,7 +152,7 @@ def edit_election(current_user, election_uuid):
                 return make_response({"message": "La elección ya existe"}, 400)
 
             if election.admin_id == current_user.get_id():
-                Election.update_or_create(
+                election = Election.update_or_create(
                     schema=election_schema,
                     admin_id=current_user.get_id(),
                     uuid=election_uuid,
@@ -165,6 +166,7 @@ def edit_election(current_user, election_uuid):
                     private_p=data["private_p"],
                     normalization=data["normalization"],
                 )
+                election.save()
                 return make_response(
                     jsonify(
                         {
@@ -198,7 +200,6 @@ def create_questions(current_user, election_uuid):
 
     try:
         data = request.get_json()
-        election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             questions = Questions(*data["question"])
@@ -230,8 +231,7 @@ def get_questions(current_user, election_uuid: str) -> response:
 
     """
     try:
-        election_schema = ElectionSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid, deserialize=True)
         json_questions = Questions.serialize(election.questions)
         if not election.questions:
             response = make_response({}, 200)
@@ -258,15 +258,12 @@ def send_voters(current_user, election_uuid) -> Response:
     try:
         file_input = request.files["file"]
         file_str = file_input.read().decode("utf-8")
-        file_str = file_str.split("\n")
-        file_str = [x.split(",") for x in file_str]
+        strip_lines = [line.strip() for line in file_str.split("\n")]
+        data = [x.split(",") for x in strip_lines]
 
-        election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            voter_schema = VoterSchema()
-            cast_vote_schema = CastVoteSchema()
-            for voter in file_str:
+            for voter in data:
                 print(voter)
                 a_voter = Voter.update_or_create(
                     schema=voter_schema,
@@ -276,10 +273,12 @@ def send_voters(current_user, election_uuid) -> Response:
                     voter_name=voter[1],
                     voter_weight=voter[2],
                 )
-                CastVote.update_or_create(
+                a_voter.save()
+                a_cast_vote = CastVote.update_or_create(
                     schema=cast_vote_schema,
                     voter_id=a_voter.id,
                 )
+                a_cast_vote.save()
 
         else:
             return make_response(
@@ -306,12 +305,10 @@ def get_voters(current_user: User, election_uuid) -> Response:
     """
 
     try:
-        election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            voter_schema = VoterSchema()
             voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
-            result = VoterSchema(many=True).dump(voters)
+            result = [Voter.to_dict(schema=voter_schema, obj=e) for e in voters]
             return make_response(jsonify(result), 200)
         else:
             return make_response(
@@ -330,10 +327,8 @@ def delete_voters(current_user: User, election_uuid) -> Response:
     Require a valid token to access >>> token_required
     """
     try:
-        election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
 
-        voter_schema = VoterSchema()
         if election.admin_id == current_user.get_id():
             voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
             list(map(lambda x: x.delete(), voters))
@@ -364,8 +359,6 @@ def resume(current_user: User, election_uuid: str) -> Response:
     Require a valid token to access >>> token_required
     """
     try:
-        election_schema = ElectionSchema()
-        voter_schema = VoterSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         voters_election = Voter.filter_by(schema=voter_schema, election_id=election.id)
         if election.admin_id == current_user.get_id():
@@ -399,7 +392,6 @@ def openreg(current_user: User, election_uuid: str) -> Response:
     """
     try:
         data = request.get_json()
-        election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             election.openreg = data["openreg"]
@@ -429,7 +421,6 @@ def get_questions_voters(election_uuid):
     try:
 
         if verify_voter(session["username"], election_uuid):
-            election_schema = ElectionSchema()
             election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
             if not election.questions:
                 response = create_response_cors(make_response({}, 200))
@@ -468,24 +459,23 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
     """
     try:
         data = request.get_json()
-        election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            trustee_schema = TrusteeSchema()
-            Trustee.update_or_create(
+            trustee = Trustee.update_or_create(
                 schema=trustee_schema,
                 election_id=election.id,
                 uuid=str(uuid.uuid1()),
                 name=data["name"],
                 email=data["email"],
             )
+            trustee.save()
             return make_response(jsonify({"message": "Creado con exito!"}), 200)
         else:
             return make_response(
                 jsonify({"message": "No tiene permisos para crear un trustee"}), 401
             )
     except Exception as e:
-        print(e)
+        raise e
         return make_response(jsonify({"message": "Error al crear el trustee"}), 400)
 
 
@@ -498,10 +488,8 @@ def delete_trustee(current_user: User, election_uuid: str) -> Response:
     """
     try:
         data = request.get_json()
-        election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            trustee_schema = TrusteeSchema()
             trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=data["uuid"])
             trustee.delete()
             return make_response(jsonify({"message": "Eliminado con exito!"}), 200)
@@ -522,10 +510,8 @@ def get_trustees(current_user: User, election_uuid: str) -> Response:
     Require a valid token to access >>> token_required
     """
     try:
-        election_schema = ElectionSchema()
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            trustee_schema = TrusteeSchema()
             trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id)
             result = [Trustee.to_dict(schema=trustee_schema, obj=e) for e in trustees]
             response = make_response(jsonify(result), 200)
@@ -545,7 +531,6 @@ def get_trustee(trustee_uuid):
     Route for get trustee
     """
     try:
-        trustee_schema = TrusteeSchema()
         trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=trustee_uuid)
         response = make_response(
             jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
@@ -579,17 +564,23 @@ def get_step(election_uuid: str, trustee_uuid: str) -> Response:
     pass
 
 
-
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
-def upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
+def trustee_upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
     """
     Upload public key of trustee
     """
-    pass
+    try:
+        data = request.get_json()
+        with open("trustee_upload_pk.json", "w+") as f:
+            f.write(data)
+
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al obtener el certificado del trustee"}), 400)
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["GET", "POST"])
-def step1(election_uuid: str, trustee_uuid: str) -> Response:
+def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
     """
     Step 1 of the keygenerator trustee
     """
@@ -599,29 +590,28 @@ def step1(election_uuid: str, trustee_uuid: str) -> Response:
 
     elif request.method == "GET":
         pass
-    
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step2", methods=["GET", "POST"])
-def step2(election_uuid: str, trustee_uuid: str) -> Response:
+def truustee_step_2(election_uuid: str, trustee_uuid: str) -> Response:
     """
     Step 2 of the keygenerator trustee
     """
     if request.method == "POST":
         pass
-    
+
     elif request.method == "GET":
         pass
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step3", methods=["GET", "POST"])
-def step3(election_uuid: str, trustee_uuid: str) -> Response:
+def truustee_step_3(election_uuid: str, trustee_uuid: str) -> Response:
     """
     Step 3 of the keygenerator trustee
     """
     if request.method == "POST":
         pass
-    
+
     elif request.method == "GET":
         pass
 

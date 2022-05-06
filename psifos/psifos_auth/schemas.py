@@ -17,8 +17,7 @@ class UserSchema(ma.SQLAlchemySchema):
         model = User
         load_instance = True
         include_relationships = True
-    
-    
+
     id = ma.auto_field()
     public_id = ma.auto_field()
     user_type = ma.auto_field()
@@ -27,6 +26,3 @@ class UserSchema(ma.SQLAlchemySchema):
     password = ma.auto_field()
     admin_p = ma.auto_field()
     elections = ma.Nested(ElectionSchema, many=True)
-    
-
-

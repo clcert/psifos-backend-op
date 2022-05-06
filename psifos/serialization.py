@@ -29,11 +29,13 @@ class SerializableList(object):
         """ 
         Serializes an object to a JSON like string. 
         """
+
         if s_list is None:
             return '[]'
 
         if isinstance(s_list, str):
             return s_list
+
         return json.dumps([obj.__dict__ for obj in s_list.instances])
 
     @classmethod
