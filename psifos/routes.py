@@ -425,9 +425,9 @@ def get_questions_voters(election_uuid):
             if not election.questions:
                 response = create_response_cors(make_response({}, 200))
                 return response
-
+            result = Election.to_dict(schema=election_schema, obj=election)
             response = create_response_cors(
-                make_response(jsonify(json.loads(election.questions)), 200)
+                make_response(result, 200)
             )
             return response
 
