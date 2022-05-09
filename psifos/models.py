@@ -217,6 +217,16 @@ class Trustee(PsifosModel, db.Model):
             trustee = cls(**kwargs)
         return trustee
 
+    @classmethod
+    def get_by_login_id_and_election(cls, schema, trustee_login_id, election_id, deserialize=False):
+        query = cls.filter_by(
+            schema=schema,
+            name=trustee_login_id,
+            election_id=election_id,
+            deserialize=deserialize,
+        )
+        return query[0] if len(query) > 0 else None
+
 
 class SharedPoint(PsifosModel, db.Model):
     __table_name__ = "psifos_shared_point"

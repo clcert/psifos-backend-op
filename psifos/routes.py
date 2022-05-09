@@ -23,7 +23,7 @@ from psifos.psifos_model import PsifosModel
 from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteSchema
 from psifos.models import CastVote, Election, Voter, User
 from psifos.psifos_object.questions import Questions
-from psifos.psifos_auth.utils import token_required, verify_voter, create_response_cors
+from psifos.psifos_auth.utils import cas_requires, token_required, verify_trustee, verify_voter, create_response_cors
 
 from sqlalchemy import func
 
@@ -412,6 +412,7 @@ def openreg(current_user: User, election_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/questions")
+@cas_requires
 def get_questions_voters(election_uuid):
     """
     Route for get questions
@@ -447,6 +448,8 @@ def get_questions_voters(election_uuid):
             make_response(jsonify({"message": "Error al obtener la elección"}), 400)
         )
         return response
+
+    
 
 
 # Trustee Routes
@@ -539,6 +542,44 @@ def get_trustee(trustee_uuid):
     except Exception as e:
         print(e)
         return make_response(jsonify({"message": "Error al obtener el trustee"}), 400)
+
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/home", methods=["GET"])
+@cas_requires
+def get_trustee_home(election_uuid, trustee_uuid):
+    """
+    Route for get trustee home
+    Require a cookie valid in session >>> CAS
+    """
+    try:
+
+        if verify_trustee(session["username"], election_uuid):
+            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+            if not election.questions:
+                response = create_response_cors(make_response({}, 200))
+                return response
+            result = Election.to_dict(schema=election_schema, obj=election)
+            response = create_response_cors(
+                make_response(result, 200)
+            )
+            return response
+
+        else:
+            response = create_response_cors(
+                make_response(
+                    jsonify(
+                        {"message": "No tiene permisos para acceder a esta elección"}
+                    ),
+                    401,
+                )
+            )
+            return response
+
+    except Exception as e:
+        response = create_response_cors(
+            make_response(jsonify({"message": "Error al obtener la elección"}), 400)
+        )
+        return response
+
 
 
 @app.route("/<election_uuid>/get_randomness", methods=["GET"])

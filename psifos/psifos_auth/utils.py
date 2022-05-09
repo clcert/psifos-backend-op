@@ -6,14 +6,14 @@ from flask import request, jsonify, session, redirect, make_response
 from psifos import app, db
 from psifos.psifos_auth.models import User
 from psifos.psifos_auth.schemas import UserSchema
-from psifos.models import Election, Voter
+from psifos.models import Election, Trustee, Voter
 from psifos import config
 
 import jwt
 import uuid
 
 from psifos.models import Voter
-from psifos.schemas import ElectionSchema, VoterSchema
+from psifos.schemas import ElectionSchema, TrusteeSchema, VoterSchema
 
 
 def token_required(f):
@@ -102,6 +102,22 @@ def verify_voter(voter_login_id, election_uuid):
         return False
 
     return True
+
+def verify_trustee(trustee_login_id, election_uuid):
+    """
+    Verify if the trustee is registered in the election
+    """
+    election_schema = ElectionSchema()
+    election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+    if not election:
+        return False
+    trustee_schema = TrusteeSchema()
+    trustee = Trustee.get_by_login_id_and_election(schema=trustee_schema, trustee_login_id=trustee_login_id, election_id=election.id)
+    if not trustee:
+        return False
+
+    return True
+
 
 def create_response_cors(response):
     """
