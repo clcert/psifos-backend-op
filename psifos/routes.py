@@ -23,7 +23,13 @@ from psifos.psifos_model import PsifosModel
 from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteSchema
 from psifos.models import CastVote, Election, Voter, User
 from psifos.psifos_object.questions import Questions
-from psifos.psifos_auth.utils import cas_requires, token_required, verify_trustee, verify_voter, create_response_cors
+from psifos.psifos_auth.utils import (
+    cas_requires,
+    token_required,
+    verify_trustee,
+    verify_voter,
+    create_response_cors,
+)
 
 from sqlalchemy import func
 
@@ -231,7 +237,9 @@ def get_questions(current_user, election_uuid: str) -> response:
 
     """
     try:
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid, deserialize=True)
+        election = Election.get_by_uuid(
+            schema=election_schema, uuid=election_uuid, deserialize=True
+        )
         json_questions = Questions.serialize(election.questions)
         if not election.questions:
             response = make_response({}, 200)
@@ -427,9 +435,7 @@ def get_questions_voters(election_uuid):
                 response = create_response_cors(make_response({}, 200))
                 return response
             result = Election.to_dict(schema=election_schema, obj=election)
-            response = create_response_cors(
-                make_response(result, 200)
-            )
+            response = create_response_cors(make_response(result, 200))
             return response
 
         else:
@@ -449,8 +455,6 @@ def get_questions_voters(election_uuid):
         )
         return response
 
-    
-
 
 # Trustee Routes
 @app.route("/<election_uuid>/create_trustee", methods=["POST"])
@@ -469,7 +473,9 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
                 election_id=election.id,
                 uuid=str(uuid.uuid1()),
                 name=data["name"],
+                trustee_login_id=data["trustee_login_id"],
                 email=data["email"],
+                
             )
             trustee.save()
             return make_response(jsonify({"message": "Creado con exito!"}), 200)
@@ -543,6 +549,7 @@ def get_trustee(trustee_uuid):
         print(e)
         return make_response(jsonify({"message": "Error al obtener el trustee"}), 400)
 
+
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/home", methods=["GET"])
 @cas_requires
 def get_trustee_home(election_uuid, trustee_uuid):
@@ -558,9 +565,7 @@ def get_trustee_home(election_uuid, trustee_uuid):
                 response = create_response_cors(make_response({}, 200))
                 return response
             result = Election.to_dict(schema=election_schema, obj=election)
-            response = create_response_cors(
-                make_response(result, 200)
-            )
+            response = create_response_cors(make_response(result, 200))
             return response
 
         else:
@@ -581,7 +586,6 @@ def get_trustee_home(election_uuid, trustee_uuid):
         return response
 
 
-
 @app.route("/<election_uuid>/get_randomness", methods=["GET"])
 def get_randomness(election_uuid: str) -> Response:
     """
@@ -596,6 +600,7 @@ def get_randomness(election_uuid: str) -> Response:
 
 
 # Routes for keygenerator trustee
+
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/get_step", methods=["GET"])
 def get_step(election_uuid: str, trustee_uuid: str) -> Response:
@@ -617,7 +622,9 @@ def trustee_upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
 
     except Exception as e:
         print(e)
-        return make_response(jsonify({"message": "Error al obtener el certificado del trustee"}), 400)
+        return make_response(
+            jsonify({"message": "Error al obtener el certificado del trustee"}), 400
+        )
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["GET", "POST"])

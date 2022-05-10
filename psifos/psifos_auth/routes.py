@@ -134,7 +134,7 @@ def cas_login_trustee(election_uuid: str) -> Response:
     if "username" in session:
         # Already logged in
         trustee_uuid = Trustee.filter_by(
-            schema=trustee_schema, name=session["username"]
+            schema=trustee_schema, trustee_login_id=session["username"]
         )[0].uuid
         response = redirect(
             config["URL"]["front"]
@@ -159,7 +159,7 @@ def cas_login_trustee(election_uuid: str) -> Response:
     else:  # Login successfully, redirect according `next` query parameter.
         session["username"] = user
         trustee_uuid = Trustee.filter_by(
-            schema=trustee_schema, name=session["username"]
+            schema=trustee_schema, trustee_login_id=session["username"]
         )[0].uuid
         response = redirect(
             config["URL"]["front"]

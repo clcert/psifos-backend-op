@@ -180,6 +180,7 @@ class Trustee(PsifosModel, db.Model):
     uuid = db.Column(db.String(50), nullable=False, unique=True)
 
     name = db.Column(db.String(200), nullable=False)
+    trustee_login_id = db.Column(db.String(100), nullable=False)
     email = db.Column(db.Text, nullable=False)
     secret = db.Column(db.String(100))
 
@@ -221,7 +222,7 @@ class Trustee(PsifosModel, db.Model):
     def get_by_login_id_and_election(cls, schema, trustee_login_id, election_id, deserialize=False):
         query = cls.filter_by(
             schema=schema,
-            name=trustee_login_id,
+            trustee_login_id=trustee_login_id,
             election_id=election_id,
             deserialize=deserialize,
         )
