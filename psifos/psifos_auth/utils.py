@@ -38,7 +38,7 @@ def token_required(f):
             current_user = User.get_by_public_id(schema=user_schema, public_id=data['public_id'])
 
         except Exception as e:
-            return jsonify({'message': 'token is invalid'})
+            return make_response(jsonify({'message': 'token is invalid'}), 401)
 
         return f(current_user, *args,  **kwargs)
     return decorator
