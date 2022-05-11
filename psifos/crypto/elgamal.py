@@ -12,10 +12,12 @@ from psifos.serialization import SerializableObject
 
 
 class ElGamal(object):
-    def __init__(self, p, q, g):
+    def __init__(self, p, q, g, l, t):
         self.p = p
         self.q = q
         self.g = g
+        self.l = l
+        self.t = t
 
     def generate_keypair(self):
         """
@@ -41,6 +43,7 @@ class KeyPair(object):
         self.pk.y = pow(g, self.sk.x, p)
 
         self.sk.pk = self.pk
+        return self
 
 
 class PublicKey(SerializableObject):

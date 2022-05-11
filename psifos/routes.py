@@ -240,13 +240,11 @@ def get_questions(current_user, election_uuid: str) -> response:
         election = Election.get_by_uuid(
             schema=election_schema, uuid=election_uuid, deserialize=True
         )
-        json_questions = Questions.serialize(election.questions)
         if not election.questions:
-            response = make_response({}, 200)
-            return response
-        json_questions = SerializableList.serialize(election.questions)
-        response = make_response(json_questions, 200)
-        return response
+            return make_response({"message": "Esta eleccion no tiene preguntas definidas!"}, 200)
+
+        json_questions = Questions.serialize(election.questions)
+        return make_response(json_questions, 200)
 
     except Exception as e:
         print(e)
@@ -643,6 +641,23 @@ def get_step(election_uuid: str, trustee_uuid: str) -> Response:
         return make_response(jsonify({"message": "Error al obtener el step del trustee"}), 400)
 
 
+@app.route("/<election_uuid>/get_eg_params", methods=["GET"])
+def election_get_eg_params(election_uuid: str) -> Response:
+    """
+    Returns a JSON with the election eg_params.
+    """
+    try:
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        eg_params = election.get_eg_params()
+        return make_response(eg_params, 200)
+
+    except Exception as e:
+        print(e)
+        return make_response(
+            jsonify({"message": "Error al obtener los parametros de la eleccion."}), 400
+        )
+
+
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
 def trustee_upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
     """
@@ -667,7 +682,25 @@ def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
     """
 
     if request.method == "POST":
-
+        body = request.get_json()
+        print(body)
+        # coefficients = [Coeficient for c in body["coefficients"]]
+        # TODO: perform server-side checks here!
+        """
+        body_unicode = request.body.decode('utf-8')
+        body = json.loads(body_unicode)
+        coefficients = utils.from_json(body['coefficients'])
+        coefficients = [datatypes.LDObject.fromDict(x, type_hint="heliosc/Coefficient").wrapped_obj for x in coefficients]
+        points = utils.from_json(body['points'])
+        points = [datatypes.LDObject.fromDict(x, type_hint="heliosc/Point").wrapped_obj for x in points]
+        SharedPoint.objects.filter(election=election, sender=trustee.trustee_id).delete()
+        for i in range(len(points)):
+        obj = SharedPoint(election=election, sender=trustee.trustee_id, recipient=i+1, point=points[i])
+        obj.save()
+        trustee.coefficients = coefficients
+        trustee.threshold_step = 1
+        trustee.save()
+        """
         pass
 
     elif request.method == "GET":
