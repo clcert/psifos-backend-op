@@ -475,7 +475,7 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
                 name=data["name"],
                 trustee_login_id=data["trustee_login_id"],
                 email=data["email"],
-                
+
             )
             trustee.save()
             return make_response(jsonify({"message": "Creado con exito!"}), 200)
@@ -561,11 +561,28 @@ def get_trustee_home(election_uuid, trustee_uuid):
 
         if verify_trustee(session["username"], election_uuid):
             election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            if not election.questions:
-                response = create_response_cors(make_response({}, 200))
+            trustee = Trustee.filter_by(
+                schema=trustee_schema, uuid=trustee_uuid, election_id=election.id
+            )
+
+            if not trustee:
+                response = create_response_cors(
+                    make_response(
+                        jsonify(
+                            {
+                                "message": "No tiene permisos para acceder a esta elección"
+                            }
+                        ),
+                        401,
+                    )
+                )
                 return response
-            result = Election.to_dict(schema=election_schema, obj=election)
-            response = create_response_cors(make_response(result, 200))
+
+            response = create_response_cors(
+                make_response(
+                    jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
+                )
+            )
             return response
 
         else:

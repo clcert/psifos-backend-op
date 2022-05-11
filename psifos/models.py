@@ -205,6 +205,11 @@ class Trustee(PsifosModel, db.Model):
         return query[0] if len(query) > 0 else None
 
     @classmethod
+    def get_by_login_id(cls, schema, trustee_login_id, deserialize=False):
+        query = cls.filter_by(schema=schema, trustee_login_id=trustee_login_id, deserialize=deserialize)
+        return query[0] if len(query) > 0 else None
+
+    @classmethod
     def update_or_create(cls, schema, **kwargs):
         trustee = cls.get_by_uuid(
             schema=schema,

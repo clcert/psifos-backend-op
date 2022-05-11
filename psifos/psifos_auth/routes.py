@@ -133,18 +133,25 @@ def cas_login_trustee(election_uuid: str) -> Response:
 
     if "username" in session:
         # Already logged in
-        trustee_uuid = Trustee.filter_by(
+        trustee = Trustee.get_by_login_id(
             schema=trustee_schema, trustee_login_id=session["username"]
-        )[0].uuid
-        response = redirect(
-            config["URL"]["front"]
-            + "/"
-            + election_uuid
-            + "/trustee/"
-            + trustee_uuid
-            + "/home",
-            code=302,
         )
+        if not trustee:
+            response = redirect(
+                config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
+                code=302,
+            )
+        else:
+
+            response = redirect(
+                config["URL"]["front"]
+                + "/"
+                + election_uuid
+                + "/trustee/"
+                + trustee.uuid
+                + "/home",
+                code=302,
+            )
         response.set_cookie("session", cookie)
         return response
 
@@ -158,23 +165,30 @@ def cas_login_trustee(election_uuid: str) -> Response:
         return make_response({"message": "ERROR"}, 401)
     else:  # Login successfully, redirect according `next` query parameter.
         session["username"] = user
-        trustee_uuid = Trustee.filter_by(
+        trustee = Trustee.get_by_login_id(
             schema=trustee_schema, trustee_login_id=session["username"]
-        )[0].uuid
-        response = redirect(
-            config["URL"]["front"]
-            + "/"
-            + election_uuid
-            + "/trustee/"
-            + trustee_uuid
-            + "/home",
-            code=302,
         )
+        if not trustee:
+            response = redirect(
+                config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
+                code=302,
+            )
+        else:
+
+            response = redirect(
+                config["URL"]["front"]
+                + "/"
+                + election_uuid
+                + "/trustee/"
+                + trustee.uuid
+                + "/home",
+                code=302,
+            )
         return response
 
 
-@app.route("/<election_uuid>/trustee/<trustee_uuid>/logout", methods=["GET"])
-def logout_trustee(election_uuid: str, trustee_uuid: str) -> Response:
+@app.route("/<election_uuid>/trustee/logout", methods=["GET"])
+def logout_trustee(election_uuid: str) -> Response:
     """
     Logout a trustee
     """
@@ -182,8 +196,7 @@ def logout_trustee(election_uuid: str, trustee_uuid: str) -> Response:
         config["URL"]["front"]
         + "/"
         + election_uuid
-        + "/trustee/"
-        + trustee_uuid
+        + "/trustee"
         + "/home"
         + "?logout=true"
     )
