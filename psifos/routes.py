@@ -624,7 +624,23 @@ def get_step(election_uuid: str, trustee_uuid: str) -> Response:
     """
     Get the step of the trustee
     """
-    pass
+    try:
+        trustee_step = Trustee.get_by_uuid(
+            schema=trustee_schema,
+            uuid=trustee_uuid
+        ).current_step
+        return make_response(
+            jsonify(
+                {
+                    "message": "Step del trustee obtenido con exito!",
+                    "status": trustee_step,
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({"message": "Error al obtener el step del trustee"}), 400)
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
@@ -651,6 +667,7 @@ def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
     """
 
     if request.method == "POST":
+
         pass
 
     elif request.method == "GET":

@@ -184,6 +184,8 @@ class Trustee(PsifosModel, db.Model):
     email = db.Column(db.Text, nullable=False)
     secret = db.Column(db.String(100))
 
+    current_step = db.Column(db.Integer, default=0)
+
     public_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGPublicKey
     public_key_hash = db.Column(db.String(100), nullable=True)
     secret_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
