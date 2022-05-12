@@ -103,17 +103,27 @@ def get_election(current_user, election_uuid):
     Require a valid token to access >>> token_required
     """
     try:
+
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
+            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
             result = Election.to_dict(schema=election_schema, obj=election)
-            return jsonify(result)
+            response = make_response(result, 200)
+            return response
+
         else:
-            return make_response(
-                jsonify({"message": "No tiene permisos para ver esta elección"}), 401
+            response = make_response(
+                jsonify({"message": "No tiene permisos para acceder a esta elección"}),
+                401,
             )
+            return response
+
     except Exception as e:
         print(e)
-        return jsonify({"message": "Error al obtener la elección"})
+        response = create_response_cors(
+            make_response(jsonify({"message": "Error al obtener la elección"}), 400)
+        )
+        return response
 
 
 @app.route("/get_elections", methods=["GET"])
@@ -272,7 +282,6 @@ def send_voters(current_user, election_uuid) -> Response:
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             for voter in data:
-                print(voter)
                 a_voter = Voter.update_or_create(
                     schema=voter_schema,
                     election_id=election.id,
@@ -431,9 +440,6 @@ def get_questions_voters(election_uuid):
 
         if verify_voter(session["username"], election_uuid):
             election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            if not election.questions:
-                response = create_response_cors(make_response({}, 200))
-                return response
             result = Election.to_dict(schema=election_schema, obj=election)
             response = create_response_cors(make_response(result, 200))
             return response
@@ -475,7 +481,6 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
                 name=data["name"],
                 trustee_login_id=data["trustee_login_id"],
                 email=data["email"],
-
             )
             trustee.save()
             return make_response(jsonify({"message": "Creado con exito!"}), 200)
