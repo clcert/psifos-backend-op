@@ -4,6 +4,7 @@ Routes for Psifos.
 24-03-2022
 """
 from ctypes import cast
+from email import message
 import uuid
 import json
 import base64
@@ -17,6 +18,7 @@ from flask.wrappers import Response
 
 from psifos import db
 from psifos import app
+from psifos import utils as route_utils
 from psifos.forms import ElectionForm
 from psifos.models import Election, Voter, User, Trustee, CastVote
 from psifos.psifos_model import PsifosModel
@@ -30,6 +32,8 @@ from psifos.psifos_auth.utils import (
     verify_voter,
     create_response_cors,
 )
+from psifos.crypto import sharedpoint
+from psifos.crypto import utils as crypto_utils
 
 from sqlalchemy import func
 
@@ -664,14 +668,38 @@ def trustee_upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
     Upload public key of trustee
     """
     try:
-        data = request.get_json()
-        with open("trustee_upload_pk.json", "w+") as f:
-            f.write(data)
+        trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=trustee_uuid)
+
+        body = request.get_json()
+        public_key_and_proof = route_utils.from_json(body['public_key_json'])
+
+        # TODO: validate certificate
+        sign_params = {
+            "challenge": public_key_and_proof["signature"]["challenge"],
+            "response": public_key_and_proof["signature"]["response"],
+        }
+        signature = sharedpoint.Signature(**sign_params)
+
+        cert_params = {
+            "signature_key": public_key_and_proof["signature_key"],
+            "encryption_key": public_key_and_proof["encryption_key"],
+            "signature": signature,
+        }
+        cert = sharedpoint.Certificate(**cert_params)
+
+        # setting trustee's certificate and pk hash.
+        trustee.certificate = cert
+        trustee.public_key_hash = crypto_utils.hash_b64(str(cert.signature_key))
+        trustee.save()
+
+        return make_response(
+            jsonify({"message": "El certificado del trustee fue subido con exito"}), 200
+        )
 
     except Exception as e:
         print(e)
         return make_response(
-            jsonify({"message": "Error al obtener el certificado del trustee"}), 400
+            jsonify({"message": "Error al subir el certificado del trustee"}), 400
         )
 
 

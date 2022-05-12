@@ -5,28 +5,48 @@ SharedPoint classes for Psifos.
 """
 
 from psifos.serialization import SerializableObject
+import json
 
 
 class Signature(SerializableObject):
     def __init__(self, challenge, response) -> None:
-        self.challenge: int = challenge
-        self.response: int = response
+        self.challenge: int = int(challenge)
+        self.response: int = int(response)
 
 
-class Certificate(SerializableObject):
+class SerializableSPObject(SerializableObject):
+    @classmethod
+    def serialize(cls, obj) -> str:
+        if obj is None:
+            return '{}'
+
+        if isinstance(obj, str):
+            return obj
+
+        obj.signature = Signature.serialize(obj=obj)
+        return json.dumps(obj.__dict__)
+
+    @classmethod
+    def deserialize(cls, json_data: str) -> str:
+        data = json.loads(json_data)
+        data["signature"] = Signature.deserialize(data["signature"])
+        return cls(**data)
+
+
+class Certificate(SerializableSPObject):
     def __init__(self, signature_key, encryption_key, signature) -> None:
-        self.signature_key: int = signature_key
-        self.encryption_key: int = encryption_key
+        self.signature_key: int = int(signature_key)
+        self.encryption_key: int = int(encryption_key)
         self.signature: Signature = signature
 
 
-class Coefficient(SerializableObject):
+class Coefficient(SerializableSPObject):
     def __init__(self, coefficient, signature) -> None:
-        self.coeficcient: int = coefficient
+        self.coeficcient: int = int(coefficient)
         self.signature: Signature = signature
 
 
-class Point(SerializableObject):
+class Point(SerializableSPObject):
     def __init__(self, alpha, signature) -> None:
-        self.alpha: int = alpha
+        self.alpha: int = int(alpha)
         self.signature: Signature = signature

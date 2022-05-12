@@ -4,9 +4,31 @@ Utilities for Psifos.
 08-04-2022
 """
 
+import json
+
 from flask import abort
 from psifos.models import Election
 from functools import update_wrapper
+
+# -- JSON manipulation --
+
+
+def to_json(d: dict):
+    return json.dumps(d, sort_keys=True)
+
+
+def from_json(value):
+    if value == "" or value is None:
+        return None
+
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except Exception as e:
+            raise Exception("psifos.utils error: in from_json, value is not JSON parseable") from e
+
+    return value
+
 
 def __verify_election_status(election, expected_status):
     """
@@ -43,7 +65,7 @@ def election_route(**status):
             __verify_election_status(election, status)
 
             # TODO: implement CAS redirect if election is private.
-        
+
             return func(current_user, election, *args, **kwargs)
 
         return update_wrapper(election_route_wrapper, func)

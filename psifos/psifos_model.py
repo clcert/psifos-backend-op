@@ -106,9 +106,9 @@ class PsifosModel():
         for attr in class_attributes:
             attr_value = getattr(self, attr)
             if isinstance(attr_value, SerializableObject):
-                setattr(self, attr, SerializableObject.serialize(attr_value))
+                setattr(self, attr, attr_value.serialize(attr_value))
             elif isinstance(attr_value, SerializableList):
-                setattr(self, attr, SerializableList.serialize(attr_value))
+                setattr(self, attr, attr_value.serialize(attr_value))
         db.session.add(self)
         db.session.commit()
 
