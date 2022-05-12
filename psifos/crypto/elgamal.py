@@ -11,7 +11,7 @@ import logging
 from psifos.serialization import SerializableObject
 
 
-class ElGamal(object):
+class ElGamal(SerializableObject):
     def __init__(self, p, q, g, l, t):
         self.p = p
         self.q = q

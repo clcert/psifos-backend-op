@@ -710,17 +710,35 @@ def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
     """
 
     if request.method == "POST":
-        body = request.get_json()
-        print(body)
-        # coefficients = [Coeficient for c in body["coefficients"]]
-        # TODO: perform server-side checks here!
         """
+        body = request.get_json()
+
+        # Instantiate coefficients
+        coeff_list = route_utils.from_json(body['coefficients'])
+        coefficients = []
+        for coeff_data in coeff_list:
+            sign_params = {
+            "challenge": coeff_data["signature"]["challenge"],
+            "response": coeff_data["signature"]["response"],
+            }
+            signature = sharedpoint.Signature(**sign_params)
+
+            coeff_params = {
+                "coefficient": coeff_data["coefficient"],
+                "signature": signature,
+            }
+            coefficients.append(sharedpoint.Coefficient(**coeff_params))
+
+        points_list = route_utils.from_json(body['points'])
+
+
+
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
-        coefficients = utils.from_json(body['coefficients'])
         coefficients = [datatypes.LDObject.fromDict(x, type_hint="heliosc/Coefficient").wrapped_obj for x in coefficients]
         points = utils.from_json(body['points'])
         points = [datatypes.LDObject.fromDict(x, type_hint="heliosc/Point").wrapped_obj for x in points]
+        # TODO: perform server-side checks here!
         SharedPoint.objects.filter(election=election, sender=trustee.trustee_id).delete()
         for i in range(len(points)):
         obj = SharedPoint(election=election, sender=trustee.trustee_id, recipient=i+1, point=points[i])
@@ -728,8 +746,8 @@ def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
         trustee.coefficients = coefficients
         trustee.threshold_step = 1
         trustee.save()
+        return HttpResponseRedirect(reverse(trustee_home, args=[election.uuid, trustee.uuid]))
         """
-        pass
 
     elif request.method == "GET":
         pass

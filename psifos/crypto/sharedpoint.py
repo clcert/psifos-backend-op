@@ -42,7 +42,7 @@ class Certificate(SerializableSPObject):
 
 class Coefficient(SerializableSPObject):
     def __init__(self, coefficient, signature) -> None:
-        self.coeficcient: int = int(coefficient)
+        self.coefficient: int = int(coefficient)
         self.signature: Signature = signature
 
 
