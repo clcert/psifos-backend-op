@@ -1,7 +1,7 @@
 from psifos import app
 from psifos import config
 from psifos import cas_client
-from psifos.models import Trustee
+from psifos.models import Election, Trustee
 from psifos.psifos_auth.models import User
 from psifos.psifos_auth.schemas import UserSchema
 
@@ -17,7 +17,7 @@ from flask import request, jsonify, make_response, redirect, session
 import datetime
 import jwt
 
-from psifos.schemas import TrusteeSchema
+from psifos.schemas import ElectionSchema, TrusteeSchema
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -130,11 +130,15 @@ def cas_login_trustee(election_uuid: str) -> Response:
 
     cookie = request.cookies.get("session")
     trustee_schema = TrusteeSchema()
+    election_schema = ElectionSchema()
 
     if "username" in session:
         # Already logged in
-        trustee = Trustee.get_by_login_id(
-            schema=trustee_schema, trustee_login_id=session["username"]
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        trustee = Trustee.get_by_login_id_and_election(
+            schema=trustee_schema,
+            trustee_login_id=session["username"],
+            election_id=election.id,
         )
         if not trustee:
             response = redirect(
@@ -165,8 +169,11 @@ def cas_login_trustee(election_uuid: str) -> Response:
         return make_response({"message": "ERROR"}, 401)
     else:  # Login successfully, redirect according `next` query parameter.
         session["username"] = user
+        election = Election.get_by_uuid(schema=ElectionSchema, uuid=election_uuid)
         trustee = Trustee.get_by_login_id(
-            schema=trustee_schema, trustee_login_id=session["username"]
+            schema=trustee_schema,
+            trustee_login_id=session["username"],
+            election_id=election.id,
         )
         if not trustee:
             response = redirect(
