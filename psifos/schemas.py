@@ -30,7 +30,7 @@ class CastVoteSchema(ma.SQLAlchemySchema):
     voter_id = ma.auto_field()
     total_cast_votes = ma.auto_field()
     invalid_cast_votes = ma.auto_field()
-    vote = SerializableField(EncryptedVote)   # PsifosObject: EncryptedVote
+    vote = ma.auto_field()  # SerializableField(EncryptedVote)
     vote_hash = ma.auto_field()
     vote_tinyhash = ma.auto_field()
     cast_at = ma.auto_field()
@@ -75,7 +75,7 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
     open_answers_decryption_factors = ma.auto_field()  # SerializableField(DecryptionFactors)
     open_answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
-    certificate = ma.auto_field()  # SerializableField(Certificate)
+    certificate = SerializableField(Certificate)
     threshold_step = ma.auto_field()
     coefficients = ma.auto_field()  # SerializableField(Coefficient)
     acknowledgements = ma.auto_field()  # SerializableField(Signature)

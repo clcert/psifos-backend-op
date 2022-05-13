@@ -4,7 +4,8 @@ ElGamal encryption classes for Psifos.
 Ben Adida
 reworked for Psifos: 14-04-2022
 """
-from psifos.crypto.utils import random
+import json
+from psifos.crypto.utils import BigInteger, random
 from Crypto.Util import number
 from Crypto.Hash import SHA1
 import logging
@@ -13,11 +14,11 @@ from psifos.serialization import SerializableObject
 
 class ElGamal(SerializableObject):
     def __init__(self, p, q, g, l, t):
-        self.p = p
-        self.q = q
-        self.g = g
-        self.l = l
-        self.t = t
+        self.p = BigInteger(p)
+        self.q = BigInteger(q)
+        self.g = BigInteger(g)
+        self.l = BigInteger(l)
+        self.t = BigInteger(t)
 
     def generate_keypair(self):
         """

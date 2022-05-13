@@ -93,15 +93,19 @@ def verify_voter(voter_login_id, election_uuid):
     if not election:
         return False
     voter_schema = VoterSchema()
-    voter = Voter.get_by_login_id_and_election(schema=voter_schema, voter_login_id=voter_login_id, election_id=election.id)
+    voter = Voter.get_by_login_id_and_election(
+        schema=voter_schema, voter_login_id=voter_login_id, election_id=election.id)
     if not voter:
         if voter_login_id[-10:] == '@uchile.cl':
-            voter = Voter.get_by_login_id_and_election(schema=voter_schema, voter_login_id=voter_login_id[:-10], election_id=election.id)
+            voter = Voter.get_by_login_id_and_election(
+                schema=voter_schema, voter_login_id=voter_login_id[: -10],
+                election_id=election.id)
             if not voter:
                 return False
         return False
 
     return True
+
 
 def verify_trustee(trustee_login_id, election_uuid):
     """
@@ -112,7 +116,8 @@ def verify_trustee(trustee_login_id, election_uuid):
     if not election:
         return False
     trustee_schema = TrusteeSchema()
-    trustee = Trustee.get_by_login_id_and_election(schema=trustee_schema, trustee_login_id=trustee_login_id, election_id=election.id)
+    trustee = Trustee.get_by_login_id_and_election(
+        schema=trustee_schema, trustee_login_id=trustee_login_id, election_id=election.id)
     if not trustee:
         return False
 

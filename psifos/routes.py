@@ -20,7 +20,7 @@ from psifos import db
 from psifos import app
 from psifos import utils as route_utils
 from psifos.forms import ElectionForm
-from psifos.models import Election, Voter, User, Trustee, CastVote
+from psifos.models import Election, SharedPoint, Voter, User, Trustee, CastVote
 from psifos.psifos_model import PsifosModel
 from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteSchema
 from psifos.models import CastVote, Election, Voter, User
@@ -672,20 +672,10 @@ def trustee_upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
 
         body = request.get_json()
         public_key_and_proof = route_utils.from_json(body['public_key_json'])
+        print(f"public_key_and_proof: {public_key_and_proof}")
 
         # TODO: validate certificate
-        sign_params = {
-            "challenge": public_key_and_proof["signature"]["challenge"],
-            "response": public_key_and_proof["signature"]["response"],
-        }
-        signature = sharedpoint.Signature(**sign_params)
-
-        cert_params = {
-            "signature_key": public_key_and_proof["signature_key"],
-            "encryption_key": public_key_and_proof["encryption_key"],
-            "signature": signature,
-        }
-        cert = sharedpoint.Certificate(**cert_params)
+        cert = sharedpoint.Certificate(**public_key_and_proof)
 
         # setting trustee's certificate and pk hash.
         trustee.certificate = cert
@@ -709,37 +699,20 @@ def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
     Step 1 of the keygenerator trustee
     """
 
+    """
     if request.method == "POST":
-        """
         body = request.get_json()
 
         # Instantiate coefficients
-        coeff_list = route_utils.from_json(body['coefficients'])
-        coefficients = []
-        for coeff_data in coeff_list:
-            sign_params = {
-            "challenge": coeff_data["signature"]["challenge"],
-            "response": coeff_data["signature"]["response"],
-            }
-            signature = sharedpoint.Signature(**sign_params)
-
-            coeff_params = {
-                "coefficient": coeff_data["coefficient"],
-                "signature": signature,
-            }
-            coefficients.append(sharedpoint.Coefficient(**coeff_params))
-
-        points_list = route_utils.from_json(body['points'])
-
-
-
-        body_unicode = request.body.decode('utf-8')
-        body = json.loads(body_unicode)
-        coefficients = [datatypes.LDObject.fromDict(x, type_hint="heliosc/Coefficient").wrapped_obj for x in coefficients]
-        points = utils.from_json(body['points'])
-        points = [datatypes.LDObject.fromDict(x, type_hint="heliosc/Point").wrapped_obj for x in points]
+        coeffs_data = route_utils.from_json(body['coefficients'])
+        coefficients = [sharedpoint.Coefficient(**params) for params in coeffs_data]
+        # Instantiate points
+        points_data = route_utils.from_json(body['points'])
+        points = [sharedpoint.Point(**params) for params in points_data]
+        
         # TODO: perform server-side checks here!
-        SharedPoint.objects.filter(election=election, sender=trustee.trustee_id).delete()
+        SharedPoint.get_by_trustee_id(schema=shared_point_schema, sender=trustee.trustee_id).delete()
+       
         for i in range(len(points)):
         obj = SharedPoint(election=election, sender=trustee.trustee_id, recipient=i+1, point=points[i])
         obj.save()
@@ -747,10 +720,30 @@ def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
         trustee.threshold_step = 1
         trustee.save()
         return HttpResponseRedirect(reverse(trustee_home, args=[election.uuid, trustee.uuid]))
-        """
 
-    elif request.method == "GET":
-        pass
+    if trustee.coefficients:
+        # TODO: meaningful message
+        return HttpResponseRedirect(reverse(trustee_home, args=[election.uuid, trustee.uuid]))
+
+    if request.method == "GET":
+            params = utils.to_json(election.generate_elgamal_ldobject().toJSONDict())
+            try:
+                certificates = format_certificates(Trustee.get_by_election(election))
+                return JsonResponse({
+                    'params': params,
+                    'certificates': certificates,
+                
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'error': 'No todos los custodios generaron la llave',
+                })
+
+    params = utils.to_json(election.generate_elgamal_ldobject().toJSONDict())
+    certificates = format_certificates(Trustee.get_by_election(election))
+    return render_template(request, "trustee_step1", {'params': params, 'election': election, 'trustee': trustee, 'certificates': certificates})
+
+    """
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step2", methods=["GET", "POST"])
@@ -784,6 +777,6 @@ def freeze_ballot(current_user: User, election_uuid: str) -> Response:
     """
     Route for freeze ballot
     check if the process can be done
-    Require a valid token to access >>> token_required
+    Require a valid token to access >> > token_required
     """
     pass

@@ -261,3 +261,12 @@ class SharedPoint(PsifosModel, db.Model):
     sender = db.Column(db.Integer, nullable=False)
     recipient = db.Column(db.Integer, nullable=False)
     point = db.Column(db.Text, nullable=True)  # PsifosObject: Point
+
+    @classmethod
+    def get_by_trustee_id(cls, schema, trustee_id, deserialize=False):
+        query = cls.filter_by(
+            schema=schema,
+            trustee_login_id=trustee_id,
+            deserialize=deserialize,
+        )
+        return query[0] if len(query) > 0 else None
