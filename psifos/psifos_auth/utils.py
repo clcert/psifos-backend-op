@@ -9,13 +9,17 @@ from psifos import app, db
 from psifos.psifos_auth.models import User
 from psifos.psifos_auth.schemas import UserSchema
 from psifos.models import Election, Trustee, Voter
-from psifos import config
 
 import jwt
 import uuid
 
 from psifos.models import Voter
-from psifos.schemas import ElectionSchema, TrusteeSchema, VoterSchema
+from psifos.schemas import (
+    election_schema,
+    voter_schema,
+    trustee_schema,
+)
+from psifos.psifos_auth.schemas import user_schema
 
 
 def token_required(f):
@@ -123,11 +127,9 @@ def verify_voter(voter_login_id, election_uuid):
     :param election_uuid: uuid of the election
 
     """
-    election_schema = ElectionSchema()
     election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
     if not election:
         return False
-    voter_schema = VoterSchema()
     voter = Voter.get_by_login_id_and_election(
         schema=voter_schema, voter_login_id=voter_login_id, election_id=election.id
     )
@@ -149,11 +151,9 @@ def verify_trustee(trustee_login_id, election_uuid):
     """
     Verify if the trustee is registered in the election
     """
-    election_schema = ElectionSchema()
     election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
     if not election:
         return False
-    trustee_schema = TrusteeSchema()
     trustee = Trustee.get_by_login_id_and_election(
         schema=trustee_schema,
         trustee_login_id=trustee_login_id,

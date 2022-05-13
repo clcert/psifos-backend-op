@@ -16,14 +16,16 @@ from urllib import response
 from flask import request, jsonify, make_response, session
 from flask.wrappers import Response
 
-from psifos import db
 from psifos import app
 from psifos import utils as route_utils
 from psifos.forms import ElectionForm
 from psifos.models import Election, SharedPoint, Voter, User, Trustee, CastVote
-from psifos.psifos_model import PsifosModel
-from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteSchema
-from psifos.models import CastVote, Election, Voter, User
+from psifos.schemas import (
+    election_schema,
+    voter_schema,
+    cast_vote_schema,
+    trustee_schema,
+)
 from psifos.psifos_object.questions import Questions
 from psifos.psifos_auth.utils import (
     election_route,
@@ -37,15 +39,7 @@ from psifos.psifos_auth.utils import (
 from psifos.crypto import sharedpoint
 from psifos.crypto import utils as crypto_utils
 
-from sqlalchemy import func, true
-
-from psifos.serialization import SerializableList
-
-# Schemas Instances
-election_schema = ElectionSchema()
-voter_schema = VoterSchema()
-trustee_schema = TrusteeSchema()
-cast_vote_schema = CastVoteSchema()
+from sqlalchemy import func
 
 # Admin routes
 

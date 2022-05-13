@@ -161,3 +161,11 @@ class ElectionSchema(ma.SQLAlchemySchema):
     trustees = ma.Nested(TrusteeSchema, many=True)
     sharedpoints = ma.Nested(SharedPointSchema, many=True)
     audited_ballots = ma.Nested(AuditedBallotSchema, many=True)
+
+
+election_schema = ElectionSchema()
+voter_schema = VoterSchema()
+cast_vote_schema = CastVoteSchema()
+trustee_schema = TrusteeSchema()
+shared_point_schema = SharedPointSchema()
+audited_ballot_schema = AuditedBallotSchema()

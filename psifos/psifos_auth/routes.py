@@ -8,16 +8,18 @@ from psifos.psifos_auth.schemas import UserSchema
 from psifos.psifos_auth.utils import cas_requires, verify_voter
 
 from werkzeug.security import check_password_hash
-from functools import wraps
 
 from flask_cors import cross_origin
 from flask.wrappers import Response
 from flask import request, jsonify, make_response, redirect, session
 
-import datetime
 import jwt
 
-from psifos.schemas import ElectionSchema, TrusteeSchema
+from psifos.schemas import (
+    election_schema,
+    trustee_schema,
+)
+from psifos.psifos_auth.schemas import user_schema
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -31,7 +33,6 @@ def login_user() -> Response:
     if not auth or not auth.username or not auth.password:
         return make_response({"message": "Ocurrio un error, intente nuevamente"}, 401)
 
-    user_schema = UserSchema()
     user = User.get_by_name(schema=user_schema, name=auth.username)
 
     if not user:
@@ -129,8 +130,6 @@ def cas_login_trustee(election_uuid: str) -> Response:
     """
 
     cookie = request.cookies.get("session")
-    trustee_schema = TrusteeSchema()
-    election_schema = ElectionSchema()
 
     if "username" in session:
         # Already logged in
@@ -169,7 +168,7 @@ def cas_login_trustee(election_uuid: str) -> Response:
         return make_response({"message": "ERROR"}, 401)
     else:  # Login successfully, redirect according `next` query parameter.
         session["username"] = user
-        election = Election.get_by_uuid(schema=ElectionSchema, uuid=election_uuid)
+        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         trustee = Trustee.get_by_login_id(
             schema=trustee_schema,
             trustee_login_id=session["username"],
