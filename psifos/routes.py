@@ -513,7 +513,9 @@ def get_trustee_home(election: Election, trustee: Trustee) -> Response:
 
 
 @app.route("/<election_uuid>/get_randomness", methods=["GET"])
-def get_randomness(election_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def get_randomness(election: Election, trustee: Trustee) -> Response:
     """
     Get some randomness to sprinkle into the sjcl entropy pool
 
@@ -529,7 +531,9 @@ def get_randomness(election_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/get_step", methods=["GET"])
-def get_step(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def get_step(election: Election, trustee: Trustee) -> Response:
     """
     Get the step of the trustee
     """
@@ -537,7 +541,9 @@ def get_step(election_uuid: str, trustee_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
-def trustee_upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
     """
     Upload public key of trustee
     """
@@ -554,7 +560,9 @@ def trustee_upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["GET", "POST"])
-def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def truustee_step_1(election: Election, trustee: Trustee) -> Response:
     """
     Step 1 of the keygenerator trustee
     """
@@ -567,7 +575,9 @@ def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step2", methods=["GET", "POST"])
-def truustee_step_2(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def truustee_step_2(election: Election, trustee: Trustee) -> Response:
     """
     Step 2 of the keygenerator trustee
     """
@@ -579,7 +589,9 @@ def truustee_step_2(election_uuid: str, trustee_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step3", methods=["GET", "POST"])
-def truustee_step_3(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def truustee_step_3(election: Election, trustee: Trustee) -> Response:
     """
     Step 3 of the keygenerator trustee
     """
