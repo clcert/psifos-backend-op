@@ -1,8 +1,9 @@
 from operator import and_
+from os import abort
 from subprocess import call
 from sqlalchemy import true
 from werkzeug.security import generate_password_hash
-from functools import wraps
+from functools import update_wrapper, wraps
 from flask import request, jsonify, session, redirect, make_response
 from psifos import app, db
 from psifos.psifos_auth.models import User
@@ -46,26 +47,34 @@ def token_required(f):
 
     return decorator
 
-def admin_election(f: callable):
+
+def election_route(**kwargs):
+
     """
     Decorator to check if the election is an admin election
 
     """
 
-    @wraps(f)
-    def decorator(*args, **kwargs):
-        election_uuid = kwargs["election_uuid"]
-        election_schema = ElectionSchema()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        current_user = args[0]
-        if not election:
-            return jsonify({"message": "election not found"})
-        if election.admin_id != current_user.id:
-            return jsonify({"message": "election is not an admin election"})
-        return f(election, *args, **kwargs)
+    election_schema = kwargs.get("election_schema", None)
+    admin_election = kwargs.get("admin_election", True)
+    deserialize_election = kwargs.get("deserialize_election", False)
+    
 
-    return decorator
+    def election_route_decorator(f):
+        def election_route_wrapper(current_user = None, election_uuid=None, *args, **kwargs):
+            election = Election.get_by_uuid(
+                schema=election_schema,
+                uuid=election_uuid,
+                deserialize=deserialize_election
+            )
+            if not election:
+                return jsonify({"message": "election not found"})
+            if admin_election and election.admin_id != current_user.id:
+                return jsonify({"message": "election is not an admin election"})
 
+            return f(election,  *args, **kwargs)
+        return update_wrapper(election_route_wrapper, f)
+    return election_route_decorator
 
 
 def cas_requires(f: callable) -> callable:

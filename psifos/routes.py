@@ -24,15 +24,16 @@ from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteS
 from psifos.models import CastVote, Election, Voter, User
 from psifos.psifos_object.questions import Questions
 from psifos.psifos_auth.utils import (
-    admin_election,
+    election_route,
     cas_requires,
+    election_route,
     token_required,
     verify_trustee,
     verify_voter,
     create_response_cors,
 )
 
-from sqlalchemy import func
+from sqlalchemy import func, true
 
 from psifos.serialization import SerializableList
 
@@ -98,10 +99,8 @@ def create_election(current_user: User) -> Response:
 
 @app.route("/get_election/<election_uuid>", methods=["GET"])
 @token_required
-@admin_election
-def get_election(
-    election: Election, current_user: User, election_uuid: str
-) -> Response:
+@election_route(election_schema=election_schema)
+def get_election(election: Election) -> Response:
     """
     Route for get a election by uuid
     Require a valid token to access >>> token_required
@@ -142,10 +141,8 @@ def get_elections(current_user: User):
 
 @app.route("/edit_election/<election_uuid>", methods=["POST"])
 @token_required
-@admin_election
-def edit_election(
-    election: Election, current_user: User, election_uuid: str
-) -> Response:
+@election_route(election_schema=election_schema)
+def edit_election(election: Election) -> Response:
     """
     Route for edit a election
     Require a valid token to access >>> token_required
@@ -165,8 +162,7 @@ def edit_election(
 
             election = Election.update_or_create(
                 schema=election_schema,
-                admin_id=current_user.get_id(),
-                uuid=election_uuid,
+                uuid=election.uuid,
                 short_name=data["short_name"],
                 name=data["name"],
                 description=data["description"],
@@ -182,7 +178,7 @@ def edit_election(
                 jsonify(
                     {
                         "message": "Elección editada con exito!",
-                        "uuid": election_uuid,
+                        "uuid": election.uuid,
                     }
                 ),
                 200,
@@ -198,10 +194,8 @@ def edit_election(
 
 @app.route("/create_questions/<election_uuid>", methods=["POST"])
 @token_required
-@admin_election
-def create_questions(
-    election: Election, current_user: User, election_uuid: str
-) -> Response:
+@election_route(election_schema=election_schema)
+def create_questions(election: Election) -> Response:
     """
     Route for create questions
     Require a valid token to access >>> token_required
@@ -221,19 +215,15 @@ def create_questions(
 
 @app.route("/get_questions/<election_uuid>", methods=["GET"])
 @token_required
-@admin_election
-def get_questions(
-    election: Election, current_user: User, election_uuid: str
-) -> response:
+@election_route(election_schema=election_schema, deserialize_election=True)
+def get_questions(election: Election) -> response:
     """
     Route for get questions
     Require a valid token to access >>> token_required
 
     """
     try:
-        election = Election.get_by_uuid(
-            schema=election_schema, uuid=election_uuid, deserialize=True
-        )
+
         json_questions = Questions.serialize(election.questions)
         if not election.questions:
             response = make_response({}, 200)
@@ -252,8 +242,8 @@ def get_questions(
 
 @app.route("/<election_uuid>/send_voters", methods=["POST"])
 @token_required
-@admin_election
-def send_voters(election: Election, current_user: User, election_uuid: str) -> Response:
+@election_route(election_schema=election_schema)
+def send_voters(election: Election) -> Response:
     """
     Route for send voters
     Require a valid token to access >>> token_required
@@ -289,8 +279,8 @@ def send_voters(election: Election, current_user: User, election_uuid: str) -> R
 
 @app.route("/<election_uuid>/get_voters", methods=["GET"])
 @token_required
-@admin_election
-def get_voters(election: Election, current_user: User, election_uuid: str) -> Response:
+@election_route(election_schema=election_schema)
+def get_voters(election: Election) -> Response:
     """
     Route for get voters
     Require a valid token to access >>> token_required
@@ -308,10 +298,8 @@ def get_voters(election: Election, current_user: User, election_uuid: str) -> Re
 
 @app.route("/<election_uuid>/delete_voters", methods=["POST"])
 @token_required
-@admin_election
-def delete_voters(
-    election: Election, current_user: User, election_uuid: str
-) -> Response:
+@election_route(election_schema=election_schema)
+def delete_voters(election: Election) -> Response:
     """
     Route for delete voters
     Require a valid token to access >>> token_required
@@ -365,8 +353,8 @@ def resume(current_user: User, election_uuid: str) -> Response:
 
 @app.route("/<election_uuid>/openreg", methods=["POST"])
 @token_required
-@admin_election
-def openreg(election: Election, current_user: User, election_uuid: str) -> Response:
+@election_route(election_schema=election_schema)
+def openreg(election: Election) -> Response:
     """
     Route for open election
     Require a valid token to access >>> token_required
@@ -387,7 +375,8 @@ def openreg(election: Election, current_user: User, election_uuid: str) -> Respo
 
 @app.route("/<election_uuid>/questions")
 @cas_requires
-def get_questions_voters(election_uuid):
+@election_route(election_schema=election_schema, admin_election=False)
+def get_questions_voters(election: Election) -> Response:
     """
     Route for get questions
     Require a cookie valid in session >>> CAS
@@ -395,8 +384,7 @@ def get_questions_voters(election_uuid):
     """
     try:
 
-        if verify_voter(session["username"], election_uuid):
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        if verify_voter(session["username"], election.uuid):
             result = Election.to_dict(schema=election_schema, obj=election)
             response = create_response_cors(make_response(result, 200))
             return response
