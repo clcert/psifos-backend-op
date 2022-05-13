@@ -24,16 +24,16 @@ from psifos.schemas import ElectionSchema, VoterSchema, TrusteeSchema, CastVoteS
 from psifos.models import CastVote, Election, Voter, User
 from psifos.psifos_object.questions import Questions
 from psifos.psifos_auth.utils import (
-    election_route,
     cas_requires,
     election_route,
+    election_route,
     token_required,
-    verify_trustee,
-    verify_voter,
+    trustee_cas,
     create_response_cors,
+    voter_cas,
 )
 
-from sqlalchemy import func, true
+from sqlalchemy import false, func, true
 
 from psifos.serialization import SerializableList
 
@@ -375,8 +375,8 @@ def openreg(election: Election) -> Response:
 
 @app.route("/<election_uuid>/questions")
 @cas_requires
-@election_route(election_schema=election_schema, admin_election=False)
-def get_questions_voters(election: Election) -> Response:
+@voter_cas(election_schema=election_schema, voter_schema=voter_schema)
+def get_questions_voters(election: Election, voter: Voter) -> Response:
     """
     Route for get questions
     Require a cookie valid in session >>> CAS
@@ -384,21 +384,9 @@ def get_questions_voters(election: Election) -> Response:
     """
     try:
 
-        if verify_voter(session["username"], election.uuid):
-            result = Election.to_dict(schema=election_schema, obj=election)
-            response = create_response_cors(make_response(result, 200))
-            return response
-
-        else:
-            response = create_response_cors(
-                make_response(
-                    jsonify(
-                        {"message": "No tiene permisos para acceder a esta elección"}
-                    ),
-                    401,
-                )
-            )
-            return response
+        result = Election.to_dict(schema=election_schema, obj=election)
+        response = create_response_cors(make_response(result, 200))
+        return response
 
     except Exception as e:
         response = create_response_cors(
@@ -502,49 +490,20 @@ def get_trustee(trustee_uuid):
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/home", methods=["GET"])
 @cas_requires
-def get_trustee_home(election_uuid, trustee_uuid):
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def get_trustee_home(election: Election, trustee: Trustee) -> Response:
     """
     Route for get trustee home
     Require a cookie valid in session >>> CAS
     """
     try:
 
-        if verify_trustee(session["username"], election_uuid):
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            trustee = Trustee.filter_by(
-                schema=trustee_schema, uuid=trustee_uuid, election_id=election.id
+        response = create_response_cors(
+            make_response(
+                jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
             )
-
-            if not trustee:
-                response = create_response_cors(
-                    make_response(
-                        jsonify(
-                            {
-                                "message": "No tiene permisos para acceder a esta elección"
-                            }
-                        ),
-                        401,
-                    )
-                )
-                return response
-
-            response = create_response_cors(
-                make_response(
-                    jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
-                )
-            )
-            return response
-
-        else:
-            response = create_response_cors(
-                make_response(
-                    jsonify(
-                        {"message": "No tiene permisos para acceder a esta elección"}
-                    ),
-                    401,
-                )
-            )
-            return response
+        )
+        return response
 
     except Exception as e:
         response = create_response_cors(

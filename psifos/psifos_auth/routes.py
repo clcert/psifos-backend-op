@@ -170,7 +170,7 @@ def cas_login_trustee(election_uuid: str) -> Response:
     else:  # Login successfully, redirect according `next` query parameter.
         session["username"] = user
         election = Election.get_by_uuid(schema=ElectionSchema, uuid=election_uuid)
-        trustee = Trustee.get_by_login_id(
+        trustee = Trustee.get_by_login_id_and_election(
             schema=trustee_schema,
             trustee_login_id=session["username"],
             election_id=election.id,
