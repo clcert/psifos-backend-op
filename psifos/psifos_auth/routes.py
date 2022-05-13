@@ -128,69 +128,76 @@ def cas_login_trustee(election_uuid: str) -> Response:
     Make the connection and verification with the CAS service
     """
 
-    cookie = request.cookies.get("session")
-    trustee_schema = TrusteeSchema()
-    election_schema = ElectionSchema()
+    try:
+        cookie = request.cookies.get("session")
+        trustee_schema = TrusteeSchema()
+        election_schema = ElectionSchema()
 
-    if "username" in session:
-        # Already logged in
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        trustee = Trustee.get_by_login_id_and_election(
-            schema=trustee_schema,
-            trustee_login_id=session["username"],
-            election_id=election.id,
+        if "username" in session:
+            # Already logged in
+            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+            trustee = Trustee.get_by_login_id_and_election(
+                schema=trustee_schema,
+                trustee_login_id=session["username"],
+                election_id=election.id,
+            )
+            if not trustee:
+                response = redirect(
+                    config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
+                    code=302,
+                )
+            else:
+
+                response = redirect(
+                    config["URL"]["front"]
+                    + "/"
+                    + election_uuid
+                    + "/trustee/"
+                    + trustee.uuid
+                    + "/home",
+                    code=302,
+                )
+            response.set_cookie("session", cookie)
+            return response
+
+        ticket = request.args.get("ticket")
+        if not ticket:
+            # No ticket, the request come from end user, send to CAS login
+            return redirect_cas_trustee(election_uuid)
+
+        user, attributes, pgtiou = cas_client.verify_ticket(ticket)
+        if not user:
+            return make_response({"message": "ERROR"}, 401)
+        else:  # Login successfully, redirect according `next` query parameter.
+            session["username"] = user
+            election = Election.get_by_uuid(schema=ElectionSchema, uuid=election_uuid)
+            trustee = Trustee.get_by_login_id_and_election(
+                schema=trustee_schema,
+                trustee_login_id=session["username"],
+                election_id=election.id,
+            )
+            if not trustee:
+                response = redirect(
+                    config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
+                    code=302,
+                )
+            else:
+
+                response = redirect(
+                    config["URL"]["front"]
+                    + "/"
+                    + election_uuid
+                    + "/trustee/"
+                    + trustee.uuid
+                    + "/home",
+                    code=302,
+                )
+            return response
+    except:
+        response = redirect(
+            config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
+            code=302,
         )
-        if not trustee:
-            response = redirect(
-                config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
-                code=302,
-            )
-        else:
-
-            response = redirect(
-                config["URL"]["front"]
-                + "/"
-                + election_uuid
-                + "/trustee/"
-                + trustee.uuid
-                + "/home",
-                code=302,
-            )
-        response.set_cookie("session", cookie)
-        return response
-
-    ticket = request.args.get("ticket")
-    if not ticket:
-        # No ticket, the request come from end user, send to CAS login
-        return redirect_cas_trustee(election_uuid)
-
-    user, attributes, pgtiou = cas_client.verify_ticket(ticket)
-    if not user:
-        return make_response({"message": "ERROR"}, 401)
-    else:  # Login successfully, redirect according `next` query parameter.
-        session["username"] = user
-        election = Election.get_by_uuid(schema=ElectionSchema, uuid=election_uuid)
-        trustee = Trustee.get_by_login_id_and_election(
-            schema=trustee_schema,
-            trustee_login_id=session["username"],
-            election_id=election.id,
-        )
-        if not trustee:
-            response = redirect(
-                config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
-                code=302,
-            )
-        else:
-
-            response = redirect(
-                config["URL"]["front"]
-                + "/"
-                + election_uuid
-                + "/trustee/"
-                + trustee.uuid
-                + "/home",
-                code=302,
-            )
         return response
 
 

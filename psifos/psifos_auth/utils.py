@@ -107,25 +107,38 @@ def voter_cas(**kwargs):
 
     def voter_cas_decorator(f):
         def voter_cas_wrapper(user_session=None, election_uuid=None, *args, **kwargs):
-            election = Election.get_by_uuid(
-                schema=election_schema,
-                uuid=election_uuid,
-                deserialize=False,
-            )
 
-            voter = Voter.get_by_login_id_and_election(
-                schema=voter_schema,
-                voter_login_id=user_session,
-                election_id=election.id,
-            )
+            try:
+                election = Election.get_by_uuid(
+                    schema=election_schema,
+                    uuid=election_uuid,
+                    deserialize=False,
+                )
 
-            if not verify_voter(election, voter, voter_schema):
+                voter = Voter.get_by_login_id_and_election(
+                    schema=voter_schema,
+                    voter_login_id=user_session,
+                    election_id=election.id,
+                )
+
+                if not verify_voter(election, voter, voter_schema):
+                    response = create_response_cors(
+                        make_response(
+                            jsonify(
+                                {
+                                    "message": "No tiene permisos para acceder a esta elección"
+                                }
+                            ),
+                            401,
+                        )
+                    )
+                    return response
+
+            except:
                 response = create_response_cors(
                     make_response(
                         jsonify(
-                            {
-                                "message": "No tiene permisos para acceder a esta elección"
-                            }
+                            {"message": "Ha ocurrido un error al verificar el votante"}
                         ),
                         401,
                     )
@@ -153,24 +166,37 @@ def trustee_cas(**kwargs):
         def trustee_cas_wrapper(
             user_session=None, election_uuid=None, trustee_uuid=None, *args, **kwargs
         ):
-            election = Election.get_by_uuid(
-                schema=election_schema,
-                uuid=election_uuid,
-                deserialize=False,
-            )
+            try:
+                election = Election.get_by_uuid(
+                    schema=election_schema,
+                    uuid=election_uuid,
+                    deserialize=False,
+                )
 
-            trustee = Trustee.get_by_login_id_and_election(
-                schema=trustee_schema,
-                trustee_login_id=user_session,
-                election_id=election.id,
-            )
+                trustee = Trustee.get_by_login_id_and_election(
+                    schema=trustee_schema,
+                    trustee_login_id=user_session,
+                    election_id=election.id,
+                )
 
-            if not verify_trustee(election, trustee, trustee_schema):
+                if not verify_trustee(election, trustee, trustee_schema):
+                    response = create_response_cors(
+                        make_response(
+                            jsonify(
+                                {
+                                    "message": "No tiene permisos para acceder a esta elección"
+                                }
+                            ),
+                            401,
+                        )
+                    )
+                    return response
+            except:
                 response = create_response_cors(
                     make_response(
                         jsonify(
                             {
-                                "message": "No tiene permisos para acceder a esta elección"
+                                "message": "Ha ocurrido un error al obtener los datos de la elección"
                             }
                         ),
                         401,
