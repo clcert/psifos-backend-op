@@ -11,6 +11,7 @@ from psifos import db
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
 from psifos.enums import ElectionTypeEnum
+from psifos.crypto.elgamal import ElGamal
 
 
 class Election(PsifosModel, db.Model):
@@ -36,8 +37,8 @@ class Election(PsifosModel, db.Model):
     normalization = db.Column(db.Boolean, default=False, nullable=False)
     max_weight = db.Column(db.Integer, nullable=False)
 
-    total_voters = db.Column(db.Integer, nullable=True)
-    total_trustes = db.Column(db.Integer, nullable=True)
+    total_voters = db.Column(db.Integer, default=0)
+    total_trustes = db.Column(db.Integer, default=1)
 
     cast_url = db.Column(db.String(500))
     encrypted_tally = db.Column(db.Text, nullable=True)  # PsifosObject: Tally
@@ -83,6 +84,22 @@ class Election(PsifosModel, db.Model):
         else:
             election = cls(**kwargs)
         return election
+
+    def get_eg_params(self, serialize=True):
+        """
+        Returns the current election params for elgamal encryption.
+
+        If serialize==False, returns an instance of psfios.crypto.elgamal.ElGamal 
+        else, returns the instance serialized as a JSON
+        """
+        params = ElGamal(
+            p=16328632084933010002384055033805457329601614771185955389739167309086214800406465799038583634953752941675645562182498120750264980492381375579367675648771293800310370964745767014243638518442553823973482995267304044326777047662957480269391322789378384619428596446446984694306187644767462460965622580087564339212631775817895958409016676398975671266179637898557687317076177218843233150695157881061257053019133078545928983562221396313169622475509818442661047018436264806901023966236718367204710755935899013750306107738002364137917426595737403871114187750804346564731250609196846638183903982387884578266136503697493474682071,
+            q=61329566248342901292543872769978950870633559608669337131139375508370458778917,
+            g=14887492224963187634282421537186040801304008017743492304481737382571933937568724473847106029915040150784031882206090286938661464458896494215273989547889201144857352611058572236578734319505128042602372864570426550855201448111746579871811249114781674309062693442442368697449970648232621880001709535143047913661432883287150003429802392229361583608686643243349727791976247247948618930423866180410558458272606627111270040091203073580238905303994472202930783207472394578498507764703191288249547659899997131166130259700604433891232298182348403175947450284433411265966789131024573629546048637848902243503970966798589660808533,
+            l=self.total_trustes,
+            t=self.total_trustes//2,
+        )
+        return ElGamal.serialize(params) if serialize else params
 
 
 class Voter(PsifosModel, db.Model):
@@ -180,8 +197,11 @@ class Trustee(PsifosModel, db.Model):
     uuid = db.Column(db.String(50), nullable=False, unique=True)
 
     name = db.Column(db.String(200), nullable=False)
+    trustee_login_id = db.Column(db.String(100), nullable=False)
     email = db.Column(db.Text, nullable=False)
     secret = db.Column(db.String(100))
+
+    current_step = db.Column(db.Integer, default=0)
 
     public_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGPublicKey
     public_key_hash = db.Column(db.String(100), nullable=True)
@@ -204,6 +224,11 @@ class Trustee(PsifosModel, db.Model):
         return query[0] if len(query) > 0 else None
 
     @classmethod
+    def get_by_login_id(cls, schema, trustee_login_id, deserialize=False):
+        query = cls.filter_by(schema=schema, trustee_login_id=trustee_login_id, deserialize=deserialize)
+        return query[0] if len(query) > 0 else None
+
+    @classmethod
     def update_or_create(cls, schema, **kwargs):
         trustee = cls.get_by_uuid(
             schema=schema,
@@ -217,6 +242,16 @@ class Trustee(PsifosModel, db.Model):
             trustee = cls(**kwargs)
         return trustee
 
+    @classmethod
+    def get_by_login_id_and_election(cls, schema, trustee_login_id, election_id, deserialize=False):
+        query = cls.filter_by(
+            schema=schema,
+            trustee_login_id=trustee_login_id,
+            election_id=election_id,
+            deserialize=deserialize,
+        )
+        return query[0] if len(query) > 0 else None
+
 
 class SharedPoint(PsifosModel, db.Model):
     __table_name__ = "psifos_shared_point"
@@ -226,3 +261,12 @@ class SharedPoint(PsifosModel, db.Model):
     sender = db.Column(db.Integer, nullable=False)
     recipient = db.Column(db.Integer, nullable=False)
     point = db.Column(db.Text, nullable=True)  # PsifosObject: Point
+
+    @classmethod
+    def get_by_trustee_id(cls, schema, trustee_id, deserialize=False):
+        query = cls.filter_by(
+            schema=schema,
+            trustee_login_id=trustee_id,
+            deserialize=deserialize,
+        )
+        return query[0] if len(query) > 0 else None

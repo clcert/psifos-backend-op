@@ -1,19 +1,25 @@
 from operator import and_
+from os import abort
+from subprocess import call
 from sqlalchemy import true
 from werkzeug.security import generate_password_hash
-from functools import wraps
+from functools import update_wrapper, wraps
 from flask import request, jsonify, session, redirect, make_response
 from psifos import app, db
 from psifos.psifos_auth.models import User
 from psifos.psifos_auth.schemas import UserSchema
-from psifos.models import Election, Voter
-from psifos import config
+from psifos.models import Election, Trustee, Voter
 
 import jwt
 import uuid
 
 from psifos.models import Voter
-from psifos.schemas import ElectionSchema, VoterSchema
+from psifos.schemas import (
+    election_schema,
+    voter_schema,
+    trustee_schema,
+)
+from psifos.psifos_auth.schemas import user_schema
 
 
 def token_required(f):
@@ -25,32 +31,60 @@ def token_required(f):
     @wraps(f)
     def decorator(*args, **kwargs):
         token = None
-        if 'x-access-tokens' in request.headers:
-            token = request.headers['x-access-tokens']
+        if "x-access-tokens" in request.headers:
+            token = request.headers["x-access-tokens"]
 
         if not token:
-            return jsonify({'message': 'a valid token is missing'})
+            return jsonify({"message": "a valid token is missing"})
 
         try:
-            data = jwt.decode(
-                token, app.config["SECRET_KEY"], algorithms=['HS256'])
+            data = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
             user_schema = UserSchema()
-            current_user = User.get_by_public_id(schema=user_schema, public_id=data['public_id'])
+            current_user = User.get_by_public_id(
+                schema=user_schema, public_id=data["public_id"]
+            )
 
         except Exception as e:
-            return jsonify({'message': 'token is invalid'})
+            return make_response(jsonify({"message": "token is invalid"}), 401)
 
-        return f(current_user, *args,  **kwargs)
+        return f(current_user, *args, **kwargs)
+
     return decorator
 
 
-def cas_requires(f: callable) -> callable:
+def election_route(**kwargs):
+    """
+    Decorator to check if the election is an admin election
 
+    """
+
+    election_schema = kwargs.get("election_schema", None)
+    admin_election = kwargs.get("admin_election", True)
+    deserialize_election = kwargs.get("deserialize_election", False)
+
+    def election_route_decorator(f):
+        def election_route_wrapper(current_user=None, election_uuid=None, *args, **kwargs):
+            election = Election.get_by_uuid(
+                schema=election_schema,
+                uuid=election_uuid,
+                deserialize=deserialize_election
+            )
+            if not election:
+                return jsonify({"message": "election not found"})
+            if admin_election and election.admin_id != current_user.id:
+                return jsonify({"message": "election is not an admin election"})
+
+            return f(election,  *args, **kwargs)
+        return update_wrapper(election_route_wrapper, f)
+    return election_route_decorator
+
+
+def cas_requires(f: callable) -> callable:
     @wraps(f)
     def decorator(*args, **kwargs):
-        if 'username' not in session:
+        if "username" not in session:
             response = make_response({"message": "Usuario no autorizado"}, 401)
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
 
         return f(*args, **kwargs)
@@ -67,10 +101,15 @@ def create_user(username: str, password: str) -> str:
 
     """
 
-    hashed_password = generate_password_hash(password, method='sha256')
+    hashed_password = generate_password_hash(password, method="sha256")
 
-    new_user = User(public_id=str(uuid.uuid4()), user_type="password",
-                    user_id="admin", name=username, password=hashed_password)
+    new_user = User(
+        public_id=str(uuid.uuid4()),
+        user_type="password",
+        user_id="admin",
+        name=username,
+        password=hashed_password,
+    )
     db.session.add(new_user)
     db.session.commit()
 
@@ -81,27 +120,50 @@ def verify_voter(voter_login_id, election_uuid):
     """
     Verify if the voter is registered in the election
 
-    if the voter name finish with '@uchile.cl' it is verified 
+    if the voter name finish with '@uchile.cl' it is verified
     that the user is found without the '@uchile.cl'
 
     :param voter_login_id: name of the voter
     :param election_uuid: uuid of the election
 
     """
-    election_schema = ElectionSchema()
     election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
     if not election:
         return False
-    voter_schema = VoterSchema()
-    voter = Voter.get_by_login_id_and_election(schema=voter_schema, voter_login_id=voter_login_id, election_id=election.id)
+    voter = Voter.get_by_login_id_and_election(
+        schema=voter_schema, voter_login_id=voter_login_id, election_id=election.id
+    )
     if not voter:
-        if voter_login_id[-10:] == '@uchile.cl':
-            voter = Voter.get_by_login_id_and_election(schema=voter_schema, voter_login_id=voter_login_id[:-10], election_id=election.id)
+        if voter_login_id[-10:] == "@uchile.cl":
+            voter = Voter.get_by_login_id_and_election(
+                schema=voter_schema,
+                voter_login_id=voter_login_id[:-10],
+                election_id=election.id,
+            )
             if not voter:
                 return False
         return False
 
     return True
+
+
+def verify_trustee(trustee_login_id, election_uuid):
+    """
+    Verify if the trustee is registered in the election
+    """
+    election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+    if not election:
+        return False
+    trustee = Trustee.get_by_login_id_and_election(
+        schema=trustee_schema,
+        trustee_login_id=trustee_login_id,
+        election_id=election.id,
+    )
+    if not trustee:
+        return False
+
+    return True
+
 
 def create_response_cors(response):
     """
@@ -109,7 +171,7 @@ def create_response_cors(response):
 
     :param response: response to be returned
     """
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
-    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,DELETE,OPTIONS"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     return response

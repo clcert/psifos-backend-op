@@ -26,3 +26,6 @@ class UserSchema(ma.SQLAlchemySchema):
     password = ma.auto_field()
     admin_p = ma.auto_field()
     elections = ma.Nested(ElectionSchema, many=True)
+
+
+user_schema = UserSchema()

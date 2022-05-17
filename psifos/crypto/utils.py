@@ -8,6 +8,26 @@ from Crypto.Hash import SHA256
 from Crypto.Random.random import StrongRandom
 from Crypto.Util.number import inverse
 
+from psifos.serialization import SerializableObject
+
+
+class BigInteger(SerializableObject):
+    """
+    Abstraction layer for handling big integers.
+    """
+
+    def __init__(self, value) -> None:
+        self.value = int(value)
+
+    @classmethod
+    def serialize(cls, obj, **kwargs) -> str:
+        return str(obj.value)
+
+    @classmethod
+    def deserialize(cls, json_data) -> int:
+        return int(json_data)
+
+
 random = StrongRandom()
 
 
@@ -29,13 +49,4 @@ def hash_b64(s):
     """
     hasher = SHA256.new(s.encode('utf-8'))
     result = base64.b64encode(hasher.digest())[:-1].decode('ascii')
-    return result
-
-
-def lagrange(indices, index, modulus):
-    result = 1
-    for i in indices:
-        if i == index:
-            continue
-        result = (result * i * inverse(i - index, modulus)) % modulus
     return result

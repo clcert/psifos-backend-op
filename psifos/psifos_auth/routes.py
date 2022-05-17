@@ -2,6 +2,7 @@ from psifos import app
 from psifos import config
 from psifos.models import Election, Trustee
 from psifos.psifos_auth.auth_model import Auth, CASAuth
+from psifos.models import Election, Trustee
 from psifos.psifos_auth.models import User
 from psifos.psifos_auth.schemas import UserSchema
 from psifos.routes import election_schema, trustee_schema
@@ -9,15 +10,18 @@ from psifos.routes import election_schema, trustee_schema
 from psifos.psifos_auth.utils import cas_requires, verify_voter
 
 from werkzeug.security import check_password_hash
-from functools import wraps
 
 from flask_cors import cross_origin
 from flask.wrappers import Response
 from flask import request, jsonify, make_response, redirect, session
 
-import datetime
 import jwt
 
+from psifos.schemas import (
+    election_schema,
+    trustee_schema,
+)
+from psifos.psifos_auth.schemas import user_schema
 
 auth_factory = Auth()
 
@@ -33,7 +37,6 @@ def login_user() -> Response:
     if not auth or not auth.username or not auth.password:
         return make_response({"message": "Ocurrio un error, intente nuevamente"}, 401)
 
-    user_schema = UserSchema()
     user = User.get_by_name(schema=user_schema, name=auth.username)
 
     if not user:
@@ -48,7 +51,7 @@ def login_user() -> Response:
 
 
 @app.route("/vote/<election_uuid>", methods=["GET", "POST"])
-def cas_login(election_uuid: str) -> Response:
+def login_voter(election_uuid: str) -> Response:
     """
     Make the connection and verification with the CAS service
     """
@@ -58,7 +61,7 @@ def cas_login(election_uuid: str) -> Response:
 
 
 @app.route("/vote/<election_uuid>/logout", methods=["GET"])
-def logout(election_uuid: str) -> Response:
+def logout_voter(election_uuid: str) -> Response:
     """
     Logout a user
     """
@@ -71,7 +74,7 @@ def logout(election_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/login", methods=["GET", "POST"])
-def cas_login_trustee(election_uuid: str) -> Response:
+def login_trustee(election_uuid: str) -> Response:
     """
     Make the connection and verification with the CAS service
     """

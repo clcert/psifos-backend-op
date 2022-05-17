@@ -36,7 +36,12 @@ class SerializableList(object):
         if isinstance(s_list, str):
             return s_list
 
-        return json.dumps([obj.__dict__ for obj in s_list.instances])
+        serialized_instances = []
+        for obj in s_list.instances:
+            obj_class = obj.__class__
+            serialized_instances.append(obj_class.serialize(obj, to_dict=True))
+
+        return json.dumps(serialized_instances)
 
     @classmethod
     def deserialize(cls, json_data: str) -> SerializableObject:
@@ -54,7 +59,7 @@ class SerializableObject(object):
     """
 
     @classmethod
-    def serialize(cls, obj: SerializableObject) -> str:
+    def serialize(cls, obj: SerializableObject, to_dict=False) -> str:
         """ 
         Serializes an object to a JSON like string. 
         """
@@ -65,7 +70,17 @@ class SerializableObject(object):
         if isinstance(obj, str):
             return obj
 
-        return json.dumps(obj.__dict__)
+        class_attributes = [attr for attr in dir(obj) if not attr.startswith("_")]
+        for attr in class_attributes:
+            try:
+                attr_value = getattr(obj, attr)
+                attr_class = attr_value.__class__
+                serialized_attr = attr_class.serialize(attr_value, to_dict=True)
+                setattr(obj, attr, serialized_attr)
+            except:
+                pass
+
+        return obj.__dict__ if to_dict else json.dumps(obj.__dict__)
 
     @classmethod
     def deserialize(cls, json_data: str) -> SerializableObject:

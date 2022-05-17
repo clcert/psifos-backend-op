@@ -30,7 +30,7 @@ class CastVoteSchema(ma.SQLAlchemySchema):
     voter_id = ma.auto_field()
     total_cast_votes = ma.auto_field()
     invalid_cast_votes = ma.auto_field()
-    vote = SerializableField(EncryptedVote)   # PsifosObject: EncryptedVote
+    vote = ma.auto_field()  # SerializableField(EncryptedVote)
     vote_hash = ma.auto_field()
     vote_tinyhash = ma.auto_field()
     cast_at = ma.auto_field()
@@ -64,6 +64,7 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     trustee_id = ma.auto_field()
     uuid = ma.auto_field()
     name = ma.auto_field()
+    trustee_login_id = ma.auto_field()
     email = ma.auto_field()
     secret = ma.auto_field()
     public_key = ma.auto_field()  # SerializableField(PublicKey)
@@ -74,7 +75,7 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
     open_answers_decryption_factors = ma.auto_field()  # SerializableField(DecryptionFactors)
     open_answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
-    certificate = ma.auto_field()  # SerializableField(Certificate)
+    certificate = SerializableField(Certificate)
     threshold_step = ma.auto_field()
     coefficients = ma.auto_field()  # SerializableField(Coefficient)
     acknowledgements = ma.auto_field()  # SerializableField(Signature)
@@ -160,3 +161,11 @@ class ElectionSchema(ma.SQLAlchemySchema):
     trustees = ma.Nested(TrusteeSchema, many=True)
     sharedpoints = ma.Nested(SharedPointSchema, many=True)
     audited_ballots = ma.Nested(AuditedBallotSchema, many=True)
+
+
+election_schema = ElectionSchema()
+voter_schema = VoterSchema()
+cast_vote_schema = CastVoteSchema()
+trustee_schema = TrusteeSchema()
+shared_point_schema = SharedPointSchema()
+audited_ballot_schema = AuditedBallotSchema()

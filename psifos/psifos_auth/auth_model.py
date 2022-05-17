@@ -130,7 +130,7 @@ class CASAuth:
         else:
             session["username"] = user
             election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            trustee = Trustee.get_by_login_id(
+            trustee = Trustee.get_by_login_id_and_election(
                 schema=trustee_schema,
                 trustee_login_id=session["username"],
                 election_id=election.id,
@@ -151,6 +151,7 @@ class CASAuth:
                     + "/home",
                     code=302,
                 )
+            return response
 
     def logout_trustee(self, election_uuid: str):
 
