@@ -248,7 +248,7 @@ def send_voters(election: Election) -> Response:
         file_str = file_input.read().decode("utf-8")
         strip_lines = [line.strip() for line in file_str.split("\n")]
         data = [x.split(",") for x in strip_lines]
-
+        total_voters = len(data)
         for voter in data:
             a_voter = Voter.update_or_create(
                 schema=voter_schema,
@@ -265,6 +265,8 @@ def send_voters(election: Election) -> Response:
             )
             a_cast_vote.save()
 
+        election.total_voters = total_voters
+        election.save()
         return make_response(jsonify({"message": "Votantes creados con exito!"}), 200)
 
     except Exception as e:
@@ -411,6 +413,8 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
                 email=data["email"],
             )
             trustee.save()
+            election.total_trustees += 1
+            election.save()
             return make_response(jsonify({"message": "Creado con exito!"}), 200)
         else:
             return make_response(

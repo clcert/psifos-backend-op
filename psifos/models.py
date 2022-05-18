@@ -38,7 +38,7 @@ class Election(PsifosModel, db.Model):
     max_weight = db.Column(db.Integer, nullable=False)
 
     total_voters = db.Column(db.Integer, default=0)
-    total_trustes = db.Column(db.Integer, default=1)
+    total_trustes = db.Column(db.Integer, default=0)
 
     cast_url = db.Column(db.String(500))
     encrypted_tally = db.Column(db.Text, nullable=True)  # PsifosObject: Tally
