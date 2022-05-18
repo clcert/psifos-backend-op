@@ -28,18 +28,18 @@ from psifos.schemas import (
 )
 from psifos.psifos_object.questions import Questions
 from psifos.psifos_auth.utils import (
-    election_route,
     cas_requires,
     election_route,
+    election_route,
     token_required,
-    verify_trustee,
-    verify_voter,
+    trustee_cas,
     create_response_cors,
+    voter_cas,
 )
 from psifos.crypto import sharedpoint
 from psifos.crypto import utils as crypto_utils
-
 from sqlalchemy import func
+
 
 # Admin routes
 
@@ -370,8 +370,8 @@ def openreg(election: Election) -> Response:
 
 @app.route("/<election_uuid>/questions")
 @cas_requires
-@election_route(election_schema=election_schema, admin_election=False)
-def get_questions_voters(election: Election) -> Response:
+@voter_cas(election_schema=election_schema, voter_schema=voter_schema)
+def get_questions_voters(election: Election, voter: Voter) -> Response:
     """
     Route for get questions
     Require a cookie valid in session >>> CAS
@@ -379,21 +379,9 @@ def get_questions_voters(election: Election) -> Response:
     """
     try:
 
-        if verify_voter(session["username"], election.uuid):
-            result = Election.to_dict(schema=election_schema, obj=election)
-            response = create_response_cors(make_response(result, 200))
-            return response
-
-        else:
-            response = create_response_cors(
-                make_response(
-                    jsonify(
-                        {"message": "No tiene permisos para acceder a esta elección"}
-                    ),
-                    401,
-                )
-            )
-            return response
+        result = Election.to_dict(schema=election_schema, obj=election)
+        response = create_response_cors(make_response(result, 200))
+        return response
 
     except Exception as e:
         response = create_response_cors(
@@ -497,49 +485,20 @@ def get_trustee(trustee_uuid):
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/home", methods=["GET"])
 @cas_requires
-def get_trustee_home(election_uuid, trustee_uuid):
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def get_trustee_home(election: Election, trustee: Trustee) -> Response:
     """
     Route for get trustee home
     Require a cookie valid in session >>> CAS
     """
     try:
 
-        if verify_trustee(session["username"], election_uuid):
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            trustee = Trustee.filter_by(
-                schema=trustee_schema, uuid=trustee_uuid, election_id=election.id
+        response = create_response_cors(
+            make_response(
+                jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
             )
-
-            if not trustee:
-                response = create_response_cors(
-                    make_response(
-                        jsonify(
-                            {
-                                "message": "No tiene permisos para acceder a esta elección"
-                            }
-                        ),
-                        401,
-                    )
-                )
-                return response
-
-            response = create_response_cors(
-                make_response(
-                    jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
-                )
-            )
-            return response
-
-        else:
-            response = create_response_cors(
-                make_response(
-                    jsonify(
-                        {"message": "No tiene permisos para acceder a esta elección"}
-                    ),
-                    401,
-                )
-            )
-            return response
+        )
+        return response
 
     except Exception as e:
         response = create_response_cors(
@@ -549,7 +508,9 @@ def get_trustee_home(election_uuid, trustee_uuid):
 
 
 @app.route("/<election_uuid>/get_randomness", methods=["GET"])
-def get_randomness(election_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def get_randomness(election: Election, trustee: Trustee) -> Response:
     """
     Get some randomness to sprinkle into the sjcl entropy pool
 
@@ -565,14 +526,16 @@ def get_randomness(election_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/get_step", methods=["GET"])
-def get_step(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def get_step(election: Election, trustee: Trustee) -> Response:
     """
     Get the step of the trustee
     """
     try:
         trustee_step = Trustee.get_by_uuid(
             schema=trustee_schema,
-            uuid=trustee_uuid
+            uuid=trustee.uuid
         ).current_step
         return make_response(
             jsonify(
@@ -606,12 +569,14 @@ def election_get_eg_params(election_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
-def trustee_upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
     """
     Upload public key of trustee
     """
     try:
-        trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=trustee_uuid)
+        trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=trustee.uuid)
 
         body = request.get_json()
         public_key_and_proof = route_utils.from_json(body['public_key_json'])
@@ -637,7 +602,9 @@ def trustee_upload_pk(election_uuid: str, trustee_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["GET", "POST"])
-def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def truustee_step_1(election: Election, trustee: Trustee) -> Response:
     """
     Step 1 of the keygenerator trustee
     """
@@ -690,7 +657,9 @@ def truustee_step_1(election_uuid: str, trustee_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step2", methods=["GET", "POST"])
-def truustee_step_2(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def truustee_step_2(election: Election, trustee: Trustee) -> Response:
     """
     Step 2 of the keygenerator trustee
     """
@@ -702,7 +671,9 @@ def truustee_step_2(election_uuid: str, trustee_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step3", methods=["GET", "POST"])
-def truustee_step_3(election_uuid: str, trustee_uuid: str) -> Response:
+@cas_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def truustee_step_3(election: Election, trustee: Trustee) -> Response:
     """
     Step 3 of the keygenerator trustee
     """
