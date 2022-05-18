@@ -454,9 +454,9 @@ def get_randomness(election: Election, trustee: Trustee) -> Response:
     Get some randomness to sprinkle into the sjcl entropy pool
 
     """
-    response = make_response(
+    response = create_response_cors(make_response(
         jsonify({"randomness": base64.b64encode(os.urandom(32)).decode("utf-8")}), 200
-    )
+    ))
 
     return response
 
@@ -476,7 +476,7 @@ def get_step(election: Election, trustee: Trustee) -> Response:
         schema=trustee_schema,
         uuid=trustee.uuid
     ).current_step
-    return make_response(
+    return create_response_cors(make_response(
         jsonify(
             {
                 "message": "Step del trustee obtenido con exito!",
@@ -484,7 +484,7 @@ def get_step(election: Election, trustee: Trustee) -> Response:
             }
         ),
         200,
-    )
+    ))
 
 
 @app.route("/<election_uuid>/get_eg_params", methods=["GET"])
@@ -495,13 +495,13 @@ def election_get_eg_params(election_uuid: str) -> Response:
     try:
         election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
         eg_params = election.get_eg_params()
-        return make_response(eg_params, 200)
+        return create_response_cors(make_response(eg_params, 200))
 
     except Exception as e:
         print(e)
-        return make_response(
+        return create_response_cors(make_response(
             jsonify({"message": "Error al obtener los parametros de la eleccion."}), 400
-        )
+        ))
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
@@ -526,9 +526,9 @@ def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
     trustee.public_key_hash = crypto_utils.hash_b64(str(cert.signature_key))
     trustee.save()
 
-    return make_response(
+    return create_response_cors(make_response(
         jsonify({"message": "El certificado del trustee fue subido con exito"}), 200
-    )
+    ))
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["GET", "POST"])
