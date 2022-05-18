@@ -76,7 +76,6 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     open_answers_decryption_factors = ma.auto_field()  # SerializableField(DecryptionFactors)
     open_answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
     certificate = SerializableField(Certificate)
-    threshold_step = ma.auto_field()
     coefficients = ma.auto_field()  # SerializableField(Coefficient)
     acknowledgements = ma.auto_field()  # SerializableField(Signature)
 
@@ -147,7 +146,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
     normalization = ma.auto_field()
     max_weight = ma.auto_field()
     total_voters = ma.auto_field()
-    total_trustes = ma.auto_field()
+    total_trustees = ma.auto_field()
     cast_url = ma.auto_field()
     encrypted_tally = ma.auto_field()  # SerializableField(Tally)
     encrypted_tally_hash = ma.auto_field()
