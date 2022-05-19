@@ -11,8 +11,7 @@ class QuestionFactory():
     Implementation of the ''Factory Method'' design
     pattern for election questions. Allows a SerializableList
     (such as the Questions class) to hold different types of 
-    objects. The only requirement is to be created by the same
-    Factory.
+    objects.
     """
 
     @staticmethod
@@ -35,8 +34,8 @@ class Questions(SerializableList):
 
     def __init__(self, *args) -> None:
         super(Questions, self).__init__()
-        for q_json in args:
-            self.instances.append(QuestionFactory.create(**q_json))
+        for q_dict in args:
+            self.instances.append(QuestionFactory.create(**q_dict))
 
 
 class AbstractQuestion(SerializableObject):

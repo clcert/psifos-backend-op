@@ -6,12 +6,13 @@ SQLAlchemy Models for Psifos.
 
 from __future__ import annotations
 
-from yaml import serialize
 from psifos import db
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
 from psifos.enums import ElectionTypeEnum
 from psifos.crypto.elgamal import ElGamal
+
+import psifos.utils as utils
 
 
 class Election(PsifosModel, db.Model):
@@ -269,3 +270,9 @@ class SharedPoint(PsifosModel, db.Model):
             deserialize=deserialize,
         )
         return query[0] if len(query) > 0 else None
+
+    @classmethod
+    def format_points_sent_to(cls, schema, election_id, trustee_id):
+        points = cls.filter_by(schema=schema, election_id=election_id, recipient=trustee_id)
+        points.sort(key=(lambda x: x.sender))
+        return utils.format_points(points)
