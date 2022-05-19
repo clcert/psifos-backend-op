@@ -276,3 +276,9 @@ class SharedPoint(PsifosModel, db.Model):
         points = cls.filter_by(schema=schema, election_id=election_id, recipient=trustee_id)
         points.sort(key=(lambda x: x.sender))
         return utils.format_points(points)
+
+    @classmethod
+    def format_points_sent_by(cls, schema, election_id, trustee_id):
+        points = cls.filter_by(schema=schema, election_id=election_id, sender=trustee_id)
+        points.sort(key=(lambda x: x.recipient))
+        return utils.format_points(points)

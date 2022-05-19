@@ -28,4 +28,4 @@ def from_json(value):
 
 # -- SharedPoint manipulation --
 def format_points(points):
-    return to_json([from_json(x.point) for x in points])
+    return [from_json(x.point) for x in points]
