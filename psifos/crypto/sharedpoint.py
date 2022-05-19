@@ -5,30 +5,31 @@ SharedPoint classes for Psifos.
 """
 
 from psifos.serialization import SerializableList, SerializableObject
+from psifos.crypto.utils import BigInteger
 
 
 class Signature(SerializableObject):
     def __init__(self, challenge, response) -> None:
-        self.challenge: int = int(challenge)
-        self.response: int = int(response)
+        self.challenge: BigInteger = BigInteger(challenge)
+        self.response: BigInteger = BigInteger(response)
 
 
 class Certificate(SerializableObject):
     def __init__(self, signature_key, encryption_key, signature) -> None:
-        self.signature_key: int = int(signature_key)
-        self.encryption_key: int = int(encryption_key)
+        self.signature_key: BigInteger = BigInteger(signature_key)
+        self.encryption_key: BigInteger = BigInteger(encryption_key)
         self.signature: Signature = signature
 
 
 class Coefficient(SerializableObject):
     def __init__(self, coefficient, signature) -> None:
-        self.coefficient: int = int(coefficient)
+        self.coefficient: BigInteger = BigInteger(coefficient)
         self.signature: Signature = signature
 
 
 class Point(SerializableObject):
     def __init__(self, alpha, signature) -> None:
-        self.alpha: int = int(alpha)
+        self.alpha: BigInteger = BigInteger(alpha)
         self.signature: Signature = signature
 
 
