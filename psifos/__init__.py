@@ -6,6 +6,7 @@ from datetime import timedelta
 import configparser
 import wtforms_json
 from cas import CASClient
+import os
 
 
 # Configuring Environment Variables
@@ -20,7 +21,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 app.config['SECRET_KEY']='Th1s1ss3cr3t'
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1000)
 
-
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 wtforms_json.init()
 
