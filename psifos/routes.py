@@ -571,7 +571,8 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
             certificates = [sharedpoint.Certificate.serialize(obj=t.certificate, to_dict=True) for t in trustees]
             assert None not in certificates
 
-            return create_response_cors(make_response(jsonify({'params': params, 'certificates': certificates}), 200))
+            return create_response_cors(make_response(
+                jsonify({'params': params, 'certificates': route_utils.to_json(certificates)}), 200))
 
         except:
             return create_response_cors(
