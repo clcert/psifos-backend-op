@@ -567,8 +567,8 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
     if request.method == "GET":
         try:
             params = election.get_eg_params()
-            trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id)
-            certificates = [route_utils.from_json(t.certificate) for t in trustees]
+            trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id, deserialize=True)
+            certificates = [t.certificate.serialize(to_dict=True) for t in trustees]
             assert None not in certificates
 
             return create_response_cors(make_response(jsonify({'params': params, 'certificates': certificates}), 200))

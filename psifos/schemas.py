@@ -76,7 +76,7 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     open_answers_decryption_factors = ma.auto_field()  # SerializableField(DecryptionFactors)
     open_answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
     certificate = SerializableField(Certificate)
-    coefficients = ma.auto_field()  # SerializableField(Coefficient)
+    coefficients = ma.auto_field()  # SerializableField(ListOfCoefficient)
     acknowledgements = ma.auto_field()  # SerializableField(Signature)
 
 
