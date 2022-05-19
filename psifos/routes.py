@@ -568,7 +568,7 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
         try:
             params = election.get_eg_params()
             trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id, deserialize=True)
-            certificates = [t.certificate.serialize(to_dict=True) for t in trustees]
+            certificates = [sharedpoint.Certificate.serialize(obj=t.certificate, to_dict=True) for t in trustees]
             assert None not in certificates
 
             return create_response_cors(make_response(jsonify({'params': params, 'certificates': certificates}), 200))
