@@ -7,7 +7,6 @@ from psifos.psifos_auth.models import User
 from psifos.psifos_auth.schemas import UserSchema
 from psifos.routes import election_schema, trustee_schema
 
-from psifos.psifos_auth.utils import cas_requires, verify_voter
 
 from werkzeug.security import check_password_hash
 
@@ -24,6 +23,7 @@ from psifos.schemas import (
 from psifos.psifos_auth.schemas import user_schema
 
 auth_factory = Auth()
+protocol = config["AUTH"]["type_auth"]
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -56,7 +56,7 @@ def login_voter(election_uuid: str) -> Response:
     Make the connection and verification with the CAS service
     """
 
-    auth = auth_factory.get_auth()
+    auth = auth_factory.get_auth(protocol)
     return auth.login_voter(election_uuid)
 
 
@@ -66,7 +66,7 @@ def logout_voter(election_uuid: str) -> Response:
     Logout a user
     """
 
-    auth = auth_factory.get_auth()
+    auth = auth_factory.get_auth(protocol)
     return auth.logout_voter(election_uuid)
 
 
@@ -79,7 +79,7 @@ def login_trustee(election_uuid: str) -> Response:
     Make the connection and verification with the CAS service
     """
 
-    auth = auth_factory.get_auth()
+    auth = auth_factory.get_auth(protocol)
     return auth.login_trustee(election_uuid, election_schema, trustee_schema)
 
 
@@ -88,5 +88,15 @@ def logout_trustee(election_uuid: str) -> Response:
     """
     Logout a trustee
     """
-    auth = auth_factory.get_auth()
+    auth = auth_factory.get_auth(protocol)
     return auth.logout_trustee(election_uuid)
+
+
+# OAuth2
+
+
+@app.route("/authorized")
+def authorized():
+
+    auth = auth_factory.get_auth(protocol)
+    return auth.authorized()

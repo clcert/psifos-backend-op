@@ -12,7 +12,7 @@ import os
 
 
 from urllib import response
-
+from psifos import config
 from flask import request, jsonify, make_response, session
 from flask.wrappers import Response
 
@@ -28,9 +28,10 @@ from psifos.schemas import (
 )
 from psifos.psifos_object.questions import Questions
 from psifos.psifos_auth.utils import (
+    auth_requires,
     election_route,
-    cas_requires,
     election_route,
+    get_user,
     token_required,
     verify_trustee,
     verify_voter,
@@ -369,7 +370,7 @@ def openreg(election: Election) -> Response:
 
 
 @app.route("/<election_uuid>/questions")
-@cas_requires
+@auth_requires
 @election_route(election_schema=election_schema, admin_election=False)
 def get_questions_voters(election: Election) -> Response:
     """
@@ -378,8 +379,7 @@ def get_questions_voters(election: Election) -> Response:
 
     """
     try:
-
-        if verify_voter(session["username"], election.uuid):
+        if verify_voter(get_user(), election.uuid):
             result = Election.to_dict(schema=election_schema, obj=election)
             response = create_response_cors(make_response(result, 200))
             return response
@@ -496,7 +496,7 @@ def get_trustee(trustee_uuid):
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/home", methods=["GET"])
-@cas_requires
+@auth_requires
 def get_trustee_home(election_uuid, trustee_uuid):
     """
     Route for get trustee home

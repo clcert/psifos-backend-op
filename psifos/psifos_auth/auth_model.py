@@ -1,8 +1,9 @@
+from urllib import response
 from cas import CASClient
-from psifos import config
-from flask import request, make_response, redirect, session
-
+from psifos import config, app
+from flask import request, make_response, redirect, session, url_for, jsonify
 from psifos.models import Election, Trustee
+from requests_oauthlib import OAuth2Session
 
 
 class Auth:
@@ -17,12 +18,15 @@ class Auth:
         self.cas = CASAuth()
         self.oauth = OAuth2Auth()
 
-    def get_auth(self, **kwargs):
+    def get_auth(self, type_auth: str = "cas") -> object:
         """
         Returns an instance of Auth.
         """
 
-        return self.cas
+        if type_auth == "cas":
+            return self.cas
+        elif type_auth == "oauth":
+            return self.oauth
 
 
 class CASAuth:
@@ -37,14 +41,14 @@ class CASAuth:
         self.cas_client = CASClient(
             version=3,
             service_url=config["URL"]["back"] + "/vote/",
-            server_url="https://cas.labs.clcert.cl/",
+            server_url=config["CAS"]["cas_url"],
         )
 
     def redirect_cas(self, redirect_url):
 
         """
         Redirects to the CAS server
-        
+
         """
 
         self.cas_client.service_url = redirect_url
@@ -71,12 +75,12 @@ class CASAuth:
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
         if not user:
             return make_response({"message": "ERROR"}, 401)
-        else:
-            session["username"] = user
-            response = redirect(
-                config["URL"]["front"] + "/cabina/" + election_uuid, code=302
-            )
-            return response
+
+        session["username"] = user
+        response = redirect(
+            config["URL"]["front"] + "/cabina/" + election_uuid, code=302
+        )
+        return response
 
     def logout_voter(self, election_uuid: str):
 
@@ -170,5 +174,69 @@ class CASAuth:
 
 
 class OAuth2Auth:
+    def __init__(self) -> None:
 
-    pass
+        """
+        Class responsible for solving the logic of
+        authentication with the OAUTH2 protocol
+
+        """
+
+        self.client_id = config["OAUTH"]["client_id"]
+        self.client_secret = config["OAUTH"]["client_secret"]
+        self.scope = "openid"
+
+    def login_voter(self, election_uuid: str):
+
+        client = OAuth2Session(
+            client_id=self.client_id,
+            redirect_uri=config["URL"]["back"] + "/authorized",
+            state=election_uuid,
+            scope=self.scope,
+        )
+
+        authorization_url, state = client.authorization_url(
+            config["OAUTH"]["authorize_url"]
+        )
+        session["oauth_state"] = state
+        return redirect(authorization_url)
+
+    def logout_voter(self, election_uuid: str):
+
+        client = OAuth2Session(
+            self.client_id,
+            token = session["oauth_token"],
+        )
+        
+
+        client.remove_token(
+            config["URL"]["front"] + "/cabina/" + election_uuid + "?logout=true",
+            token=session["oauth_token"]["access_token"],
+        )
+        
+    def login_trustee(self):
+        pass
+
+    def logout_trustee(self):
+        pass
+
+    def authorized(self):
+
+        election_uuid = session["oauth_state"]
+        login = OAuth2Session(
+            self.client_id,
+            state=session["oauth_state"],
+            redirect_uri=config["URL"]["back"] + "/authorized",
+        )
+        resp = login.fetch_token(
+            config["OAUTH"]["token_url"],
+            client_secret=self.client_secret,
+            authorization_response=request.url,
+        )
+        session["oauth_token"] = resp
+
+        response = redirect(
+            config["URL"]["front"] + "/cabina/" + election_uuid, code=302
+        )
+
+        return response
