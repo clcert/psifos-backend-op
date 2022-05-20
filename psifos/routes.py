@@ -563,7 +563,7 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
         trustee.save()
 
         return create_response_cors(make_response(
-            jsonify({"message": "Step 1 completado con exito!"})), 200)
+            jsonify({"message": "Step 1 completado con exito!"}),200) )
 
     if request.method == "GET":
         try:
@@ -621,9 +621,9 @@ def truustee_step_2(election: Election, trustee: Trustee) -> Response:
 
             return create_response_cors(make_response(jsonify({
                 'params': params,
-                'certificates': certificates,
-                'coefficents': coefficents,
-                'points': points,
+                'certificates': route_utils.to_json(certificates),
+                'coefficients': route_utils.to_json(coefficents),
+                'points': route_utils.to_json(points),
             }), 200))
 
         except:
