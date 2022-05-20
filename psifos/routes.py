@@ -352,6 +352,7 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
                 election_id=election.id,
                 uuid=str(uuid.uuid1()),
                 name=data["name"],
+                trustee_id=Trustee.get_next_trustee_id(trustee_schema, election.id),
                 trustee_login_id=data["trustee_login_id"],
                 email=data["email"],
             )
@@ -555,7 +556,6 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
         t_sent_points = SharedPoint.get_by_sender(schema=shared_point_schema, sender=trustee.trustee_id)
         for point in t_sent_points:
             point.delete()
-
 
         for i in range(len(points)):
             obj = SharedPoint(election_id=election.id, sender=trustee.trustee_id, recipient=i+1, point=points[i])
