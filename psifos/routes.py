@@ -556,7 +556,7 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
         map(lambda point: point.delete(), t_sent_points)
 
         for i in range(len(points)):
-            obj = SharedPoint(election=election.id, sender=trustee.trustee_id, recipient=i+1, point=points[i])
+            obj = SharedPoint(election_id=election.id, sender=trustee.trustee_id, recipient=i+1, point=points[i])
             obj.save()
         trustee.coefficients = coefficients
         trustee.current_step = 2  # trustee completed step 1 and now is ready for step 2
