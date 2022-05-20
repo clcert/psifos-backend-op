@@ -255,10 +255,7 @@ class Trustee(PsifosModel, db.Model):
     @classmethod
     def get_next_trustee_id(cls, trustee_schema, election_id):
         query = Trustee.filter_by(schema=trustee_schema, election_id=election_id)
-        return 0 if len(query) == 0 else max(query, lambda t: t.trustee_id).trustee_id + 1
-
-        if len(query) == 0:
-            return 0
+        return 0 if len(query) == 0 else max(query, key=(lambda t: t.trustee_id)).trustee_id + 1
 
 
 class SharedPoint(PsifosModel, db.Model):
