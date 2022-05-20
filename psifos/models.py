@@ -194,7 +194,7 @@ class Trustee(PsifosModel, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     election_id = db.Column(db.Integer, db.ForeignKey("psifos_election.id"))
-    trustee_id = db.Column(db.Integer, db.schema.Sequence('id_sequence', start=1, increment=1))
+    trustee_id = db.Column(db.Integer, db.Sequence('id_sequence', start=1, increment=1), default=1)
     uuid = db.Column(db.String(50), nullable=False, unique=True)
 
     name = db.Column(db.String(200), nullable=False)
