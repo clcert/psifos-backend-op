@@ -563,7 +563,7 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
         trustee.save()
 
         return create_response_cors(make_response(
-            jsonify({"message": "Step 1 completado con exito!"}),200) )
+            jsonify({"message": "Step 1 completado con exito!"}), 200))
 
     if request.method == "GET":
         try:

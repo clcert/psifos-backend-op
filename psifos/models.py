@@ -192,7 +192,7 @@ class AuditedBallot(PsifosModel, db.Model):
 class Trustee(PsifosModel, db.Model):
     __table_name__ = "psifos_trustee"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, db.Sequence('id_sequence', start=1, increment=1), primary_key=True)
     election_id = db.Column(db.Integer, db.ForeignKey("psifos_election.id"))
     trustee_id = db.Column(db.Integer, default=0)
     uuid = db.Column(db.String(50), nullable=False, unique=True)
