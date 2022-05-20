@@ -552,7 +552,8 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
         points = [sharedpoint.Point(**params) for params in points_data]
 
         # TODO: perform server-side checks here!
-        SharedPoint.get_by_trustee_id(schema=shared_point_schema, sender=trustee.trustee_id).delete()
+        t_sent_points = SharedPoint.get_by_sender(schema=shared_point_schema, sender=trustee.trustee_id)
+        map(lambda point: point.delete(), t_sent_points)
 
         for i in range(len(points)):
             obj = SharedPoint(election=election.id, sender=trustee.trustee_id, recipient=i+1, point=points[i])
