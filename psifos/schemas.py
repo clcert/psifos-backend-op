@@ -94,7 +94,7 @@ class SharedPointSchema(ma.SQLAlchemySchema):
     election_id = ma.auto_field()
     sender = ma.auto_field()
     recipient = ma.auto_field()
-    point = ma.auto_field()  # SerializableField(Point)
+    point = SerializableField(Point)
 
 
 class VoterSchema(ma.SQLAlchemySchema):
