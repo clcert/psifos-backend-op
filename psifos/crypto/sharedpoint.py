@@ -18,20 +18,20 @@ class Certificate(SerializableObject):
     def __init__(self, signature_key, encryption_key, signature) -> None:
         self.signature_key: BigInteger = BigInteger(signature_key)
         self.encryption_key: BigInteger = BigInteger(encryption_key)
-        self.signature: Signature = signature
+        self.signature: Signature = Signature(**signature)
 
 
 class Coefficient(SerializableObject):
     def __init__(self, coefficient, signature) -> None:
         self.coefficient: BigInteger = BigInteger(coefficient)
-        self.signature: Signature = signature
+        self.signature: Signature = Signature(**signature)
 
 
 class Point(SerializableObject):
     def __init__(self, alpha, beta, signature) -> None:
         self.alpha: BigInteger = BigInteger(alpha)
-        self.beta = beta
-        self.signature: Signature = signature
+        self.beta: BigInteger = Signature(**signature)
+        self.signature: Signature = Signature(**signature)
 
 
 class ListOfCoefficients(SerializableList):
