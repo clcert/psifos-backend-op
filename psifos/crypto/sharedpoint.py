@@ -30,7 +30,7 @@ class Coefficient(SerializableObject):
 class Point(SerializableObject):
     def __init__(self, alpha, beta, signature) -> None:
         self.alpha: BigInteger = BigInteger(alpha)
-        self.beta: BigInteger = Signature(**signature)
+        self.beta: BigInteger = BigInteger(beta)
         self.signature: Signature = Signature(**signature)
 
 
