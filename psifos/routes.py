@@ -82,9 +82,7 @@ def create_election(current_user: User) -> Response:
         )
         election.save()
         return make_response(
-            jsonify(
-                {"message": "Elección creada con exito!", "uuid": uuid_election}
-            ),
+            jsonify({"message": "Elección creada con exito!", "uuid": uuid_election}),
             200,
         )
 
@@ -197,7 +195,9 @@ def get_questions(election: Election) -> response:
     """
 
     if not election.questions:
-        return make_response({"message": "Esta eleccion no tiene preguntas definidas!"}, 200)
+        return make_response(
+            {"message": "Esta eleccion no tiene preguntas definidas!"}, 200
+        )
 
     json_questions = Questions.serialize(election.questions)
     return make_response(json_questions, 200)
@@ -263,9 +263,7 @@ def delete_voters(election: Election) -> Response:
 
     voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
     list(map(lambda x: x.delete(), voters))
-    return make_response(
-        jsonify({"message": "Votantes eliminados con exito!"}), 200
-    )
+    return make_response(jsonify({"message": "Votantes eliminados con exito!"}), 200)
 
 
 @app.route("/<election_uuid>/resume", methods=["GET"])
@@ -441,9 +439,7 @@ def get_trustee_home(election: Election, trustee: Trustee) -> Response:
     """
 
     response = create_response_cors(
-        make_response(
-            jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
-        )
+        make_response(jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200)
     )
     return response
 
@@ -456,9 +452,12 @@ def get_randomness(election: Election, trustee: Trustee) -> Response:
     Get some randomness to sprinkle into the sjcl entropy pool
 
     """
-    response = create_response_cors(make_response(
-        jsonify({"randomness": base64.b64encode(os.urandom(32)).decode("utf-8")}), 200
-    ))
+    response = create_response_cors(
+        make_response(
+            jsonify({"randomness": base64.b64encode(os.urandom(32)).decode("utf-8")}),
+            200,
+        )
+    )
 
     return response
 
@@ -475,18 +474,19 @@ def get_step(election: Election, trustee: Trustee) -> Response:
     """
 
     trustee_step = Trustee.get_by_uuid(
-        schema=trustee_schema,
-        uuid=trustee.uuid
+        schema=trustee_schema, uuid=trustee.uuid
     ).current_step
-    return create_response_cors(make_response(
-        jsonify(
-            {
-                "message": "Step del trustee obtenido con exito!",
-                "status": trustee_step,
-            }
-        ),
-        200,
-    ))
+    return create_response_cors(
+        make_response(
+            jsonify(
+                {
+                    "message": "Step del trustee obtenido con exito!",
+                    "status": trustee_step,
+                }
+            ),
+            200,
+        )
+    )
 
 
 @app.route("/<election_uuid>/get_eg_params", methods=["GET"])
@@ -501,9 +501,12 @@ def election_get_eg_params(election_uuid: str) -> Response:
 
     except Exception as e:
         print(e)
-        return create_response_cors(make_response(
-            jsonify({"message": "Error al obtener los parametros de la eleccion."}), 400
-        ))
+        return create_response_cors(
+            make_response(
+                jsonify({"message": "Error al obtener los parametros de la eleccion."}),
+                400,
+            )
+        )
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
@@ -517,7 +520,7 @@ def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
     trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=trustee.uuid)
 
     body = request.get_json()
-    public_key_and_proof = route_utils.from_json(body['public_key_json'])
+    public_key_and_proof = route_utils.from_json(body["public_key_json"])
 
     # TODO: validate certificate
     cert = sharedpoint.Certificate(**public_key_and_proof)
@@ -530,9 +533,11 @@ def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
     trustee.current_step = 1
     trustee.save()
 
-    return create_response_cors(make_response(
-        jsonify({"message": "El certificado del trustee fue subido con exito"}), 200
-    ))
+    return create_response_cors(
+        make_response(
+            jsonify({"message": "El certificado del trustee fue subido con exito"}), 200
+        )
+    )
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["GET", "POST"])
@@ -546,41 +551,67 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
         body = request.get_json()
 
         # Instantiate coefficients
-        coeffs_data = route_utils.from_json(body['coefficients'])
+        coeffs_data = route_utils.from_json(body["coefficients"])
         coefficients = sharedpoint.ListOfCoefficients(*coeffs_data)
         # Instantiate points
-        points_data = route_utils.from_json(body['points'])
+        points_data = route_utils.from_json(body["points"])
         points = [sharedpoint.Point(**params) for params in points_data]
 
         # TODO: perform server-side checks here!
-        t_sent_points = SharedPoint.get_by_sender(schema=shared_point_schema, sender=trustee.trustee_id)
+        t_sent_points = SharedPoint.get_by_sender(
+            schema=shared_point_schema, sender=trustee.trustee_id
+        )
         for point in t_sent_points:
             point.delete()
 
         for i in range(len(points)):
-            obj = SharedPoint(election_id=election.id, sender=trustee.trustee_id, recipient=i+1, point=points[i])
+            obj = SharedPoint(
+                election_id=election.id,
+                sender=trustee.trustee_id,
+                recipient=i + 1,
+                point=points[i],
+            )
+ 
+
             obj.save()
         trustee.coefficients = coefficients
         trustee.current_step = 2  # trustee completed step 1 and now is ready for step 2
         trustee.save()
 
-        return create_response_cors(make_response(
-            jsonify({"message": "Step 1 completado con exito!"}), 200))
+        return create_response_cors(
+            make_response(jsonify({"message": "Step 1 completado con exito!"}), 200)
+        )
 
     if request.method == "GET":
         try:
             params = election.get_eg_params()
-            trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id, deserialize=True)
-            certificates = [sharedpoint.Certificate.serialize(obj=t.certificate, to_dict=True) for t in trustees]
+            trustees = Trustee.filter_by(
+                schema=trustee_schema, election_id=election.id, deserialize=True
+            )
+            certificates = [
+                sharedpoint.Certificate.serialize(obj=t.certificate, to_dict=True)
+                for t in trustees
+            ]
             assert None not in certificates
 
-            return create_response_cors(make_response(
-                jsonify({'params': params, 'certificates': route_utils.to_json(certificates)}), 200))
+            return create_response_cors(
+                make_response(
+                    jsonify(
+                        {
+                            "params": params,
+                            "certificates": route_utils.to_json(certificates),
+                        }
+                    ),
+                    200,
+                )
+            )
 
         except:
             return create_response_cors(
                 make_response(
-                    jsonify({"message": "No todos los custodios generaron la llave"}), 400)
+                    jsonify({"message": "No todos los custodios generaron la llave"}),
+                    400,
+                )
             )
 
 
@@ -594,7 +625,7 @@ def truustee_step_2(election: Election, trustee: Trustee) -> Response:
 
     if request.method == "POST":
         body = request.get_json()
-        acks_data = route_utils.from_json(body['acknowledgements'])
+        acks_data = route_utils.from_json(body["acknowledgements"])
         acks = sharedpoint.ListOfSignatures(*acks_data)
 
         # TODO: perform server-side checks here!
@@ -602,8 +633,9 @@ def truustee_step_2(election: Election, trustee: Trustee) -> Response:
         trustee.current_step = 3  # trustee completed step 2 and now is ready for step 3
         trustee.save()
 
-        return create_response_cors(make_response(
-            jsonify({"message": "Step 2 completado con exito!"})), 200)
+        return create_response_cors(
+            make_response(jsonify({"message": "Step 2 completado con exito!"}), 200)
+        )
 
     if request.method == "GET":
         try:
@@ -618,20 +650,30 @@ def truustee_step_2(election: Election, trustee: Trustee) -> Response:
             points = SharedPoint.format_points_sent_to(
                 schema=shared_point_schema,
                 election_id=election.id,
-                trustee_id=trustee.trustee_id
+                trustee_id=trustee.trustee_id,
             )
 
-            return create_response_cors(make_response(jsonify({
-                'params': params,
-                'certificates': route_utils.to_json(certificates),
-                'coefficients': route_utils.to_json(coefficents),
-                'points': route_utils.to_json(points),
-            }), 200))
+            return create_response_cors(
+                make_response(
+                    jsonify(
+                        {
+                            "params": params,
+                            "certificates": route_utils.to_json(certificates),
+                            "coefficients": route_utils.to_json(coefficents),
+                            "points": route_utils.to_json(points),
+                        }
+                    ),
+                    200,
+                )
+            )
 
         except:
             return create_response_cors(
                 make_response(
-                    jsonify({"message": "No todos los custodios completaron la etapa 1"}), 400
+                    jsonify(
+                        {"message": "No todos los custodios completaron la etapa 1"}
+                    ),
+                    400,
                 )
             )
 
@@ -645,17 +687,20 @@ def truustee_step_3(election: Election, trustee: Trustee) -> Response:
     """
     if request.method == "POST":
         body = request.get_json()
-        pk_data = route_utils.from_json(body['verification_key'])
+        pk_data = route_utils.from_json(body["verification_key"])
         pk = elgamal.PublicKey(**pk_data)
 
         # TODO: perform server-side checks here!
 
         trustee.public_key = pk
-        trustee.threshold_step = 4  # trustee completed step 3 so the process is completed (step 4)
+        trustee.threshold_step = (
+            4  # trustee completed step 3 so the process is completed (step 4)
+        )
         trustee.save()
 
-        return create_response_cors(make_response(
-            jsonify({"message": "Step 3 completado con exito!"})), 200)
+        return create_response_cors(
+            make_response(jsonify({"message": "Step 3 completado con exito!"})), 200
+        )
 
     if request.method == "GET":
         try:
@@ -665,7 +710,9 @@ def truustee_step_3(election: Election, trustee: Trustee) -> Response:
             coefficients = [route_utils.from_json(t.coefficients) for t in trustees]
             assert None not in coefficients
 
-            acks_trustees = [route_utils.from_json(t.acknowledgements) for t in trustees]
+            acks_trustees = [
+                route_utils.from_json(t.acknowledgements) for t in trustees
+            ]
             assert None not in acks_trustees
             ack_indx = trustee.trustee_id - 1
             acknowledgements = [acks[ack_indx] for acks in acks_trustees]
@@ -676,28 +723,38 @@ def truustee_step_3(election: Election, trustee: Trustee) -> Response:
             points = SharedPoint.format_points_sent_to(
                 schema=shared_point_schema,
                 election_id=election.id,
-                trustee_id=trustee.trustee_id
+                trustee_id=trustee.trustee_id,
             )
 
             points_sent = SharedPoint.format_points_sent_by(
                 schema=shared_point_schema,
                 election_id=election.id,
-                trustee_id=trustee.trustee_id
+                trustee_id=trustee.trustee_id,
             )
 
-            return create_response_cors(make_response(jsonify({
-                'params': params,
-                'certificates': certificates,
-                'coefficents': coefficients,
-                'points': points,
-                'acks': acknowledgements,
-                'points_sent': points_sent,
-            }), 200))
+            return create_response_cors(
+                make_response(
+                    jsonify(
+                        {
+                            "params": params,
+                            "certificates": certificates,
+                            "coefficents": coefficients,
+                            "points": points,
+                            "acks": acknowledgements,
+                            "points_sent": points_sent,
+                        }
+                    ),
+                    200,
+                )
+            )
 
         except:
             return create_response_cors(
                 make_response(
-                    jsonify({"message": "No todos los custodios completaron la etapa 2"}), 400
+                    jsonify(
+                        {"message": "No todos los custodios completaron la etapa 2"}
+                    ),
+                    400,
                 )
             )
 
