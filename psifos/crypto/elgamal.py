@@ -48,11 +48,11 @@ class KeyPair(object):
 
 
 class PublicKey(SerializableObject):
-    def __init__(self):
-        self.y = None
-        self.p = None
-        self.g = None
-        self.q = None
+    def __init__(self, y=None, p=None, g=None, q=None):
+        self.y = y
+        self.p = p
+        self.g = g
+        self.q = q
 
     def encrypt_with_r(self, plaintext, r, encode_message=False):
         """
