@@ -571,7 +571,6 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
                 recipient=i + 1,
                 point=points[i],
             )
- 
 
             obj.save()
         trustee.coefficients = coefficients
@@ -693,9 +692,7 @@ def truustee_step_3(election: Election, trustee: Trustee) -> Response:
         # TODO: perform server-side checks here!
 
         trustee.public_key = pk
-        trustee.threshold_step = (
-            4  # trustee completed step 3 so the process is completed (step 4)
-        )
+        trustee.current_step = 4  # trustee completed step 3 so the process is completed (step 4)
         trustee.save()
 
         return create_response_cors(
