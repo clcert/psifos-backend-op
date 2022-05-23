@@ -257,6 +257,11 @@ class Trustee(PsifosModel, db.Model):
         query = Trustee.filter_by(schema=trustee_schema, election_id=election_id)
         return 1 if len(query) == 0 else max(query, key=(lambda t: t.trustee_id)).trustee_id + 1
 
+    @classmethod
+    def get_global_trustee_step(cls, trustee_schema, election_id):
+        trustee_steps = [t.current_step for t in Trustee.filter_by(schema=trustee_schema, election_id=election_id)]
+        return 0 if len(trustee_steps) == 0 else min(trustee_steps)
+
 
 class SharedPoint(PsifosModel, db.Model):
     __table_name__ = "psifos_shared_point"

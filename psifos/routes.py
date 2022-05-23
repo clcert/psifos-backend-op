@@ -464,7 +464,6 @@ def get_randomness(election: Election, trustee: Trustee) -> Response:
 
 # Routes for keygenerator trustee
 
-
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/get_step", methods=["GET"])
 @cas_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
@@ -473,9 +472,8 @@ def get_step(election: Election, trustee: Trustee) -> Response:
     Get the step of the trustee
     """
 
-    trustee_step = Trustee.get_by_uuid(
-        schema=trustee_schema, uuid=trustee.uuid
-    ).current_step
+    trustee_step = Trustee.get_global_trustee_step(trustee_schema=trustee_schema, election_id=election.id)
+
     return create_response_cors(
         make_response(
             jsonify(
@@ -547,6 +545,15 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
     """
     Step 1 of the keygenerator trustee
     """
+    global_trustee_step = Trustee.get_global_trustee_step(trustee_schema=trustee_schema, election_id=election.id)
+    if global_trustee_step != 1:
+        return create_response_cors(
+            make_response(
+                jsonify({"message": "El step global de los trustees no es 1."}),
+                400,
+            )
+        )
+
     if request.method == "POST":
         body = request.get_json()
 
@@ -622,6 +629,15 @@ def truustee_step_2(election: Election, trustee: Trustee) -> Response:
     Step 2 of the keygenerator trustee
     """
 
+    global_trustee_step = Trustee.get_global_trustee_step(trustee_schema=trustee_schema, election_id=election.id)
+    if global_trustee_step != 2:
+        return create_response_cors(
+            make_response(
+                jsonify({"message": "El step global de los trustees no es 2."}),
+                400,
+            )
+        )
+
     if request.method == "POST":
         body = request.get_json()
         acks_data = route_utils.from_json(body["acknowledgements"])
@@ -684,6 +700,16 @@ def truustee_step_3(election: Election, trustee: Trustee) -> Response:
     """
     Step 3 of the keygenerator trustee
     """
+
+    global_trustee_step = Trustee.get_global_trustee_step(trustee_schema=trustee_schema, election_id=election.id)
+    if global_trustee_step != 3:
+        return create_response_cors(
+            make_response(
+                jsonify({"message": "El step global de los trustees no es 1."}),
+                400,
+            )
+        )
+
     if request.method == "POST":
         body = request.get_json()
         pk_data = route_utils.from_json(body["verification_key"])
@@ -696,7 +722,7 @@ def truustee_step_3(election: Election, trustee: Trustee) -> Response:
         trustee.save()
 
         return create_response_cors(
-            make_response(jsonify({"message": "Step 3 completado con exito!"}),200)
+            make_response(jsonify({"message": "Step 3 completado con exito!"}), 200)
         )
 
     if request.method == "GET":
