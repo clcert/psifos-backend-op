@@ -45,4 +45,4 @@ class ListOfSignatures(SerializableList):
     def __init__(self, *args) -> None:
         super(ListOfSignatures, self).__init__()
         for sign_dict in args:
-            self.instances.append(Coefficient(**sign_dict))
+            self.instances.append(Signature(**sign_dict))
