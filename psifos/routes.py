@@ -504,7 +504,7 @@ def get_trustee_home(election_uuid, trustee_uuid):
     """
     try:
 
-        if verify_trustee(session["username"], election_uuid):
+        if verify_trustee(get_user(), election_uuid):
             election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
             trustee = Trustee.filter_by(
                 schema=trustee_schema, uuid=trustee_uuid, election_id=election.id
