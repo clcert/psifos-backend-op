@@ -1,11 +1,12 @@
 from psifos import app
 from psifos import config
-from psifos import cas_client
+from psifos.models import Election, Trustee
+from psifos.psifos_auth.auth_model import Auth, CASAuth
 from psifos.models import Election, Trustee
 from psifos.psifos_auth.models import User
 from psifos.psifos_auth.schemas import UserSchema
+from psifos.routes import election_schema, trustee_schema
 
-from psifos.psifos_auth.utils import cas_requires, verify_voter
 
 from werkzeug.security import check_password_hash
 
@@ -20,6 +21,9 @@ from psifos.schemas import (
     trustee_schema,
 )
 from psifos.psifos_auth.schemas import user_schema
+
+auth_factory = Auth()
+protocol = config["AUTH"]["type_auth"]
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -46,158 +50,38 @@ def login_user() -> Response:
         return make_response({"message": "Usuario o contraseñas incorrectos"}, 401)
 
 
-def redirect_cas(election_uuid: str) -> Response:
-    cas_client.service_url = config["URL"]["back"] + "/vote/" + election_uuid
-    cas_login_url = cas_client.get_login_url()
-    return redirect(cas_login_url)
-
-
 @app.route("/vote/<election_uuid>", methods=["GET", "POST"])
-def cas_login(election_uuid: str) -> Response:
+def login_voter(election_uuid: str) -> Response:
     """
     Make the connection and verification with the CAS service
     """
 
-    cookie = request.cookies.get("session")
-    if "username" in session:
-
-        # Already logged in
-        response = redirect(
-            config["URL"]["front"] + "/cabina/" + election_uuid, code=302
-        )
-        response.set_cookie("session", cookie)
-        return response
-
-    ticket = request.args.get("ticket")
-    if not ticket:
-        # No ticket, the request come from end user, send to CAS login
-        return redirect_cas(election_uuid)
-
-    user, attributes, pgtiou = cas_client.verify_ticket(ticket)
-    if not user:
-        return make_response({"message": "ERROR"}, 401)
-    else:  # Login successfully, redirect according `next` query parameter.
-        session["username"] = user
-        response = redirect(
-            config["URL"]["front"] + "/cabina/" + election_uuid, code=302
-        )
-        return response
+    auth = auth_factory.get_auth(protocol)
+    return auth.login_voter(election_uuid)
 
 
 @app.route("/vote/<election_uuid>/logout", methods=["GET"])
-def logout(election_uuid: str) -> Response:
+def logout_voter(election_uuid: str) -> Response:
     """
     Logout a user
     """
-    cas_logout_url = cas_client.get_logout_url(
-        config["URL"]["front"] + "/cabina/" + election_uuid + "?logout=true"
-    )
 
-    response = redirect(cas_logout_url, code=302)
-    response.set_cookie("session", expires=0)
-    return response
+    auth = auth_factory.get_auth(protocol)
+    return auth.logout_voter(election_uuid)
 
 
-@cross_origin
-@app.route("/election_questions/<election_uuid>", methods=["GET"])
-@cas_requires
-def get_election_cas(election_uuid: str) -> Response:
-    if not verify_voter(session["username"], election_uuid):
-        response = make_response({"message": "Votante no esta en la elección"}, 401)
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        return response
-
-    response = make_response(jsonify({"message": "Autorizado"}), 200)
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-
-    return response
-
-
-# Trustee CAS
-
-def redirect_cas_trustee(election_uuid: str) -> Response:
-    cas_client.service_url = (
-        config["URL"]["back"] + "/" + election_uuid + "/trustee" + "/login"
-    )
-    cas_login_url = cas_client.get_login_url()
-    return redirect(cas_login_url)
+# Trustee Auth
 
 
 @app.route("/<election_uuid>/trustee/login", methods=["GET", "POST"])
-def cas_login_trustee(election_uuid: str) -> Response:
+def login_trustee(election_uuid: str) -> Response:
     """
     Make the connection and verification with the CAS service
     """
+    
+    auth = auth_factory.get_auth(protocol)
+    return auth.login_trustee(election_uuid, election_schema, trustee_schema)
 
-    try:
-        cookie = request.cookies.get("session")
-
-        if "username" in session:
-            # Already logged in
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            trustee = Trustee.get_by_login_id_and_election(
-                schema=trustee_schema,
-                trustee_login_id=session["username"],
-                election_id=election.id,
-            )
-            if not trustee:
-                response = redirect(
-                    config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
-                    code=302,
-                )
-            else:
-
-                response = redirect(
-                    config["URL"]["front"]
-                    + "/"
-                    + election_uuid
-                    + "/trustee/"
-                    + trustee.uuid
-                    + "/home",
-                    code=302,
-                )
-            response.set_cookie("session", cookie)
-            return response
-
-        ticket = request.args.get("ticket")
-        if not ticket:
-            # No ticket, the request come from end user, send to CAS login
-            return redirect_cas_trustee(election_uuid)
-
-        user, attributes, pgtiou = cas_client.verify_ticket(ticket)
-        if not user:
-            return make_response({"message": "ERROR"}, 401)
-        else:  # Login successfully, redirect according `next` query parameter.
-            session["username"] = user
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            trustee = Trustee.get_by_login_id_and_election(
-                schema=trustee_schema,
-                trustee_login_id=session["username"],
-                election_id=election.id,
-            )
-            if not trustee:
-                response = redirect(
-                    config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
-                    code=302,
-                )
-            else:
-
-                response = redirect(
-                    config["URL"]["front"]
-                    + "/"
-                    + election_uuid
-                    + "/trustee/"
-                    + trustee.uuid
-                    + "/home",
-                    code=302,
-                )
-            return response
-    except:
-        response = redirect(
-            config["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
-            code=302,
-        )
-        return response
 
 
 @app.route("/<election_uuid>/trustee/logout", methods=["GET"])
@@ -205,15 +89,15 @@ def logout_trustee(election_uuid: str) -> Response:
     """
     Logout a trustee
     """
-    cas_logout_url = cas_client.get_logout_url(
-        config["URL"]["front"]
-        + "/"
-        + election_uuid
-        + "/trustee"
-        + "/home"
-        + "?logout=true"
-    )
+    auth = auth_factory.get_auth(protocol)
+    return auth.logout_trustee(election_uuid)
 
-    response = redirect(cas_logout_url, code=302)
-    response.set_cookie("session", expires=0)
-    return response
+
+# OAuth2
+
+
+@app.route("/authorized")
+def authorized():
+
+    auth = auth_factory.get_auth(protocol)
+    return auth.authorized()

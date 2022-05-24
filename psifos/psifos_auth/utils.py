@@ -1,3 +1,4 @@
+from psifos import config
 from operator import and_
 from os import abort
 from subprocess import call
@@ -6,6 +7,7 @@ from werkzeug.security import generate_password_hash
 from functools import update_wrapper, wraps
 from flask import request, jsonify, session, redirect, make_response
 from psifos import app, db
+from requests_oauthlib import OAuth2Session
 from psifos.psifos_auth.models import User
 from psifos.psifos_auth.schemas import UserSchema
 from psifos.models import Election, Trustee, Voter
@@ -83,12 +85,10 @@ def election_route(**kwargs):
     return election_route_decorator
 
 
-def cas_requires(f: callable) -> callable:
+def auth_requires(f: callable) -> callable:
     @wraps(f)
     def decorator(*args, **kwargs):
-
-        user_session = session.get("username", None)
-        if not user_session:
+        if "username" not in session and "oauth_token" not in session:
             response = make_response({"message": "Usuario no autorizado"}, 401)
             response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
@@ -299,3 +299,28 @@ def create_response_cors(response):
     response.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,DELETE,OPTIONS"
     response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
+
+
+def get_user():
+
+    """
+    Get the user from the request
+
+    """
+
+    if config["AUTH"]["type_auth"] == "cas":
+        if "username" not in session:
+            return None
+
+        return session["username"]
+
+    elif config["AUTH"]["type_auth"] == "oauth":
+
+        if "oauth_token" not in session:
+            return None
+
+        login = OAuth2Session(
+            config["OAUTH"]["client_id"], token=session["oauth_token"]
+        )
+        user = login.get(config["OAUTH"]["user_info_url"]).json()
+        return user["fields"]["username"]
