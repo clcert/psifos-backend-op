@@ -24,3 +24,8 @@ def from_json(value):
             raise Exception("psifos.utils error: in from_json, value is not JSON parseable") from e
 
     return value
+
+
+# -- SharedPoint manipulation --
+def format_points(points):
+    return [from_json(x.point) for x in points]

@@ -78,9 +78,10 @@ def login_trustee(election_uuid: str) -> Response:
     """
     Make the connection and verification with the CAS service
     """
-
+    
     auth = auth_factory.get_auth(protocol)
     return auth.login_trustee(election_uuid, election_schema, trustee_schema)
+
 
 
 @app.route("/<election_uuid>/trustee/logout", methods=["GET"])

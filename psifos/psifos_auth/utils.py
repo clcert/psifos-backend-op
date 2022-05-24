@@ -88,15 +88,128 @@ def election_route(**kwargs):
 def auth_requires(f: callable) -> callable:
     @wraps(f)
     def decorator(*args, **kwargs):
-
         if "username" not in session and "oauth_token" not in session:
             response = make_response({"message": "Usuario no autorizado"}, 401)
             response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
 
-        return f(*args, **kwargs)
+        return f(user_session, *args, **kwargs)
 
     return decorator
+
+
+def voter_cas(**kwargs):
+    """
+    Decorator to check if the voter is registered in the election
+
+    """
+
+    election_schema = kwargs.get("election_schema", None)
+    voter_schema = kwargs.get("voter_schema", None)
+
+    def voter_cas_decorator(f):
+        def voter_cas_wrapper(user_session=None, election_uuid=None, *args, **kwargs):
+
+            try:
+                election = Election.get_by_uuid(
+                    schema=election_schema,
+                    uuid=election_uuid,
+                    deserialize=False,
+                )
+
+                voter = Voter.get_by_login_id_and_election(
+                    schema=voter_schema,
+                    voter_login_id=user_session,
+                    election_id=election.id,
+                )
+
+                if not verify_voter(election, voter, voter_schema):
+                    response = create_response_cors(
+                        make_response(
+                            jsonify(
+                                {
+                                    "message": "No tiene permisos para acceder a esta elección"
+                                }
+                            ),
+                            401,
+                        )
+                    )
+                    return response
+
+            except:
+                response = create_response_cors(
+                    make_response(
+                        jsonify(
+                            {"message": "Ha ocurrido un error al verificar el votante"}
+                        ),
+                        401,
+                    )
+                )
+                return response
+
+            return f(election, voter, *args, **kwargs)
+
+        return update_wrapper(voter_cas_wrapper, f)
+
+    return voter_cas_decorator
+
+
+def trustee_cas(**kwargs):
+    """
+    Decorator to check if the trustee is registered in the election
+
+    """
+
+    election_schema = kwargs.get("election_schema", None)
+    trustee_schema = kwargs.get("trustee_schema", None)
+
+    def trustee_cas_decorator(f):
+        def trustee_cas_wrapper(
+            user_session=None, election_uuid=None, trustee_uuid=None, *args, **kwargs
+        ):
+            try:
+                election = Election.get_by_uuid(
+                    schema=election_schema,
+                    uuid=election_uuid,
+                    deserialize=False,
+                )
+
+                trustee = Trustee.get_by_login_id_and_election(
+                    schema=trustee_schema,
+                    trustee_login_id=user_session,
+                    election_id=election.id,
+                )
+
+                if not verify_trustee(election, trustee, trustee_schema):
+                    response = create_response_cors(
+                        make_response(
+                            jsonify(
+                                {
+                                    "message": "No tiene permisos para acceder a esta elección"
+                                }
+                            ),
+                            401,
+                        )
+                    )
+                    return response
+            except:
+                response = create_response_cors(
+                    make_response(
+                        jsonify(
+                            {
+                                "message": "Ha ocurrido un error al obtener los datos de la elección"
+                            }
+                        ),
+                        401,
+                    )
+                )
+                return response
+
+            return f(election, trustee, *args, **kwargs)
+
+        return update_wrapper(trustee_cas_wrapper, f)
+
+    return trustee_cas_decorator
 
 
 def create_user(username: str, password: str) -> str:
@@ -123,7 +236,7 @@ def create_user(username: str, password: str) -> str:
     return "Usuario creado"
 
 
-def verify_voter(voter_login_id, election_uuid):
+def verify_voter(election, voter, voter_schema):
     """
     Verify if the voter is registered in the election
 
@@ -134,12 +247,11 @@ def verify_voter(voter_login_id, election_uuid):
     :param election_uuid: uuid of the election
 
     """
-    election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+
     if not election:
         return False
-    voter = Voter.get_by_login_id_and_election(
-        schema=voter_schema, voter_login_id=voter_login_id, election_id=election.id
-    )
+
+    voter_login_id = voter.voter_login_id
     if not voter:
         if voter_login_id[-10:] == "@uchile.cl":
             voter = Voter.get_by_login_id_and_election(
@@ -154,19 +266,24 @@ def verify_voter(voter_login_id, election_uuid):
     return True
 
 
-def verify_trustee(trustee_login_id, election_uuid):
+def verify_trustee(election, trustee, trustee_schema):
     """
     Verify if the trustee is registered in the election
     """
-    election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+
     if not election:
         return False
-    trustee = Trustee.get_by_login_id_and_election(
-        schema=trustee_schema,
-        trustee_login_id=trustee_login_id,
-        election_id=election.id,
-    )
+
+    trustee_login_id = trustee.trustee_login_id
     if not trustee:
+        if trustee_login_id[-10:] == "@uchile.cl":
+            trustee = Trustee.get_by_login_id_and_election(
+                schema=trustee_schema,
+                trustee_login_id=trustee_login_id[:-10],
+                election_id=election.id,
+            )
+            if not trustee:
+                return False
         return False
 
     return True

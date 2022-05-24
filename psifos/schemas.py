@@ -67,6 +67,7 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     trustee_login_id = ma.auto_field()
     email = ma.auto_field()
     secret = ma.auto_field()
+    current_step = ma.auto_field()
     public_key = ma.auto_field()  # SerializableField(PublicKey)
     public_key_hash = ma.auto_field()
     secret_key = ma.auto_field()  # SerializableField(SecretKey)
@@ -76,8 +77,7 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     open_answers_decryption_factors = ma.auto_field()  # SerializableField(DecryptionFactors)
     open_answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
     certificate = SerializableField(Certificate)
-    threshold_step = ma.auto_field()
-    coefficients = ma.auto_field()  # SerializableField(Coefficient)
+    coefficients = ma.auto_field()  # SerializableField(ListOfCoefficient)
     acknowledgements = ma.auto_field()  # SerializableField(Signature)
 
 
@@ -95,7 +95,7 @@ class SharedPointSchema(ma.SQLAlchemySchema):
     election_id = ma.auto_field()
     sender = ma.auto_field()
     recipient = ma.auto_field()
-    point = ma.auto_field()  # SerializableField(Point)
+    point = SerializableField(Point)
 
 
 class VoterSchema(ma.SQLAlchemySchema):
@@ -147,7 +147,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
     normalization = ma.auto_field()
     max_weight = ma.auto_field()
     total_voters = ma.auto_field()
-    total_trustes = ma.auto_field()
+    total_trustees = ma.auto_field()
     cast_url = ma.auto_field()
     encrypted_tally = ma.auto_field()  # SerializableField(Tally)
     encrypted_tally_hash = ma.auto_field()
