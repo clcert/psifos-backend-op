@@ -67,6 +67,7 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     trustee_login_id = ma.auto_field()
     email = ma.auto_field()
     secret = ma.auto_field()
+    current_step = ma.auto_field()
     public_key = ma.auto_field()  # SerializableField(PublicKey)
     public_key_hash = ma.auto_field()
     secret_key = ma.auto_field()  # SerializableField(SecretKey)
