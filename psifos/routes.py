@@ -3,10 +3,8 @@ Routes for Psifos.
 
 24-03-2022
 """
-from ctypes import cast
-from email import message
+
 import uuid
-import json
 import base64
 import os
 
@@ -35,7 +33,7 @@ from psifos.psifos_auth.utils import (
     token_required,
     trustee_cas,
     create_response_cors,
-    voter_cas,
+    verify_voter,
 )
 from psifos.crypto import sharedpoint
 from psifos.crypto import elgamal
@@ -325,12 +323,12 @@ def get_questions_voters(election: Election) -> Response:
     Require a cookie valid in session >>> CAS
 
     """
-    try:
-        if verify_voter(get_user(), election.uuid):
-            result = Election.to_dict(schema=election_schema, obj=election)
-            response = create_response_cors(make_response(result, 200))
-            return response
-          
+
+    if verify_voter(get_user(), election.uuid):
+        result = Election.to_dict(schema=election_schema, obj=election)
+        response = create_response_cors(make_response(result, 200))
+        return response
+
 
 # Trustee Routes
 
@@ -432,51 +430,13 @@ def get_trustee(trustee_uuid):
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/home", methods=["GET"])
 @auth_requires
-def get_trustee_home(election_uuid, trustee_uuid):
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def get_trustee_home(election, trustee):
     """
     Route for get trustee home
     Require a cookie valid in session >>> CAS
     """
 
-    try:
-
-        if verify_trustee(get_user(), election_uuid):
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-            trustee = Trustee.filter_by(
-                schema=trustee_schema, uuid=trustee_uuid, election_id=election.id
-            )
-
-            if not trustee:
-                response = create_response_cors(
-                    make_response(
-                        jsonify(
-                            {
-                                "message": "No tiene permisos para acceder a esta elección"
-                            }
-                        ),
-                        401,
-                    )
-                )
-                return response
-
-            response = create_response_cors(
-                make_response(
-                    jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
-                )
-            )
-            return response
-
-        else:
-            response = create_response_cors(
-                make_response(
-                    jsonify(
-                        {"message": "No tiene permisos para acceder a esta elección"}
-                    ),
-                    401,
-                )
-            )
-            return response
-          
     response = create_response_cors(
         make_response(jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200)
     )
@@ -484,7 +444,7 @@ def get_trustee_home(election_uuid, trustee_uuid):
 
 
 @app.route("/<election_uuid>/get_randomness", methods=["GET"])
-@cas_requires
+@auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
 def get_randomness(election: Election, trustee: Trustee) -> Response:
     """
@@ -503,15 +463,18 @@ def get_randomness(election: Election, trustee: Trustee) -> Response:
 
 # Routes for keygenerator trustee
 
+
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/get_step", methods=["GET"])
-@cas_requires
+@auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
 def get_step(election: Election, trustee: Trustee) -> Response:
     """
     Get the step of the trustee
     """
 
-    trustee_step = Trustee.get_global_trustee_step(trustee_schema=trustee_schema, election_id=election.id)
+    trustee_step = Trustee.get_global_trustee_step(
+        trustee_schema=trustee_schema, election_id=election.id
+    )
 
     return create_response_cors(
         make_response(
@@ -547,7 +510,7 @@ def election_get_eg_params(election_uuid: str) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
-@cas_requires
+@auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
 def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
     """
@@ -578,13 +541,15 @@ def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["GET", "POST"])
-@cas_requires
+@auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
 def truustee_step_1(election: Election, trustee: Trustee) -> Response:
     """
     Step 1 of the keygenerator trustee
     """
-    global_trustee_step = Trustee.get_global_trustee_step(trustee_schema=trustee_schema, election_id=election.id)
+    global_trustee_step = Trustee.get_global_trustee_step(
+        trustee_schema=trustee_schema, election_id=election.id
+    )
     if global_trustee_step != 1:
         return create_response_cors(
             make_response(
@@ -661,14 +626,16 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step2", methods=["GET", "POST"])
-@cas_requires
+@auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
 def truustee_step_2(election: Election, trustee: Trustee) -> Response:
     """
     Step 2 of the keygenerator trustee
     """
 
-    global_trustee_step = Trustee.get_global_trustee_step(trustee_schema=trustee_schema, election_id=election.id)
+    global_trustee_step = Trustee.get_global_trustee_step(
+        trustee_schema=trustee_schema, election_id=election.id
+    )
     if global_trustee_step != 2:
         return create_response_cors(
             make_response(
@@ -733,14 +700,16 @@ def truustee_step_2(election: Election, trustee: Trustee) -> Response:
 
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step3", methods=["GET", "POST"])
-@cas_requires
+@auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
 def truustee_step_3(election: Election, trustee: Trustee) -> Response:
     """
     Step 3 of the keygenerator trustee
     """
 
-    global_trustee_step = Trustee.get_global_trustee_step(trustee_schema=trustee_schema, election_id=election.id)
+    global_trustee_step = Trustee.get_global_trustee_step(
+        trustee_schema=trustee_schema, election_id=election.id
+    )
     if global_trustee_step != 3:
         return create_response_cors(
             make_response(
@@ -757,7 +726,9 @@ def truustee_step_3(election: Election, trustee: Trustee) -> Response:
         # TODO: perform server-side checks here!
 
         trustee.public_key = pk
-        trustee.current_step = 4  # trustee completed step 3 so the process is completed (step 4)
+        trustee.current_step = (
+            4  # trustee completed step 3 so the process is completed (step 4)
+        )
         trustee.save()
 
         return create_response_cors(

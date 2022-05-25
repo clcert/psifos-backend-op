@@ -93,6 +93,8 @@ def auth_requires(f: callable) -> callable:
             response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
 
+        user_session = get_user()
+
         return f(user_session, *args, **kwargs)
 
     return decorator
