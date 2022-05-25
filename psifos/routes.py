@@ -4,6 +4,7 @@ Routes for Psifos.
 24-03-2022
 """
 
+from ast import Pass
 import uuid
 import base64
 import os
@@ -44,7 +45,7 @@ from sqlalchemy import func
 # Admin routes
 
 
-@app.route("/create_election", methods=["POST"])
+@app.route("/create-election", methods=["POST"])
 @token_required
 def create_election(current_user: User) -> Response:
     """
@@ -88,7 +89,7 @@ def create_election(current_user: User) -> Response:
         return make_response(jsonify({"message": form.errors}), 400)
 
 
-@app.route("/get_election/<election_uuid>", methods=["GET"])
+@app.route("/get-election/<election_uuid>", methods=["GET"])
 @token_required
 @election_route(election_schema=election_schema)
 def get_election(election: Election) -> Response:
@@ -102,7 +103,7 @@ def get_election(election: Election) -> Response:
     return response
 
 
-@app.route("/get_elections", methods=["GET"])
+@app.route("/get-elections", methods=["GET"])
 @token_required
 def get_elections(current_user: User):
     """
@@ -117,7 +118,7 @@ def get_elections(current_user: User):
     return make_response(jsonify(result), 200)
 
 
-@app.route("/edit_election/<election_uuid>", methods=["POST"])
+@app.route("/edit-election/<election_uuid>", methods=["POST"])
 @token_required
 @election_route(election_schema=election_schema)
 def edit_election(election: Election) -> Response:
@@ -166,7 +167,7 @@ def edit_election(election: Election) -> Response:
         return make_response(jsonify({"message": form.errors}), 400)
 
 
-@app.route("/create_questions/<election_uuid>", methods=["POST"])
+@app.route("/create-questions/<election_uuid>", methods=["POST"])
 @token_required
 @election_route(election_schema=election_schema)
 def create_questions(election: Election) -> Response:
@@ -182,7 +183,7 @@ def create_questions(election: Election) -> Response:
     return make_response(jsonify({"message": "Preguntas creadas con exito!"}), 200)
 
 
-@app.route("/get_questions/<election_uuid>", methods=["GET"])
+@app.route("/get-questions/<election_uuid>", methods=["GET"])
 @token_required
 @election_route(election_schema=election_schema, deserialize_election=True)
 def get_questions(election: Election) -> response:
@@ -201,7 +202,7 @@ def get_questions(election: Election) -> response:
     return make_response(json_questions, 200)
 
 
-@app.route("/<election_uuid>/send_voters", methods=["POST"])
+@app.route("/<election_uuid>/send-voters", methods=["POST"])
 @token_required
 @election_route(election_schema=election_schema)
 def send_voters(election: Election) -> Response:
@@ -236,7 +237,7 @@ def send_voters(election: Election) -> Response:
     return make_response(jsonify({"message": "Votantes creados con exito!"}), 200)
 
 
-@app.route("/<election_uuid>/get_voters", methods=["GET"])
+@app.route("/<election_uuid>/get-voters", methods=["GET"])
 @token_required
 @election_route(election_schema=election_schema)
 def get_voters(election: Election) -> Response:
@@ -250,7 +251,7 @@ def get_voters(election: Election) -> Response:
     return make_response(jsonify(result), 200)
 
 
-@app.route("/<election_uuid>/delete_voters", methods=["POST"])
+@app.route("/<election_uuid>/delete-voters", methods=["POST"])
 @token_required
 @election_route(election_schema=election_schema)
 def delete_voters(election: Election) -> Response:
@@ -333,7 +334,7 @@ def get_questions_voters(election: Election) -> Response:
 # Trustee Routes
 
 
-@app.route("/<election_uuid>/create_trustee", methods=["POST"])
+@app.route("/<election_uuid>/create-trustee", methods=["POST"])
 @token_required
 def create_trustee(current_user: User, election_uuid: str) -> Response:
     """
@@ -366,7 +367,7 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
         return make_response(jsonify({"message": "Error al crear el trustee"}), 400)
 
 
-@app.route("/<election_uuid>/delete_trustee", methods=["POST"])
+@app.route("/<election_uuid>/delete-trustee", methods=["POST"])
 @token_required
 def delete_trustee(current_user: User, election_uuid: str) -> Response:
     """
@@ -389,7 +390,7 @@ def delete_trustee(current_user: User, election_uuid: str) -> Response:
         return make_response(jsonify({"message": "Error al eliminar el trustee"}), 400)
 
 
-@app.route("/<election_uuid>/get_trustees", methods=["GET"])
+@app.route("/<election_uuid>/get-trustees", methods=["GET"])
 @token_required
 def get_trustees(current_user: User, election_uuid: str) -> Response:
     """
@@ -412,7 +413,7 @@ def get_trustees(current_user: User, election_uuid: str) -> Response:
         return make_response(jsonify({"message": "Error al obtener los trustees"}), 400)
 
 
-@app.route("/<trustee_uuid>/get_trustee", methods=["GET"])
+@app.route("/<trustee_uuid>/get-trustee", methods=["GET"])
 def get_trustee(trustee_uuid):
     """
     Route for get trustee
@@ -443,7 +444,7 @@ def get_trustee_home(election, trustee):
     return response
 
 
-@app.route("/<election_uuid>/get_randomness", methods=["GET"])
+@app.route("/<election_uuid>/get-randomness", methods=["GET"])
 @auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
 def get_randomness(election: Election, trustee: Trustee) -> Response:
@@ -461,10 +462,10 @@ def get_randomness(election: Election, trustee: Trustee) -> Response:
     return response
 
 
-# Routes for keygenerator trustee
+# Routes for keygenerator trustee (Trustee Stage 1)
 
 
-@app.route("/<election_uuid>/trustee/<trustee_uuid>/get_step", methods=["GET"])
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/get-step", methods=["GET"])
 @auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
 def get_step(election: Election, trustee: Trustee) -> Response:
@@ -489,7 +490,7 @@ def get_step(election: Election, trustee: Trustee) -> Response:
     )
 
 
-@app.route("/<election_uuid>/get_eg_params", methods=["GET"])
+@app.route("/<election_uuid>/get-eg-params", methods=["GET"])
 def election_get_eg_params(election_uuid: str) -> Response:
     """
     Returns a JSON with the election eg_params.
@@ -509,7 +510,7 @@ def election_get_eg_params(election_uuid: str) -> Response:
         )
 
 
-@app.route("/<election_uuid>/trustee/<trustee_uuid>/upload_pk", methods=["POST"])
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/upload-pk", methods=["POST"])
 @auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
 def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
@@ -540,10 +541,10 @@ def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
     )
 
 
-@app.route("/<election_uuid>/trustee/<trustee_uuid>/step1", methods=["GET", "POST"])
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/step-1", methods=["GET", "POST"])
 @auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
-def truustee_step_1(election: Election, trustee: Trustee) -> Response:
+def trustee_step_1(election: Election, trustee: Trustee) -> Response:
     """
     Step 1 of the keygenerator trustee
     """
@@ -625,10 +626,10 @@ def truustee_step_1(election: Election, trustee: Trustee) -> Response:
             )
 
 
-@app.route("/<election_uuid>/trustee/<trustee_uuid>/step2", methods=["GET", "POST"])
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/step-2", methods=["GET", "POST"])
 @auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
-def truustee_step_2(election: Election, trustee: Trustee) -> Response:
+def trustee_step_2(election: Election, trustee: Trustee) -> Response:
     """
     Step 2 of the keygenerator trustee
     """
@@ -699,10 +700,10 @@ def truustee_step_2(election: Election, trustee: Trustee) -> Response:
             )
 
 
-@app.route("/<election_uuid>/trustee/<trustee_uuid>/step3", methods=["GET", "POST"])
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/step-3", methods=["GET", "POST"])
 @auth_requires
 @trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
-def truustee_step_3(election: Election, trustee: Trustee) -> Response:
+def trustee_step_3(election: Election, trustee: Trustee) -> Response:
     """
     Step 3 of the keygenerator trustee
     """
@@ -792,8 +793,36 @@ def truustee_step_3(election: Election, trustee: Trustee) -> Response:
             )
 
 
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/check-sk", methods=["GET", "POST"])
+@auth_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def trustee_check_sk(election: Election, trustee: Trustee) -> Response:
+    """
+    Trustee Stage 2
+    """
+    if request.method == "POST":
+        pass
+
+    elif request.method == "GET":
+        pass
+
+
+@app.route("/<election_uuid>/trustee/<trustee_uuid>/decrypt-and-prove", methods=["GET", "POST"])
+@auth_requires
+@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
+    """
+    Trustee Stage 3
+    """
+    if request.method == "POST":
+        pass
+
+    elif request.method == "GET":
+        pass
+
+
 # Freeze Ballot
-@app.route("/<election_uuid>/freeze_ballot", methods=["POST"])
+@app.route("/<election_uuid>/freeze-ballot", methods=["POST"])
 @token_required
 def freeze_ballot(current_user: User, election_uuid: str) -> Response:
     """
