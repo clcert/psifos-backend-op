@@ -9,7 +9,7 @@ from psifos.crypto.utils import BigInteger, random
 from Crypto.Util import number
 from Crypto.Hash import SHA1
 import logging
-from psifos.serialization import SerializableObject
+from psifos.serialization import SerializableList, SerializableObject
 
 
 class ElGamal(SerializableObject):
@@ -474,10 +474,13 @@ class Ciphertext(SerializableObject):
 
 
 class ZKProof(SerializableObject):
-    def __init__(self):
-        self.commitment = {'A': None, 'B': None}
-        self.challenge = None
-        self.response = None
+    def __init__(self, challenge=None, response=None, commitment=None):
+        self.challenge = challenge
+        self.response = response
+        if commitment is None:
+            self.commitment = {'A': None, 'B': None}
+        else:
+            self.commitment = {'A': commitment["A"], 'B': commitment["B"]}
 
     @classmethod
     def generate(cls, little_g, little_h, x, p, q, challenge_generator):
@@ -527,6 +530,34 @@ class ZKProof(SerializableObject):
             third_check = (self.challenge == challenge_generator(self.commitment))
 
         return first_check and second_check and third_check
+
+
+class ListOfBigIntegers(SerializableList):
+    def __init__(self, *args) -> None:
+        super(ListOfBigIntegers, self).__init__()
+        for value in args:
+            self.instances.append(BigInteger(value=value))
+
+
+class ListOfZKProofs(SerializableList):
+    def __init__(self, *args) -> None:
+        super(ListOfZKProofs, self).__init__()
+        for proof_dict in args:
+            self.instances.append(ZKProof(**proof_dict))
+
+
+class DecryptionFactors(SerializableList):
+    def __init__(self, *args) -> None:
+        super(DecryptionFactors, self).__init__()
+        for d_f_list in args:
+            self.instances.append(ListOfBigIntegers(*d_f_list))
+
+
+class DecryptionProofs(SerializableList):
+    def __init__(self, *args) -> None:
+        super(DecryptionFactors, self).__init__()
+        for d_p_list in args:
+            self.instances.append(ListOfZKProofs(*d_p_list))
 
 
 class ZKDisjunctiveProof(SerializableObject):

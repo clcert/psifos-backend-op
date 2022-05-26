@@ -107,6 +107,7 @@ def voter_cas(**kwargs):
     """
 
     election_schema = kwargs.get("election_schema", None)
+    deserialize_election = kwargs.get("deserialize_election", None)
     voter_schema = kwargs.get("voter_schema", None)
 
     def voter_cas_decorator(f):
@@ -116,7 +117,7 @@ def voter_cas(**kwargs):
                 election = Election.get_by_uuid(
                     schema=election_schema,
                     uuid=election_uuid,
-                    deserialize=False,
+                    deserialize=deserialize_election,
                 )
 
                 voter = Voter.get_by_login_id_and_election(
@@ -164,6 +165,8 @@ def trustee_cas(**kwargs):
 
     election_schema = kwargs.get("election_schema", None)
     trustee_schema = kwargs.get("trustee_schema", None)
+    deserialize_election = kwargs.get("deserialize_election", None)
+    deserialize_trustee = kwargs.get("deserialize_trustee", None)
 
     def trustee_cas_decorator(f):
         def trustee_cas_wrapper(
@@ -173,13 +176,14 @@ def trustee_cas(**kwargs):
                 election = Election.get_by_uuid(
                     schema=election_schema,
                     uuid=election_uuid,
-                    deserialize=False,
+                    deserialize=deserialize_election,
                 )
 
                 trustee = Trustee.get_by_login_id_and_election(
                     schema=trustee_schema,
                     trustee_login_id=user_session,
                     election_id=election.id,
+                    deserialize=deserialize_trustee,
                 )
 
                 if not verify_trustee(election, trustee, trustee_schema):
@@ -304,7 +308,6 @@ def create_response_cors(response):
 
 
 def get_user():
-
     """
     Get the user from the request
 

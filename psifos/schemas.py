@@ -9,8 +9,8 @@ from psifos.fields import SerializableField
 from psifos.enums import ElectionTypeEnum
 from psifos.models import AuditedBallot, CastVote, Election, SharedPoint, Trustee, Voter
 from psifos.crypto.homomorphic import EncryptedVote, Tally
-from psifos.crypto.sharedpoint import Certificate, Coefficient, Point, Signature
-from psifos.crypto.elgamal import DLogProof, PublicKey, SecretKey
+from psifos.crypto.sharedpoint import Certificate, Coefficient, ListOfCoefficients, Point, Signature
+from psifos.crypto.elgamal import DLogProof, DecryptionFactors, DecryptionProofs, PublicKey, SecretKey
 from psifos.psifos_object.questions import Questions
 from psifos.psifos_object.result import Result
 from marshmallow_enum import EnumField
@@ -68,17 +68,17 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     email = ma.auto_field()
     secret = ma.auto_field()
     current_step = ma.auto_field()
-    public_key = ma.auto_field()  # SerializableField(PublicKey)
+    public_key = SerializableField(PublicKey)
     public_key_hash = ma.auto_field()
     secret_key = ma.auto_field()  # SerializableField(SecretKey)
     pok = ma.auto_field()  # SerializableField(DLogProof)
-    answers_decryption_factors = ma.auto_field()  # SerializableField(DecryptionFactors)
-    answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
-    open_answers_decryption_factors = ma.auto_field()  # SerializableField(DecryptionFactors)
-    open_answers_decryption_proofs = ma.auto_field()  # SerializableField(DecryptionProofs)
+    answers_decryption_factors = SerializableField(DecryptionFactors)
+    answers_decryption_proofs = SerializableField(DecryptionProofs)
+    open_answers_decryption_factors = SerializableField(DecryptionFactors)
+    open_answers_decryption_proofs = SerializableField(DecryptionProofs)
     certificate = SerializableField(Certificate)
-    coefficients = ma.auto_field()  # SerializableField(ListOfCoefficient)
-    acknowledgements = ma.auto_field()  # SerializableField(Signature)
+    coefficients = SerializableField(ListOfCoefficients)
+    acknowledgements = SerializableField(Signature)
 
 
 class SharedPointSchema(ma.SQLAlchemySchema):

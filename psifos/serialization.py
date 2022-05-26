@@ -7,6 +7,8 @@ Serialization for Psifos objects.
 from __future__ import annotations
 import json
 
+from psifos.utils import to_json
+
 
 class SerializableList(object):
     """ 
@@ -18,7 +20,7 @@ class SerializableList(object):
         self.instances = []
 
     @classmethod
-    def serialize(cls, s_list: SerializableList) -> str:
+    def serialize(cls, s_list: SerializableList, to_json: bool = True) -> str:
         """ 
         Serializes an object to a JSON like string. 
         """
@@ -32,9 +34,9 @@ class SerializableList(object):
         serialized_instances = []
         for obj in s_list.instances:
             obj_class = obj.__class__
-            serialized_instances.append(obj_class.serialize(obj, to_dict=True))
+            serialized_instances.append(obj_class.serialize(obj, to_json=False))
 
-        return json.dumps(serialized_instances)
+        return json.dumps(serialized_instances) if to_json else serialized_instances
 
     @classmethod
     def deserialize(cls, json_data: str) -> SerializableObject:
@@ -52,7 +54,7 @@ class SerializableObject(object):
     """
 
     @classmethod
-    def serialize(cls, obj: SerializableObject, to_dict=False) -> str:
+    def serialize(cls, obj: SerializableObject, to_json=True) -> str:
         """ 
         Serializes an object to a JSON like string. 
         """
@@ -68,12 +70,12 @@ class SerializableObject(object):
             try:
                 attr_value = getattr(obj, attr)
                 attr_class = attr_value.__class__
-                serialized_attr = attr_class.serialize(attr_value, to_dict=True)
+                serialized_attr = attr_class.serialize(attr_value, to_json=False)
                 setattr(obj, attr, serialized_attr)
             except:
                 pass
 
-        return obj.__dict__ if to_dict else json.dumps(obj.__dict__)
+        return json.dumps(obj.__dict__) if to_json else obj.__dict__
 
     @classmethod
     def deserialize(cls, json_data: str) -> SerializableObject:

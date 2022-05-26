@@ -37,6 +37,12 @@ class Questions(SerializableList):
         for q_dict in args:
             self.instances.append(QuestionFactory.create(**q_dict))
 
+    def check_tally_type(self, tally_type: str):
+        for q in self.instances:
+            if q.tally_type != tally_type:
+                return False
+        return True
+
 
 class AbstractQuestion(SerializableObject):
     """
