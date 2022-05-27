@@ -8,11 +8,9 @@ from psifos import ma
 from psifos.fields import SerializableField
 from psifos.enums import ElectionTypeEnum
 from psifos.models import AuditedBallot, CastVote, Election, SharedPoint, Trustee, Voter
-from psifos.crypto.homomorphic import EncryptedVote, Tally
 from psifos.crypto.sharedpoint import Certificate, Coefficient, ListOfCoefficients, Point, Signature
 from psifos.crypto.elgamal import DLogProof, DecryptionFactors, DecryptionProofs, PublicKey, SecretKey
 from psifos.psifos_object.questions import Questions
-from psifos.psifos_object.result import Result
 from marshmallow_enum import EnumField
 
 
@@ -140,7 +138,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
     description = ma.auto_field()
     public_key = ma.auto_field()  # SerializableField(PublicKey)
     private_key = ma.auto_field()  # SerializableField(SecretKey)
-    questions = ma.auto_field()  # SerializableField(Questions)
+    questions = SerializableField(Questions)
     openreg = ma.auto_field()
     obscure_voter_names = ma.auto_field()
     randomize_answer_order = ma.auto_field()
