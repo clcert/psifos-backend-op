@@ -284,6 +284,7 @@ class Trustee(PsifosModel, db.Model):
         trustee_steps = [t.current_step for t in Trustee.filter_by(schema=schema, election_id=election_id)]
         return 0 if len(trustee_steps) == 0 else min(trustee_steps)
 
+    @classmethod
     def get_by_election(cls, schema, election_id, deserialize=False):
         return cls.filter_by(
             schema=schema,
