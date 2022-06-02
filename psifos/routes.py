@@ -311,6 +311,22 @@ def openreg(election: Election) -> Response:
     election.save()
     return make_response(jsonify({"message": "Elección reanudada con exito!"}), 200)
 
+@app.route("/<election_uuid>/freeze-election", methods=["POST"])
+@token_required
+@election_route(election_schema=election_schema)
+def freeze_election(election: Election) -> Response:
+    """
+    Route for freezing an election
+    Require a valid token to access >>> token_required
+    """
+    trustees = Trustee.get_by_election(
+            schema=trustee_schema,
+            election_id=election.id,
+            deserialize=True
+    )
+    election.freeze(trustees)
+    return make_response(jsonify({"message": "Eleccion congelada con exito!"}), 200)
+
 
 # Voters routes
 
@@ -474,7 +490,7 @@ def get_step(election: Election, trustee: Trustee) -> Response:
     """
 
     trustee_step = Trustee.get_global_trustee_step(
-        trustee_schema=trustee_schema, election_id=election.id
+        schema=trustee_schema, election_id=election.id
     )
 
     return create_response_cors(
@@ -549,7 +565,7 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
     Step 1 of the keygenerator trustee
     """
     global_trustee_step = Trustee.get_global_trustee_step(
-        trustee_schema=trustee_schema, election_id=election.id
+        schema=trustee_schema, election_id=election.id
     )
     if global_trustee_step != 1:
         return create_response_cors(
@@ -635,7 +651,7 @@ def trustee_step_2(election: Election, trustee: Trustee) -> Response:
     """
 
     global_trustee_step = Trustee.get_global_trustee_step(
-        trustee_schema=trustee_schema, election_id=election.id
+        schema=trustee_schema, election_id=election.id
     )
     if global_trustee_step != 2:
         return create_response_cors(
@@ -709,7 +725,7 @@ def trustee_step_3(election: Election, trustee: Trustee) -> Response:
     """
 
     global_trustee_step = Trustee.get_global_trustee_step(
-        trustee_schema=trustee_schema, election_id=election.id
+        schema=trustee_schema, election_id=election.id
     )
     if global_trustee_step != 3:
         return create_response_cors(

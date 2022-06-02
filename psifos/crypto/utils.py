@@ -26,6 +26,17 @@ class BigInteger(SerializableObject):
     @classmethod
     def deserialize(cls, json_data) -> int:
         return int(json_data)
+    
+    def __mul__(self, other):
+        if isinstance(other, int):
+            return BigInteger(self.value * other)
+        elif isinstance(other, BigInteger):
+            return BigInteger(self.value * other.value)
+    
+    def __rmul__(self, other):
+        if isinstance(other, int):
+            return BigInteger(self.value * other)
+
 
 
 random = StrongRandom()

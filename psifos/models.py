@@ -5,6 +5,9 @@ SQLAlchemy Models for Psifos.
 """
 
 from __future__ import annotations
+import datetime
+import functools
+import json
 
 from psifos import db
 from psifos.psifos_auth.models import User
@@ -52,6 +55,9 @@ class Election(PsifosModel, db.Model):
 
     voting_started_at = db.Column(db.DateTime, nullable=True)
     voting_ended_at = db.Column(db.DateTime, nullable=True)
+    voters_by_weight_init = db.Column(db.Text, nullable=True)
+    voters_by_weight_end = db.Column(db.Text, nullable=True)
+
 
     # One-to-many relationships
     voters = db.relationship("Voter", backref="psifos_election")
@@ -101,6 +107,21 @@ class Election(PsifosModel, db.Model):
             t=self.total_trustees//2,
         )
         return ElGamal.serialize(params) if serialize else params
+
+    def freeze(self, trustees):
+        self.voting_started_at = datetime.datetime.utcnow()
+
+        t_first_coefficients = [t.coefficients.instances[0].coefficient.value for t in trustees]
+        
+        # MUST discard changes done to trustee instances due to deserializarion before calling 
+        # .save() method for any PsifosModel instance, in this case Election.
+        Trustee.discard_changes(target=trustees, many=True)
+
+        combined_pk = functools.reduce((lambda x, y: x*y), t_first_coefficients)
+        self.public_key = trustees[0].public_key.clone_with_new_y(combined_pk)
+
+        normalized_weights = [v.voter_weight / self.max_weight for v in self.voters]
+        self.voters_by_weight_init = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
 
 
 class Voter(PsifosModel, db.Model):
@@ -253,14 +274,22 @@ class Trustee(PsifosModel, db.Model):
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def get_next_trustee_id(cls, trustee_schema, election_id):
-        query = Trustee.filter_by(schema=trustee_schema, election_id=election_id)
+    def get_next_trustee_id(cls, schema, election_id):
+        query = Trustee.filter_by(schema=schema, election_id=election_id)
         return 1 if len(query) == 0 else max(query, key=(lambda t: t.trustee_id)).trustee_id + 1
 
     @classmethod
-    def get_global_trustee_step(cls, trustee_schema, election_id):
-        trustee_steps = [t.current_step for t in Trustee.filter_by(schema=trustee_schema, election_id=election_id)]
+    def get_global_trustee_step(cls, schema, election_id):
+        trustee_steps = [t.current_step for t in Trustee.filter_by(schema=schema, election_id=election_id)]
         return 0 if len(trustee_steps) == 0 else min(trustee_steps)
+
+    def get_by_election(cls, schema, election_id, deserialize=False):
+        return cls.filter_by(
+            schema=schema,
+            election_id=election_id,
+            deserialize=deserialize,
+        )
+
 
 
 class SharedPoint(PsifosModel, db.Model):

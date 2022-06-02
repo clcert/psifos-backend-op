@@ -91,12 +91,17 @@ class PsifosModel():
         """
         return cls.execute(schema, cls.query.filter_by, deserialize, *args, **kwargs)
 
-    def discard_changes(self) -> None:
+    @classmethod
+    def discard_changes(cls, target, many=False) -> None:
         """
         Discards the changes made to a model instance. MUST be called after a query with
         deserialize=True and before other instance calling .save() method.
         """
-        db.session.expunge(self)
+        if many:
+            for instance in target:
+                db.session.expunge(instance)
+        else:
+            db.session.expunge(target)
 
     def save(self) -> None:
         """
