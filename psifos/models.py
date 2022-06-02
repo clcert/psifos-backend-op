@@ -122,6 +122,7 @@ class Election(PsifosModel, db.Model):
 
         normalized_weights = [v.voter_weight / self.max_weight for v in self.voters]
         self.voters_by_weight_init = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
+        self.save()
 
 
 class Voter(PsifosModel, db.Model):

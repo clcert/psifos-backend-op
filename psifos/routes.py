@@ -904,15 +904,3 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
                 200,
             )
         )
-
-
-# Freeze Ballot
-@app.route("/<election_uuid>/freeze-ballot", methods=["POST"])
-@token_required
-def freeze_ballot(current_user: User, election_uuid: str) -> Response:
-    """
-    Route for freeze ballot
-    check if the process can be done
-    Require a valid token to access >> > token_required
-    """
-    pass
