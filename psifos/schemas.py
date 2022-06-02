@@ -8,7 +8,7 @@ from psifos import ma
 from psifos.fields import SerializableField
 from psifos.enums import ElectionTypeEnum
 from psifos.models import AuditedBallot, CastVote, Election, SharedPoint, Trustee, Voter
-from psifos.crypto.sharedpoint import Certificate, Coefficient, ListOfCoefficients, Point, Signature
+from psifos.crypto.sharedpoint import Certificate, ListOfCoefficients, ListOfSignatures, Point
 from psifos.crypto.elgamal import DLogProof, DecryptionFactors, DecryptionProofs, PublicKey, SecretKey
 from psifos.psifos_object.questions import Questions
 from marshmallow_enum import EnumField
@@ -76,7 +76,7 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     open_answers_decryption_proofs = SerializableField(DecryptionProofs)
     certificate = SerializableField(Certificate)
     coefficients = SerializableField(ListOfCoefficients)
-    acknowledgements = SerializableField(Signature)
+    acknowledgements = SerializableField(ListOfSignatures)
 
 
 class SharedPointSchema(ma.SQLAlchemySchema):
