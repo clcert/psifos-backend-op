@@ -455,7 +455,7 @@ def get_trustee_home(election, trustee):
     """
 
     response = create_response_cors(
-        make_response(jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200)
+        make_response(jsonify({"election": Election.to_dict(schema=election_schema, obj=election), "trustee": Trustee.to_dict(schema=trustee_schema, obj=trustee)}), 200)
     )
     return response
 
