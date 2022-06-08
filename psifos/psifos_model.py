@@ -58,14 +58,14 @@ class PsifosModel():
     @classmethod
     def to_dict(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], obj: PsifosModel) -> str:
         """
-        Serializes a PsifosModel object into a JSON like string.
+        Serializes a PsifosModel object into a dict.
         """
         return schema.dump(obj)
 
     @classmethod
     def from_dict(cls, schema: Union[ma.SQLAlchemyAutoSchema, ma.SQLAlchemySchema], json_data: str) -> PsifosModel:
         """
-        Deserializes a JSON like string into it's corresponding PsifosModel subclass.
+        Deserializes a dict into it's corresponding PsifosModel subclass.
         """
         return schema.load(json_data)
 
