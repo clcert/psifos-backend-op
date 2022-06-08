@@ -13,7 +13,7 @@ from psifos import db
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
 from psifos.enums import ElectionTypeEnum
-from psifos.crypto.elgamal import ElGamal
+from psifos.crypto.elgamal import ElGamal, fiatshamir_challenge_generator
 
 import psifos.utils as utils
 
@@ -290,6 +290,18 @@ class Trustee(PsifosModel, db.Model):
             schema=schema,
             election_id=election_id,
             deserialize=deserialize,
+        )
+    
+    def verify_decryption_proofs(self, election):
+        """
+        verifies the decryption proofs of the tally.
+        """
+
+        return election.encrypted_tally.verify_decryption_proofs(
+        self.answers_decryption_factors,
+        self.answers_decryption_proofs,
+        self.public_key,
+        fiatshamir_challenge_generator
         )
 
 

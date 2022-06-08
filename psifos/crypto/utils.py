@@ -17,6 +17,8 @@ class BigInteger(SerializableObject):
     """
 
     def __init__(self, value) -> None:
+        if value is None:
+            return None
         self.value = int(value)
 
     @classmethod

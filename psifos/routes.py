@@ -869,7 +869,7 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
             trustee.open_answers_decryption_factors = factors["open_answers"]
             trustee.open_answers_decryption_proofs = proofs["open_answers"]
 
-        if True:  # trustee.verify_decryption_proofs():
+        if trustee.verify_decryption_proofs(election):
             trustee.save()
 
         else:

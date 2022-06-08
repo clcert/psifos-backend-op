@@ -4,12 +4,9 @@ common workflows and algorithms for Psifos tallies.
 Ben Adida
 reworked for Psifos: 27-05-2022
 """
-import json
-from psifos.crypto.elgamal import PublicKey
-from psifos.psifos_object.questions import Questions
-from psifos.serialization import SerializableObject
-
 import itertools
+
+from psifos.crypto.elgamal import ListofCipherText
 from ..common.abstract_tally import AbstractTally
 from ..common.dlogtable import DLogTable
 
@@ -30,7 +27,7 @@ class HomomorphicTally(AbstractTally):
             self.tally = [0] * self.question.total_options
 
         else:
-            self.tally = tally
+            self.tally = ListofCipherText(*tally)
     
     def compute(self, encrypted_answers, weights):
         self.computed = True
@@ -42,6 +39,7 @@ class HomomorphicTally(AbstractTally):
                 vote.choices[answer_num].beta = pow(vote.choices[answer_num].beta, weight, self.public_key.p)
                 self.tally[answer_num] = vote.choices[answer_num] * self.tally[answer_num]
             self.num_tallied += 1
+        self.tally = ListofCipherText(*self.tally)
 
     def decryption_factors_and_proofs(self, sk):
         """
