@@ -4,10 +4,17 @@ Abstract tally for Psifos
 27-05-2022
 """
 
+from psifos.crypto.elgamal import PublicKey
+from psifos.psifos_object.questions import AbstractQuestion, QuestionFactory
+
+
 class AbstractTally(object):
     """
     This class holds the common behaviour of a question's tally;
     """
-    def __init__(self, *args, **kwargs) -> None:
-        self.tally_type = kwargs.get("tally_type")
-        self.num_tallied = kwargs.get("num_tallied", 0)
+    def __init__(self, **kwargs) -> None:
+        self.tally_type : str = kwargs.get("tally_type")
+        self.computed : bool = kwargs.get("computed", False)
+        self.num_tallied : int = kwargs.get("num_tallied", 0)
+        self.question : AbstractQuestion = QuestionFactory.create(kwargs.get("question"))
+        self.public_key : PublicKey = PublicKey(**kwargs.get("public_key"))
