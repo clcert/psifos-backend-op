@@ -35,6 +35,7 @@ from psifos.psifos_auth.utils import (
     trustee_cas,
     create_response_cors,
     verify_voter,
+    voter_cas,
 )
 from psifos.crypto import sharedpoint
 from psifos.crypto import elgamal
@@ -333,18 +334,17 @@ def freeze_election(election: Election) -> Response:
 
 @app.route("/<election_uuid>/questions")
 @auth_requires
-@election_route(election_schema=election_schema, admin_election=False)
-def get_questions_voters(election: Election) -> Response:
+@voter_cas(election_schema=election_schema, voter_schema=voter_schema)
+def get_questions_voters(election: Election, voter: Voter) -> Response:
     """
     Route for get questions
     Require a cookie valid in session >>> CAS
 
     """
 
-    if verify_voter(get_user(), election.uuid):
-        result = Election.to_dict(schema=election_schema, obj=election)
-        response = create_response_cors(make_response(result, 200))
-        return response
+    result = Election.to_dict(schema=election_schema, obj=election)
+    response = create_response_cors(make_response(result, 200))
+    return response
 
 
 # Trustee Routes
