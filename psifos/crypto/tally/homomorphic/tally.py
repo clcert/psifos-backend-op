@@ -4,6 +4,9 @@ common workflows and algorithms for Psifos tallies.
 Ben Adida
 reworked for Psifos: 27-05-2022
 """
+import json
+from psifos.crypto.elgamal import PublicKey
+from psifos.psifos_object.questions import Questions
 from psifos.serialization import SerializableObject
 
 import itertools
@@ -14,69 +17,34 @@ class HomomorphicTally(AbstractTally):
     """
     Homomorhic tally implementation for closed questions.
     """
-    def __init__(self, *args, **kwargs) -> None:
-        super(HomomorphicTally, self).__init__(*args, **kwargs)
+    def __init__(self, computed=False, question=None, public_key=None, tally=None, **kwargs) -> None:
+        """
+        HomomorphicTally constructor, allows the creation of this tally.
+        
+        If computed==False then questions and public_key cannot be None.
+        Else, tally cannot be None
+        """
+        super(HomomorphicTally, self).__init__(**kwargs)
 
+        if not computed:
+            assert (question is not None) and (public_key is not None)
+            self.__question = json.dumps(*question)
+            self.__public_key = PublicKey(**public_key)
+            self.tally = [0 for _ in self.__question['answers']]
 
-class Tally(SerializableObject):
-    """
-    A running homomorphic tally
-    """
-
-    def __init__(self, *args, **kwargs):
-        super(Tally, self).__init__()
-
-        election = kwargs.get('election', None)
-        self.tally = None
-        self.num_tallied = 0
-
-        if election:
-            self.init_election(election)
-            self.tally = [[0 for a in q['answers']] for q in self.questions]
         else:
-            self.questions = None
-            self.public_key = None
-            self.tally = None
-
-    def init_election(self, election):
-        """
-        given the election, initialize some params
-        """
-        self.election = election
-        self.questions = election.questions
-        self.public_key = election.public_key
-
-    def add_vote_batch(self, encrypted_votes, verify_p=True):
-        """
-        Add a batch of votes. Eventually, this will be optimized to do an aggregate proof verification
-        rather than a whole proof verif for each vote.
-        """
-        for vote in encrypted_votes:
-            self.add_vote(vote, verify_p)
-
-    def add_vote(self, encrypted_vote, weight=1, verify_p=True):
-        # do we verify?
-        if verify_p:
-            if not encrypted_vote.verify(self.election):
-                raise Exception('Bad Vote')
-
-        # for each question
-        for question_num in range(len(self.questions)):
-            question = self.questions[question_num]
-            answers = question['answers']
-
-            # for each possible answer to each question
-            for answer_num in range(len(answers)):
+            assert tally is not None
+            self.tally = tally
+    
+    def compute(self, encrypted_answers, weights):
+        for vote, weight in zip(encrypted_answers, weights):
+            for answer_num in range(self.__question["total_options"]):
                 # do the homomorphic addition into the tally
-                enc_vote_choice = encrypted_vote.encrypted_answers[question_num].choices[answer_num]
-                enc_vote_choice.pk = self.public_key
-                encrypted_vote.encrypted_answers[question_num].choices[answer_num].alpha = pow(
-                    encrypted_vote.encrypted_answers[question_num].choices[answer_num].alpha, weight, self.public_key.p)
-                encrypted_vote.encrypted_answers[question_num].choices[answer_num].beta = pow(
-                    encrypted_vote.encrypted_answers[question_num].choices[answer_num].beta, weight, self.public_key.p)
-                self.tally[question_num][answer_num] = encrypted_vote.encrypted_answers[question_num].choices[answer_num] * self.tally[question_num][answer_num]
-
-        self.num_tallied += 1
+                vote.choices[answer_num].pk = self.public_key
+                vote.choices[answer_num].alpha = pow(vote.choices[answer_num].alpha, weight, self.public_key.p)
+                vote.choices[answer_num].beta = pow(vote.choices[answer_num].beta, weight, self.public_key.p)
+                self.tally[answer_num] = vote.choices[answer_num] * self.tally[answer_num]
+            self.num_tallied += 1
 
     def decryption_factors_and_proofs(self, sk):
         """

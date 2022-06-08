@@ -36,12 +36,12 @@ class KeyPair(object):
         """
         Generate an ElGamal keypair
         """
-        self.pk.g = g
-        self.pk.p = p
-        self.pk.q = q
+        self.pk.g = BigInteger(g)
+        self.pk.p = BigInteger(p)
+        self.pk.q = BigInteger(q)
 
-        self.sk.x = random.mpz_lt(q)
-        self.pk.y = pow(g, self.sk.x, p)
+        self.sk.x = BigInteger(random.mpz_lt(q))
+        self.pk.y = BigInteger(pow(g, self.sk.x, p))
 
         self.sk.pk = self.pk
         return self
@@ -49,10 +49,10 @@ class KeyPair(object):
 
 class PublicKey(SerializableObject):
     def __init__(self, y=None, p=None, g=None, q=None):
-        self.y = y
-        self.p = p
-        self.g = g
-        self.q = q
+        self.y = BigInteger(y)
+        self.p = BigInteger(p)
+        self.g = BigInteger(g)
+        self.q = BigInteger(q)
 
     def encrypt_with_r(self, plaintext, r, encode_message=False):
         """

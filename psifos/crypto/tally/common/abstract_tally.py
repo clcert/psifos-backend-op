@@ -9,4 +9,5 @@ class AbstractTally(object):
     This class holds the common behaviour of a question's tally;
     """
     def __init__(self, *args, **kwargs) -> None:
-        pass
+        self.tally_type = kwargs.get("tally_type")
+        self.num_tallied = kwargs.get("num_tallied", 0)
