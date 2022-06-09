@@ -5,6 +5,8 @@ Routes for Psifos.
 """
 
 from ast import Pass
+from ctypes import cast
+from datetime import datetime
 import uuid
 import base64
 import os
@@ -17,6 +19,7 @@ from flask.wrappers import Response
 
 from psifos import app
 from psifos import utils as route_utils
+from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.forms import ElectionForm
 from psifos.models import Election, SharedPoint, Voter, User, Trustee, CastVote
 from psifos.schemas import (
@@ -295,7 +298,7 @@ def resume(current_user: User, election_uuid: str) -> Response:
 
     except Exception as e:
         print(e)
-        return make_response(jsonify({"message": "Error al reanudar la elección"}), 400)
+        return make_response(jsonify({"message": "Error al acceder al resumen de la elección"}), 400)
 
 
 @app.route("/<election_uuid>/openreg", methods=["POST"])
@@ -312,6 +315,7 @@ def openreg(election: Election) -> Response:
     election.save()
     return make_response(jsonify({"message": "Elección reanudada con exito!"}), 200)
 
+
 @app.route("/<election_uuid>/freeze-election", methods=["POST"])
 @token_required
 @election_route(election_schema=election_schema)
@@ -327,6 +331,59 @@ def freeze_election(election: Election) -> Response:
     )
     election.freeze(trustees)
     return make_response(jsonify({"message": "Eleccion congelada con exito!"}), 200)
+
+@app.route("/<election_uuid>/cast-vote", methods=["POST"])
+@token_required
+@election_route(election_schema=election_schema)
+def cast_vote(election: Election) -> Response:
+    """
+    Route for casting a vote
+    Require a valid token to access >>> token_required
+    """
+    try:
+        allowed, msg = route_utils.do_cast_vote_checks(request, election, voter_schema)
+        if not allowed:
+            return make_response(jsonify({"message": f"{msg}"}), 400)
+
+        voter_login_id = get_user()
+        voter = Voter.get_by_login_id_and_election(
+            schema=voter_schema,
+            election_id=election.id,
+            voter_login_id=voter_login_id
+        )
+        
+        data = request.get_json()
+        enc_vote_data = route_utils.from_json(data["encrypted_vote"])
+        encrypted_vote = EncryptedVote(**enc_vote_data)
+        vote_fingerprint = crypto_utils.hash_b64(encrypted_vote)
+        cast_ip = request.headers.getlist("X-Forwarded-For") if ("X-Forwarded-For" in request.headers) else request.remote_addr
+        ip_fingerprint = crypto_utils.hash_b64(cast_ip)
+
+        cv_params = {
+            "voter_id": voter.id,
+            "vote": encrypted_vote,
+            "vote_hash": vote_fingerprint,
+            "cast_at": datetime.now(),
+            "cast_ip": cast_ip,
+            "ip_fingerprint": ip_fingerprint
+        }
+
+        cast_vote = CastVote.update_or_create(schema=cast_vote_schema, **cv_params)
+        if cast_vote.verify(election):
+            cast_vote.save()
+            return make_response(jsonify({"message": "Voto registrado con exito."}), 200)
+        else:
+            return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
+    
+    except:
+        return make_response(jsonify({"message": "Error al enviar el voto"}), 400)
+        
+
+
+
+
+
+
 
 
 # Voters routes

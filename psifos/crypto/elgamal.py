@@ -425,21 +425,21 @@ class Ciphertext(SerializableObject):
 
         overall_challenge is what all of the challenges combined should yield.
         """
-        if len(plaintexts) != len(proof.proofs):
-            print("bad number of proofs (expected %s, found %s)" % (len(plaintexts), len(proof.proofs)))
+        if len(plaintexts) != len(proof.instances.proofs):
+            print("bad number of proofs (expected %s, found %s)" % (len(plaintexts), len(proof.instances.proofs)))
             return False
 
         for i in range(len(plaintexts)):
             # if a proof fails, stop right there
-            if not self.verify_encryption_proof(plaintexts[i], proof.proofs[i]):
-                print("bad proof %s, %s, %s" % (i, plaintexts[i], proof.proofs[i]))
+            if not self.verify_encryption_proof(plaintexts[i], proof.instances.proofs[i]):
+                print("bad proof %s, %s, %s" % (i, plaintexts[i], proof.instances.proofs[i]))
                 return False
 
         # logging.info("made it past the two encryption proofs")
 
         # check the overall challenge
-        return (challenge_generator([p.commitment for p in proof.proofs]) == (
-                sum([p.challenge.value for p in proof.proofs]) % self.pk.q))
+        return (challenge_generator([p.commitment for p in proof.instances.proofs]) == (
+                sum([p.challenge.value for p in proof.instances.proofs]) % self.pk.q))
 
     def decrypt(self, decryption_factors, public_key):
         """
@@ -570,7 +570,10 @@ class ZKDisjunctiveProof(SerializableList):
     def __init__(self, *proofs):
         for p_dict in proofs:
             self.instances.append(ZKProof(**p_dict))
-        self.proofs=self.instances
+        
+    @property
+    def proofs(self):
+        return self.instances
 
 class DLogProof(object):
     def __init__(self, commitment, challenge, response):

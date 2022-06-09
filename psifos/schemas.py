@@ -131,28 +131,39 @@ class ElectionSchema(ma.SQLAlchemySchema):
     id = ma.auto_field()
     admin_id = ma.auto_field()
     uuid = ma.auto_field()
+
     short_name = ma.auto_field()
     name = ma.auto_field()
     election_type = EnumField(ElectionTypeEnum, by_value=True)
     private_p = ma.auto_field()
     description = ma.auto_field()
+
     public_key = ma.auto_field()  # SerializableField(PublicKey)
     private_key = ma.auto_field()  # SerializableField(SecretKey)
     questions = SerializableField(Questions)
     openreg = ma.auto_field()
+
     obscure_voter_names = ma.auto_field()
     randomize_answer_order = ma.auto_field()
     normalization = ma.auto_field()
     max_weight = ma.auto_field()
+
     total_voters = ma.auto_field()
     total_trustees = ma.auto_field()
+
     cast_url = ma.auto_field()
     encrypted_tally = ma.auto_field()  # SerializableField(Tally)
     encrypted_tally_hash = ma.auto_field()
     encrypted_open_answers = ma.auto_field()
     mixnet_open_answers = ma.auto_field()
+
     result = ma.auto_field()  # SerializableField(Result)
     open_answers_result = ma.auto_field()  # SerializableField(Result)
+
+    voting_started_at = ma.auto_field()
+    voting_stoppedd_at = ma.auto_field()
+    voters_by_weight_init = ma.auto_field()
+    voters_by_weight_end = ma.auto_field()
 
     # One-to-many relationships
     voters = ma.Nested(VoterSchema, many=True)

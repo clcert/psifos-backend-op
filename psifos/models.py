@@ -9,6 +9,8 @@ import datetime
 import functools
 import json
 
+from pyrsistent import T
+
 from psifos import db
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
@@ -54,7 +56,7 @@ class Election(PsifosModel, db.Model):
     open_answers_result = db.Column(db.Text, nullable=True)  # PsifosObject: Result (?)
 
     voting_started_at = db.Column(db.DateTime, nullable=True)
-    voting_ended_at = db.Column(db.DateTime, nullable=True)
+    voting_stopped_at = db.Column(db.DateTime, nullable=True)
     voters_by_weight_init = db.Column(db.Text, nullable=True)
     voters_by_weight_end = db.Column(db.Text, nullable=True)
 
@@ -123,7 +125,12 @@ class Election(PsifosModel, db.Model):
         normalized_weights = [v.voter_weight / self.max_weight for v in self.voters]
         self.voters_by_weight_init = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
         self.save()
-
+    
+    def voting_has_started(self):
+        return True if self.voting_started_at is not None else False
+    
+    def voting_has_stopped(self):
+        return True if self.voting_stopped_at is not None else False
 
 class Voter(PsifosModel, db.Model):
     __tablename__ = "psifos_voter"
@@ -135,6 +142,10 @@ class Voter(PsifosModel, db.Model):
     voter_login_id = db.Column(db.String(100), nullable=False)
     voter_name = db.Column(db.String(200), nullable=False)
     voter_weight = db.Column(db.Integer, nullable=False)
+
+    total_cast_votes = db.Column(db.Integer, default=0)
+    invalid_cast_votes = db.Column(db.Integer, default=0)
+    
 
     # One-to-one relationship
     casted_votes = db.relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
@@ -170,15 +181,17 @@ class CastVote(PsifosModel, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     voter_id = db.Column(db.Integer, db.ForeignKey("psifos_voter.id"), unique=True)
-    total_cast_votes = db.Column(db.Integer, default=0)
-    invalid_cast_votes = db.Column(db.Integer, default=0)
+    
     vote = db.Column(db.Text, nullable=True)   # PsifosObject: EncryptedVote
     vote_hash = db.Column(db.String(500), nullable=True)
     vote_tinyhash = db.Column(db.String(500), nullable=True)
+    
+    cast_ip = db.Column(db.Text, nullable=True)
+    hash_cast_ip = db.Column(db.String(500), nullable=True)
+    
     cast_at = db.Column(db.DateTime, default=db.func.now(), nullable=True)
     verified_at = db.Column(db.DateTime, nullable=True)
     invalidated_at = db.Column(db.DateTime, nullable=True)
-    hash_cast_ip = db.Column(db.String(500), nullable=True)
 
     @classmethod
     def get_by_voter_id(cls, schema, voter_id, deserialize=False):
@@ -198,6 +211,10 @@ class CastVote(PsifosModel, db.Model):
         else:
             cast_vote = cls(**kwargs)
         return cast_vote
+    
+    def verify(self, election):
+        return self.vote.verify(election)
+
 
 
 class AuditedBallot(PsifosModel, db.Model):

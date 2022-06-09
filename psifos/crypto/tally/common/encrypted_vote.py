@@ -4,31 +4,26 @@ Encrypted answer for Psifos vote.
 27-05-2022
 """
 
-from psifos.serialization import SerializableObject
-from .encrypted_answer import EncryptedAnswer
+from psifos.serialization import SerializableList, SerializableObject
+from .encrypted_answer import EncryptedAnswerFactory
 
 import logging
+
+
+class ListOfEncryptedAnswers(SerializableList):
+    def __init__(self, *answers) -> None:
+        for ans in answers:
+            self.instances.append(EncryptedAnswerFactory.create(**ans))
 
 class EncryptedVote(SerializableObject):
     """
     An encrypted ballot
     """
 
-    def __init__(self):
-        self.encrypted_answers = []
-
-    @property
-    def datatype(self):
-        # FIXME
-        return "core/EncryptedVote"
-
-    def _answers_get(self):
-        return self.encrypted_answers
-
-    def _answers_set(self, value):
-        self.encrypted_answers = value
-
-    answers = property(_answers_get, _answers_set)
+    def __init__(self, election_uuid, election_hash, answers):
+        self.election_uuid : str = election_uuid
+        self.election_hash : str = election_hash
+        self.answers : ListOfEncryptedAnswers = ListOfEncryptedAnswers(*answers)
 
     def verify(self, election):
         # correct number of answers
