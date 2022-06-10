@@ -7,6 +7,9 @@ Encrypted answer for Psifos vote.
 from psifos.serialization import SerializableObject
 from psifos.crypto import elgamal
 
+class EncryptedAnswerFactory(SerializableObject):
+    pass
+
 class EncryptedAnswer(SerializableObject):
     """
     An encrypted answer to a single election question

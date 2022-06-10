@@ -7,8 +7,6 @@ Serialization for Psifos objects.
 from __future__ import annotations
 import json
 
-from psifos.utils import to_json
-
 
 class SerializableList(object):
     """ 
@@ -33,8 +31,11 @@ class SerializableList(object):
 
         serialized_instances = []
         for obj in s_list.instances:
-            obj_class = obj.__class__
-            serialized_instances.append(obj_class.serialize(obj, to_json=False))
+            if isinstance(obj, SerializableObject) or isinstance(obj, SerializableList):
+                obj_class = obj.__class__
+                serialized_instances.append(obj_class.serialize(obj, to_json=False))
+            elif isinstance(obj, int):
+                serialized_instances.append(str(obj))
 
         return json.dumps(serialized_instances) if to_json else serialized_instances
 
@@ -67,13 +68,14 @@ class SerializableObject(object):
 
         class_attributes = [attr for attr in dir(obj) if not attr.startswith("_")]
         for attr in class_attributes:
-            try:
-                attr_value = getattr(obj, attr)
+            attr_value = getattr(obj, attr)
+            if isinstance(attr_value, SerializableObject) or isinstance(obj, SerializableList):
                 attr_class = attr_value.__class__
                 serialized_attr = attr_class.serialize(attr_value, to_json=False)
                 setattr(obj, attr, serialized_attr)
-            except:
-                pass
+            elif isinstance(attr_value, int):
+                serialized_attr = str(attr_value)
+                setattr(obj, attr, serialized_attr)
 
         return json.dumps(obj.__dict__) if to_json else obj.__dict__
 

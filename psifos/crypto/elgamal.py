@@ -6,7 +6,7 @@ reworked for Psifos: 14-04-2022
 """
 import json
 
-from psifos.crypto.utils import BigInteger, random
+from psifos.crypto.utils import ListOfIntegers, random
 from Crypto.Util import number
 from Crypto.Hash import SHA1
 import logging
@@ -15,9 +15,9 @@ from psifos.serialization import SerializableList, SerializableObject
 
 class ElGamal(SerializableObject):
     def __init__(self, p=None, q=None, g=None, l=None, t=None):
-        self.p = BigInteger(p)
-        self.q = BigInteger(q)
-        self.g = BigInteger(g)
+        self.p = int(p)
+        self.q = int(q)
+        self.g = int(g)
         self.l = l
         self.t = t
 
@@ -37,12 +37,12 @@ class KeyPair(object):
         """
         Generate an ElGamal keypair
         """
-        self.pk.g = BigInteger(g)
-        self.pk.p = BigInteger(p)
-        self.pk.q = BigInteger(q)
+        self.pk.g = int(g)
+        self.pk.p = int(p)
+        self.pk.q = int(q)
 
-        self.sk.x = BigInteger(random.mpz_lt(q))
-        self.pk.y = BigInteger(pow(g, self.sk.x, p))
+        self.sk.x = random.mpz_lt(q)
+        self.pk.y = pow(g, self.sk.x, p)
 
         self.sk.pk = self.pk
         return self
@@ -50,10 +50,10 @@ class KeyPair(object):
 
 class PublicKey(SerializableObject):
     def __init__(self, y=None, p=None, g=None, q=None):
-        self.y = BigInteger(y)
-        self.p = BigInteger(p)
-        self.g = BigInteger(g)
-        self.q = BigInteger(q)
+        self.y = int(y)
+        self.p = int(p)
+        self.g = int(g)
+        self.q = int(q)
 
     def encrypt_with_r(self, plaintext, r, encode_message=False):
         """
@@ -65,15 +65,15 @@ class PublicKey(SerializableObject):
         # make sure m is in the right subgroup
         if encode_message:
             y = plaintext.m + 1
-            if pow(y, self.q.value, self.p.value) == 1:
+            if pow(y, self.q, self.p) == 1:
                 m = y
             else:
-                m = -y % self.p.value
+                m = -y % self.p
         else:
             m = plaintext.m
 
-        ciphertext.alpha = BigInteger(pow(self.g.value, r, self.p.value))
-        ciphertext.beta = BigInteger((m * pow(self.y.value, r, self.p.value)) % self.p.value)
+        ciphertext.alpha = pow(self.g, r, self.p)
+        ciphertext.beta = (m * pow(self.y, r, self.p)) % self.p
 
         return ciphertext
 
@@ -81,7 +81,7 @@ class PublicKey(SerializableObject):
         """
         Encrypt a plaintext and return the randomness just generated and used.
         """
-        r = random.mpz_lt(self.q.value)
+        r = random.mpz_lt(self.q)
         ciphertext = self.encrypt_with_r(plaintext, r)
 
         return [ciphertext, r]
@@ -97,56 +97,56 @@ class PublicKey(SerializableObject):
             return self
 
         # check p and q
-        if self.p.value != other.p.value or self.q.value != other.q.value or self.g.value != other.g.value:
+        if self.p != other.p or self.q != other.q or self.g != other.g:
             raise Exception("incompatible public keys")
 
         params = {
-            "p": self.p.value,
-            "q": self.q.value,
-            "g": self.g.value,
-            "y": (self.y.value * other.y.value) % self.p.value,
+            "p": self.p,
+            "q": self.q,
+            "g": self.g,
+            "y": (self.y * other.y) % self.p,
         }
         return PublicKey(**params)
 
     def __eq__(self, other):
-        return self.p.value == other.p.value and self.q.value == other.q.value and self.g.value == other.g.value and self.y.value == other.y.value
+        return self.p == other.p and self.q == other.q and self.g == other.g and self.y == other.y
 
     def clone_with_new_y(self, y):
         params = {
-            "p": self.p.value,
-            "q": self.q.value,
-            "g": self.g.value,
+            "p": self.p,
+            "q": self.q,
+            "g": self.g,
             "y": y
         }
         return PublicKey(**params)
 
     def validate_pk_params(self):
         # check primality of p
-        if not number.isPrime(self.p.value):
+        if not number.isPrime(self.p):
             raise Exception("p is not prime.")
 
         # check length of p
-        if not (number.size(self.p.value) >= 2048):
+        if not (number.size(self.p) >= 2048):
             raise Exception("p of insufficient length. Should be 2048 bits or greater.")
 
         # check primality of q
-        if not number.isPrime(self.q.value):
+        if not number.isPrime(self.q):
             raise Exception("q is not prime.")
 
         # check length of q
-        if not (number.size(self.q.value) >= 256):
+        if not (number.size(self.q) >= 256):
             raise Exception("q of insufficient length. Should be 256 bits or greater.")
 
-        if pow(self.g.value, self.q.value, self.p.value) != 1:
+        if pow(self.g, self.q, self.p) != 1:
             raise Exception("g does not generate subgroup of order q.")
 
-        if not (1 < self.g.value < self.p.value - 1):
+        if not (1 < self.g < self.p - 1):
             raise Exception("g out of range.")
 
-        if not (1 < self.y.value < self.p.value - 1):
+        if not (1 < self.y < self.p - 1):
             raise Exception("y out of range.")
 
-        if pow(self.y.value, self.q.value, self.p.value) != 1:
+        if pow(self.y, self.q, self.p) != 1:
             raise Exception("g does not generate proper group.")
 
 
@@ -154,14 +154,14 @@ class SecretKey(SerializableObject):
     def __init__(self, x=None, pk=None):
         pk_params = pk or {}
         self.pk = PublicKey(**pk_params)
-        self.x = BigInteger(x)
+        self.x = int(x)
         
 
     def decryption_factor(self, ciphertext):
         """
         provide the decryption factor, not yet inverted because of needed proof
         """
-        return pow(ciphertext.alpha.value, self.x.value, self.pk.p.value)
+        return pow(ciphertext.alpha, self.x, self.pk.p)
 
     def decryption_factor_and_proof(self, ciphertext, challenge_generator=None):
         """
@@ -173,7 +173,7 @@ class SecretKey(SerializableObject):
 
         dec_factor = self.decryption_factor(ciphertext)
 
-        proof = ZKProof.generate(self.pk.g, ciphertext.alpha.value, self.x, self.pk.p, self.pk.q, challenge_generator)
+        proof = ZKProof.generate(self.pk.g, ciphertext.alpha, self.x, self.pk.p, self.pk.q, challenge_generator)
 
         return dec_factor, proof
 
@@ -210,13 +210,13 @@ class SecretKey(SerializableObject):
         and alpha^t = b * beta/m ^ c
         """
 
-        m = (number.inverse(pow(ciphertext.alpha.value, self.x.value, self.pk.p.value), self.pk.p.value) * ciphertext.beta.value) % self.pk.p.value
-        beta_over_m = (ciphertext.beta.value * number.inverse(m, self.pk.p.value)) % self.pk.p.value
+        m = (number.inverse(pow(ciphertext.alpha, self.x, self.pk.p), self.pk.p) * ciphertext.beta) % self.pk.p
+        beta_over_m = (ciphertext.beta * number.inverse(m, self.pk.p)) % self.pk.p
 
         # pick a random w
-        w = random.mpz_lt(self.pk.q.value)
-        a = pow(self.pk.g.value, w, self.pk.p.value)
-        b = pow(ciphertext.alpha.value, w, self.pk.p.value)
+        w = random.mpz_lt(self.pk.q)
+        a = pow(self.pk.g, w, self.pk.p)
+        b = pow(ciphertext.alpha, w, self.pk.p)
 
         c = int(SHA1.new(bytes(str(a) + "," + str(b), 'utf-8')).hexdigest(), 16)
 
@@ -235,10 +235,10 @@ class SecretKey(SerializableObject):
         Verifier provides challenge modulo q.
         Prover computes response = w + x*challenge mod q, where x is the secret key.
         """
-        w = random.mpz_lt(self.pk.q.value)
-        commitment = pow(self.pk.g.value, w, self.pk.p.value)
-        challenge = challenge_generator(commitment) % self.pk.q.value
-        response = (w + (self.x.value * challenge)) % self.pk.q.value
+        w = random.mpz_lt(self.pk.q)
+        commitment = pow(self.pk.g, w, self.pk.p)
+        challenge = challenge_generator(commitment) % self.pk.q
+        response = (w + (self.x * challenge)) % self.pk.q
 
         return DLogProof(commitment, challenge, response)
 
@@ -253,8 +253,8 @@ class Ciphertext(SerializableObject):
     def __init__(self, alpha=None, beta=None, pk=None):
         pk_params = pk or {}
         self.pk = PublicKey(**pk_params)
-        self.alpha = BigInteger(alpha)
-        self.beta = BigInteger(beta)
+        self.alpha = int(alpha)
+        self.beta = int(beta)
 
     def __mul__(self, other):
         """
@@ -271,8 +271,8 @@ class Ciphertext(SerializableObject):
         new = Ciphertext()
 
         new.pk = self.pk
-        new.alpha = BigInteger((self.alpha.value * other.alpha.value) % self.pk.p.value)
-        new.beta = BigInteger((self.beta.value * other.beta.value) % self.pk.p.value)
+        new.alpha = (self.alpha * other.alpha) % self.pk.p
+        new.beta = (self.beta * other.beta) % self.pk.p
 
         return new
 
@@ -282,8 +282,8 @@ class Ciphertext(SerializableObject):
         that's no good when we do plaintext encoding of 1.
         """
         new_c = Ciphertext()
-        new_c.alpha = BigInteger((self.alpha.value * pow(self.pk.g.value, r, self.pk.p.value)) % self.pk.p.value)
-        new_c.beta = BigInteger((self.beta.value * pow(self.pk.y.value, r, self.pk.p.value)) % self.pk.p.value)
+        new_c.alpha = (self.alpha * pow(self.pk.g, r, self.pk.p)) % self.pk.p
+        new_c.beta = (self.beta * pow(self.pk.y, r, self.pk.p)) % self.pk.p
         new_c.pk = self.pk
 
         return new_c
@@ -292,7 +292,7 @@ class Ciphertext(SerializableObject):
         """
         Reencryption with fresh randomness, which is returned.
         """
-        r = random.mpz_lt(self.pk.q.value)
+        r = random.mpz_lt(self.pk.q)
         new_c = self.reenc_with_r(r)
         return [new_c, r]
 
@@ -309,7 +309,7 @@ class Ciphertext(SerializableObject):
         if other is None:
             return False
 
-        return self.alpha.value == other.alpha.value and self.beta.value == other.beta.value
+        return self.alpha == other.alpha and self.beta == other.beta
 
     def generate_encryption_proof(self, plaintext, randomness, challenge_generator):
         """
@@ -322,14 +322,14 @@ class Ciphertext(SerializableObject):
         proof = ZKProof()
 
         # compute A=g^w, B=y^w
-        proof.commitment.A = BigInteger(pow(self.pk.g.value, w, self.pk.p.value))
-        proof.commitment.B = BigInteger(pow(self.pk.y.value, w, self.pk.p.value))
+        proof.commitment.A = pow(self.pk.g, w, self.pk.p)
+        proof.commitment.B = pow(self.pk.y, w, self.pk.p)
 
         # generate challenge
-        proof.challenge = BigInteger(challenge_generator(proof.commitment))
+        proof.challenge = challenge_generator(proof.commitment)
 
         # Compute response = w + randomness * challenge
-        proof.response = BigInteger((w + (randomness * proof.challenge.value)) % self.pk.q.value)
+        proof.response = (w + (randomness * proof.challenge)) % self.pk.q
 
         return proof
 
@@ -339,20 +339,20 @@ class Ciphertext(SerializableObject):
             challenge = random.mpz_lt(self.pk.q)
 
         proof = ZKProof()
-        proof.challenge = BigInteger(challenge)
+        proof.challenge = challenge
 
         # compute beta/plaintext, the completion of the DH tuple
-        beta_over_plaintext = (self.beta.value * number.inverse(plaintext.m, self.pk.p.value)) % self.pk.p.value
+        beta_over_plaintext = (self.beta * number.inverse(plaintext.m, self.pk.p)) % self.pk.p
 
         # random response, does not even need to depend on the challenge
-        proof.response = BigInteger(random.mpz_lt(self.pk.q.value))
+        proof.response = random.mpz_lt(self.pk.q)
 
         # now we compute A and B
-        proof.commitment.A = BigInteger((number.inverse(pow(self.alpha.value, proof.challenge.value, self.pk.p.value), self.pk.p.value)
-                                 * pow(self.pk.g.value, proof.response.value, self.pk.p.value)
-                                 ) % self.pk.p.value)
-        proof.commitment.B = BigInteger((number.inverse(pow(beta_over_plaintext, proof.challenge.value, self.pk.p.value), self.pk.p.value) * pow(
-            self.pk.y.value, proof.response.value, self.pk.p.value)) % self.pk.p.value)
+        proof.commitment.A = (number.inverse(pow(self.alpha, proof.challenge, self.pk.p), self.pk.p)
+                                 * pow(self.pk.g, proof.response, self.pk.p)
+                                 ) % self.pk.p
+        proof.commitment.B = (number.inverse(pow(beta_over_plaintext, proof.challenge, self.pk.p), self.pk.p) * pow(
+            self.pk.y, proof.response, self.pk.p)) % self.pk.p
 
         return proof
 
@@ -380,10 +380,10 @@ class Ciphertext(SerializableObject):
             real_challenge = disjunctive_challenge
             for p_num in range(len(proofs)):
                 if p_num != real_index:
-                    real_challenge = real_challenge - proofs[p_num].challenge.value
+                    real_challenge = real_challenge - proofs[p_num].challenge
 
             # make sure we mod q, the exponent modulus
-            return real_challenge % self.pk.q.value
+            return real_challenge % self.pk.q
 
         # do the real proof
         real_proof = self.generate_encryption_proof(plaintexts[real_index], randomness, real_challenge_generator)
@@ -403,18 +403,18 @@ class Ciphertext(SerializableObject):
         Proof contains commitment = {A, B}, challenge, response
         """
         # check that A, B are in the correct group
-        if not (pow(proof.commitment.A.value, self.pk.q.value, self.pk.p.value) == 1 and pow(proof.commitment.B.value, self.pk.q.value,
-                                                                              self.pk.p.value) == 1):
+        if not (pow(proof.commitment.A, self.pk.q, self.pk.p) == 1 and pow(proof.commitment.B, self.pk.q,
+                                                                              self.pk.p) == 1):
             return False
 
         # check that g^response = A * alpha^challenge
-        first_check = (pow(self.pk.g.value, proof.response.value, self.pk.p.value) == (
-            (pow(self.alpha.value, proof.challenge.value, self.pk.p.value) * proof.commitment.A.value) % self.pk.p.value))
+        first_check = (pow(self.pk.g, proof.response, self.pk.p) == (
+            (pow(self.alpha, proof.challenge, self.pk.p) * proof.commitment.A) % self.pk.p))
 
         # check that y^response = B * (beta/m)^challenge
-        beta_over_m = (self.beta.value * number.inverse(plaintext.m, self.pk.p.value)) % self.pk.p.value
-        second_check = (pow(self.pk.y.value, proof.response.value, self.pk.p.value) == (
-            (pow(beta_over_m, proof.challenge.value, self.pk.p.value) * proof.commitment.B.value) % self.pk.p.value))
+        beta_over_m = (self.beta * number.inverse(plaintext.m, self.pk.p)) % self.pk.p
+        second_check = (pow(self.pk.y, proof.response, self.pk.p) == (
+            (pow(beta_over_m, proof.challenge, self.pk.p) * proof.commitment.B) % self.pk.p))
 
         # print "1,2: %s %s " % (first_check, second_check)
         return first_check and second_check
@@ -439,16 +439,16 @@ class Ciphertext(SerializableObject):
 
         # check the overall challenge
         return (challenge_generator([p.commitment for p in proof.instances.proofs]) == (
-                sum([p.challenge.value for p in proof.instances.proofs]) % self.pk.q))
+                sum([p.challenge for p in proof.instances.proofs]) % self.pk.q))
 
     def decrypt(self, decryption_factors, public_key):
         """
         decrypt a ciphertext given a list of decryption factors (from multiple trustees)
         For now, no support for threshold
         """
-        running_decryption = self.beta.value
+        running_decryption = self.beta
         for dec_factor in decryption_factors:
-            running_decryption = (running_decryption * number.inverse(dec_factor, public_key.p.value)) % public_key.p.value
+            running_decryption = (running_decryption * number.inverse(dec_factor, public_key.p)) % public_key.p
 
         return running_decryption
 
@@ -456,16 +456,16 @@ class Ciphertext(SerializableObject):
         """
         checks to see if an ElGamal element belongs to the group in the pk
         """
-        if not (1 < self.alpha.value < pk.p.value - 1):
+        if not (1 < self.alpha < pk.p - 1):
             return False
 
-        elif not (1 < self.beta.value < pk.p.value - 1):
+        elif not (1 < self.beta < pk.p - 1):
             return False
 
-        elif pow(self.alpha.value, pk.q.value, pk.p.value) != 1:
+        elif pow(self.alpha, pk.q, pk.p) != 1:
             return False
 
-        elif pow(self.beta.value, pk.q.value, pk.p.value) != 1:
+        elif pow(self.beta, pk.q, pk.p) != 1:
             return False
 
         else:
@@ -499,14 +499,14 @@ class ZKProof(SerializableObject):
         proof = cls()
 
         # compute A = little_g^w, B=little_h^w
-        proof.commitment.A = BigInteger(pow(little_g.value, w, p.value))
-        proof.commitment.B = BigInteger(pow(little_h.value, w, p.value))
+        proof.commitment.A = pow(little_g, w, p)
+        proof.commitment.B = pow(little_h, w, p)
 
         # get challenge
-        proof.challenge = BigInteger(challenge_generator(proof.commitment))
+        proof.challenge = challenge_generator(proof.commitment)
 
         # compute response
-        proof.response = BigInteger((w + (x.value * proof.challenge)) % q.value)
+        proof.response = (w + (x * proof.challenge)) % q
 
         # return proof
         return proof
@@ -516,36 +516,23 @@ class ZKProof(SerializableObject):
         Verify a DH tuple proof
         """
         # check that A, B are in the correct group
-        if not (pow(self.commitment.A.value, self.pk.q.value, self.pk.p.value) == 1
-                and pow(self.commitment.B.value, self.pk.q.value, self.pk.p.value) == 1):
+        if not (pow(self.commitment.A, self.pk.q, self.pk.p) == 1
+                and pow(self.commitment.B, self.pk.q, self.pk.p) == 1):
             return False
 
         # check that little_g^response = A * big_g^challenge
-        first_check = (pow(little_g.value, self.response.value, p.value) == ((pow(big_g.value, self.challenge.value, p.value) * self.commitment.A.value) % p.value))
+        first_check = (pow(little_g, self.response, p) == ((pow(big_g, self.challenge, p) * self.commitment.A) % p))
 
         # check that little_h^response = B * big_h^challenge
-        second_check = (pow(little_h.value, self.response.value, p.value) == ((pow(big_h.value, self.challenge.value, p.value) * self.commitment.B.value) % p.value))
+        second_check = (pow(little_h, self.response, p) == ((pow(big_h, self.challenge, p) * self.commitment.B) % p))
 
         # check the challenge?
         third_check = True
 
         if challenge_generator:
-            third_check = (self.challenge.value == challenge_generator(self.commitment))
+            third_check = (self.challenge == challenge_generator(self.commitment))
 
         return first_check and second_check and third_check
-
-class ZKProofCommitment(SerializableObject):
-    def __init__(self, A=None, B=None) -> None:
-        super(ZKProofCommitment, self).__init__()
-        self.A = BigInteger(A)
-        self.B = BigInteger(B)
-
-class ListOfBigIntegers(SerializableList):
-    def __init__(self, *args) -> None:
-        super(ListOfBigIntegers, self).__init__()
-        for value in args:
-            self.instances.append(BigInteger(value=value))
-
 
 class ListOfZKProofs(SerializableList):
     def __init__(self, *args) -> None:
@@ -553,12 +540,18 @@ class ListOfZKProofs(SerializableList):
         for proof_dict in args:
             self.instances.append(ZKProof(**proof_dict))
 
+class ZKProofCommitment(SerializableObject):
+    def __init__(self, A=None, B=None) -> None:
+        super(ZKProofCommitment, self).__init__()
+        self.A = int(A)
+        self.B = int(B)
+
+
 class DecryptionFactors(SerializableList):
     def __init__(self, *args) -> None:
         super(DecryptionFactors, self).__init__()
         for d_f_list in args:
-            self.instances.append(ListOfBigIntegers(*d_f_list))
-
+            self.instances.append(ListOfIntegers(*d_f_list))
 
 class DecryptionProofs(SerializableList):
     def __init__(self, *args) -> None:
@@ -577,16 +570,16 @@ class ZKDisjunctiveProof(SerializableList):
 
 class DLogProof(object):
     def __init__(self, commitment, challenge, response):
-        self.commitment = BigInteger(commitment)
-        self.challenge = BigInteger(challenge)
-        self.response = BigInteger(response)
+        self.commitment = int(commitment)
+        self.challenge = int(challenge)
+        self.response = int(response)
 
 
 def disjunctive_challenge_generator(commitments):
     array_to_hash = []
     for commitment in commitments:
-        array_to_hash.append(str(commitment.A.value))
-        array_to_hash.append(str(commitment.B.value))
+        array_to_hash.append(str(commitment.A))
+        array_to_hash.append(str(commitment.B))
 
     string_to_hash = ",".join(array_to_hash)
     return int(SHA1.new(bytes(string_to_hash, 'utf-8')).hexdigest(), 16)

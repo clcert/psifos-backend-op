@@ -26,8 +26,6 @@ class CastVoteSchema(ma.SQLAlchemySchema):
     # Fields:
     id = ma.auto_field()
     voter_id = ma.auto_field()
-    total_cast_votes = ma.auto_field()
-    invalid_cast_votes = ma.auto_field()
     vote = ma.auto_field()  # SerializableField(EncryptedVote)
     vote_hash = ma.auto_field()
     vote_tinyhash = ma.auto_field()
@@ -113,6 +111,8 @@ class VoterSchema(ma.SQLAlchemySchema):
     voter_login_id = ma.auto_field()
     voter_name = ma.auto_field()
     voter_weight = ma.auto_field()
+    total_cast_votes = ma.auto_field()
+    invalid_cast_votes = ma.auto_field()
 
     # One-to-one relationship
     casted_votes = ma.Nested(CastVoteSchema)
@@ -161,7 +161,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
     open_answers_result = ma.auto_field()  # SerializableField(Result)
 
     voting_started_at = ma.auto_field()
-    voting_stoppedd_at = ma.auto_field()
+    voting_stopped_at = ma.auto_field()
     voters_by_weight_init = ma.auto_field()
     voters_by_weight_end = ma.auto_field()
 

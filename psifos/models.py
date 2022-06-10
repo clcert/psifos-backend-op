@@ -9,8 +9,6 @@ import datetime
 import functools
 import json
 
-from pyrsistent import T
-
 from psifos import db
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
@@ -113,7 +111,7 @@ class Election(PsifosModel, db.Model):
     def freeze(self, trustees):
         self.voting_started_at = datetime.datetime.utcnow()
 
-        t_first_coefficients = [t.coefficients.instances[0].coefficient.value for t in trustees]
+        t_first_coefficients = [t.coefficients.instances[0].coefficient for t in trustees]
         
         # MUST discard changes done to trustee instances due to deserializarion before calling 
         # .save() method for any PsifosModel instance, in this case Election.
@@ -146,7 +144,6 @@ class Voter(PsifosModel, db.Model):
     total_cast_votes = db.Column(db.Integer, default=0)
     invalid_cast_votes = db.Column(db.Integer, default=0)
     
-
     # One-to-one relationship
     casted_votes = db.relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
 
