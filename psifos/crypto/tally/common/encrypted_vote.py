@@ -12,8 +12,8 @@ import logging
 
 class ListOfEncryptedAnswers(SerializableList):
     def __init__(self, *answers) -> None:
-        for ans in answers:
-            self.instances.append(EncryptedAnswerFactory.create(**ans))
+        for ans_dict in answers:
+            self.instances.append(EncryptedAnswerFactory.create(**ans_dict))
 
 class EncryptedVote(SerializableObject):
     """
@@ -64,6 +64,17 @@ class EncryptedVote(SerializableObject):
 
         return True
 
+    '''
+    This method is only used to instantiate EncryptedAnswers when a client
+    is not able to encrypt his own answers at them computer. Due to the recent
+    change in how EncryptedAnswers are handled (i.e. now we have two classes, 
+    EncryptedClosedAnswer & EncryptedOpenAnswer), a re-thinking of this method is 
+    needed, hopefully using the EncryptedAnswerFactory as it's the "new way" of 
+    creating Encrypted Answers
+    
+    TODO: Adapt fromElectionAndAnswers method to the new structure of EncryptedAnswers.
+
+
     @classmethod
     def fromElectionAndAnswers(cls, election, answers):
         pk = election.public_key
@@ -78,3 +89,4 @@ class EncryptedVote(SerializableObject):
         return_val.election_uuid = election.uuid
 
         return return_val
+    '''

@@ -8,32 +8,38 @@ from psifos.serialization import SerializableObject
 from psifos.crypto import elgamal
 
 class EncryptedAnswerFactory(SerializableObject):
-    pass
+    def create(**kwargs):
+        q_type = kwargs.get("enc_ans_type", None)
+        if q_type == "encrypted_closed_answer":
+            return EncryptedClosedAnswer(**kwargs)
+        elif q_type == "encrypted_open_answer":
+            return EncryptedOpenAnswer(**kwargs)
+        else:
+            return None
 
-class EncryptedAnswer(SerializableObject):
-    """
-    An encrypted answer to a single election question
-    """
 
-    def __init__(
-            self, choices=None, individual_proofs=None, overall_proof=None, randomness=None, answer=None,
-            open_answer=None):
-        self.choices = choices
-        self.individual_proofs = individual_proofs
-        self.overall_proof = overall_proof
-        self.randomness = randomness
-        self.answer = answer
-        self.open_answer = open_answer
+class AbstractEncryptedAnswer(SerializableObject):
+    def __init__(self, **kwargs) -> None:
+        self.enc_ans_type = kwargs["enc_ans_type"]
+        self.total_options = kwargs["total_options"]
 
+        self.answer = kwargs.get("answer", None)
+        self.choices = kwargs.get("choices", None)
+
+        self.individual_proofs = kwargs.get("individual_proofs", [None] * len(self.total_options))
+        self.randomness = kwargs.get("randomness", [None] * len(self.total_options))
+
+        self.overall_proof = kwargs.get("overall_proof", None)
+        
     @classmethod
-    def generate_plaintexts(cls, pk, min=0, max=1):
+    def generate_plaintexts(cls, pk, min_ptxt=0, max_ptxt=1):
         plaintexts = []
         running_product = 1
 
         # run the product up to the min
-        for i in range(max+1):
+        for i in range(max_ptxt + 1):
             # if we're in the range, add it to the array
-            if i >= min:
+            if i >= min_ptxt:
                 plaintexts.append(elgamal.Plaintext(running_product, pk))
 
             # next value in running product
@@ -41,24 +47,8 @@ class EncryptedAnswer(SerializableObject):
 
         return plaintexts
 
-    def verify_plaintexts_and_randomness(self, pk):
-        """
-        this applies only if the explicit answers and randomness factors are given
-        we do not verify the proofs here, that is the verify() method
-        """
-        if not hasattr(self, 'answer'):
-            return False
 
-        for choice_num in range(len(self.choices)):
-            choice = self.choices[choice_num]
-            choice.pk = pk
-
-            # redo the encryption
-            # WORK HERE (paste from below encryption)
-
-        return False
-
-    def verify(self, pk, min=0, max=1):
+    def verify(self, pk, min_ptxt=0, max_ptxt=1):
         possible_plaintexts = self.generate_plaintexts(pk)
         homomorphic_sum = 0
 
@@ -67,26 +57,61 @@ class EncryptedAnswer(SerializableObject):
             choice.pk = pk
             individual_proof = self.individual_proofs[choice_num]
 
+            # verify that elements belong to the proper group
+            check_group = choice.check_group_membership(pk)
+            if not check_group:
+                return False
+            
             # verify the proof on the encryption of that choice
-            if not choice.verify_disjunctive_encryption_proof(
-                    possible_plaintexts, individual_proof, elgamal.disjunctive_challenge_generator):
-                #      if not choice.verify_disjunctive_encryption_proof(possible_plaintexts, individual_proof, elgamal.disjunctive_challenge_generator):
+            verify_disjunctive_enc_proof = choice.verify_disjunctive_encryption_proof(
+                possible_plaintexts,
+                individual_proof,
+                elgamal.disjunctive_challenge_generator
+            )
+            if not verify_disjunctive_enc_proof:
                 return False
 
             # compute homomorphic sum if needed
-            if max is not None:
+            if max_ptxt is not None:
                 homomorphic_sum = choice * homomorphic_sum
 
-        if max is not None:
+        if max_ptxt is not None:
             # determine possible plaintexts for the sum
-            sum_possible_plaintexts = self.generate_plaintexts(pk, min=min, max=max)
+            sum_possible_plaintexts = self.generate_plaintexts(pk, min_ptxt=min_ptxt, max_ptxt=max_ptxt)
 
             # verify the sum
             return homomorphic_sum.verify_disjunctive_encryption_proof(
-                sum_possible_plaintexts, self.overall_proof, elgamal.disjunctive_challenge_generator)
+                sum_possible_plaintexts,
+                self.overall_proof,
+                elgamal.disjunctive_challenge_generator
+            )
         else:
             # approval voting, no need for overall proof verification
             return True
+
+class EncryptedOpenAnswer(AbstractEncryptedAnswer):
+    """
+    An encrypted open answer to a single election question.
+    """
+    def __init__(self, **kwargs) -> None:
+        self.open_answer = kwargs.get("open_answer", None)
+        super(EncryptedOpenAnswer, self).__init__(**kwargs)
+
+
+class EncryptedClosedAnswer(AbstractEncryptedAnswer):
+    """
+    An encrypted closed answer to a single election question.
+    """
+
+    def __init__(self, **kwargs):
+        super(EncryptedClosedAnswer, self).__init__(**kwargs)
+
+
+
+
+    '''
+    TODO: Adapt fromElectionAndAnswer method to the new structure of EncryptedAnswers.
+
 
     @classmethod
     def fromElectionAndAnswer(cls, election, question_num, answer_indexes):
@@ -159,3 +184,4 @@ class EncryptedAnswer(SerializableObject):
             overall_proof = None
 
         return cls(choices, individual_proofs, overall_proof, randomness, answer_indexes)
+    '''
