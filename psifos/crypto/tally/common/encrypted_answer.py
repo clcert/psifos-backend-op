@@ -21,13 +21,12 @@ class EncryptedAnswerFactory(SerializableObject):
 class AbstractEncryptedAnswer(SerializableObject):
     def __init__(self, **kwargs) -> None:
         self.enc_ans_type = kwargs["enc_ans_type"]
-        self.total_options = kwargs["total_options"]
 
         self.answer = kwargs.get("answer", None)
         self.choices = kwargs.get("choices", None)
 
-        self.individual_proofs = kwargs.get("individual_proofs", [None] * len(self.total_options))
-        self.randomness = kwargs.get("randomness", [None] * len(self.total_options))
+        self.individual_proofs = kwargs.get("individual_proofs", None)
+        self.randomness = kwargs.get("randomness", None)
 
         self.overall_proof = kwargs.get("overall_proof", None)
         
