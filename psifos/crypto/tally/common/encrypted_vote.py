@@ -21,9 +21,8 @@ class EncryptedVote(SerializableObject):
     An encrypted ballot
     """
 
-    def __init__(self, election_uuid, election_hash, answers):
+    def __init__(self, election_uuid, answers):
         self.election_uuid : str = election_uuid
-        self.election_hash : str = election_hash
         self.answers : ListOfEncryptedAnswers = ListOfEncryptedAnswers(*answers)
 
     def verify(self, election):
@@ -35,13 +34,6 @@ class EncryptedVote(SerializableObject):
             logging.error(f"Incorrect number of answers ({n_answers}) vs questions ({n_questions})")
             return False
 
-        # check hash
-        # noinspection PyUnresolvedReferences
-        our_election_hash = self.election_hash if isinstance(self.election_hash, str) else self.election_hash.decode()
-        actual_election_hash = election.hash if isinstance(election.hash, str) else election.hash.decode()
-        if our_election_hash != actual_election_hash:
-            logging.error(f"Incorrect election_hash {our_election_hash} vs {actual_election_hash} ")
-            return False
 
         # check ID
         # noinspection PyUnresolvedReferences
@@ -52,15 +44,12 @@ class EncryptedVote(SerializableObject):
             return False
 
         # check proofs on all of answers
-        for question_num in range(len(election.questions)):
-            ea = self.encrypted_answers[question_num]
+        for question_num in range(len(election.questions.instances)):
+            ea = self.answers.instances[question_num]
 
-            question = election.questions[question_num]
-            min_answers = 0
-            if 'min' in question:
-                min_answers = question['min']
+            q = election.questions.instances[question_num]
 
-            if not ea.verify(election.public_key, min=min_answers, max=question['max']):
+            if not ea.verify(election.public_key, min_ptxt=q.min_answers, max_ptxt=q.max_answers):
                 return False
 
         return True
