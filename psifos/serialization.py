@@ -6,6 +6,7 @@ Serialization for Psifos objects.
 
 from __future__ import annotations
 import json
+from copy import copy
 
 
 class SerializableList(object):
@@ -29,8 +30,9 @@ class SerializableList(object):
         if isinstance(s_list, str):
             return s_list
 
+        a_list = copy(s_list)
         serialized_instances = []
-        for obj in s_list.instances:
+        for obj in a_list.instances:
             if isinstance(obj, SerializableObject) or isinstance(obj, SerializableList):
                 obj_class = obj.__class__
                 serialized_instances.append(obj_class.serialize(obj, to_json=False))
@@ -66,18 +68,19 @@ class SerializableObject(object):
         if isinstance(obj, str):
             return obj
 
-        class_attributes = [attr for attr in dir(obj) if not attr.startswith("_")]
+        a_obj = copy(a_obj)
+        class_attributes = [attr for attr in dir(a_obj) if not attr.startswith("_")]
         for attr in class_attributes:
-            attr_value = getattr(obj, attr)
+            attr_value = getattr(a_obj, attr)
             if isinstance(attr_value, SerializableObject) or isinstance(attr_value, SerializableList):
                 attr_class = attr_value.__class__
                 serialized_attr = attr_class.serialize(attr_value, to_json=False)
-                setattr(obj, attr, serialized_attr)
+                setattr(a_obj, attr, serialized_attr)
             elif isinstance(attr_value, int):
                 serialized_attr = str(attr_value)
-                setattr(obj, attr, serialized_attr)
+                setattr(a_obj, attr, serialized_attr)
 
-        return json.dumps(obj.__dict__) if to_json else obj.__dict__
+        return json.dumps(a_obj.__dict__) if to_json else a_obj.__dict__
 
     @classmethod
     def deserialize(cls, json_data: str) -> SerializableObject:

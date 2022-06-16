@@ -423,7 +423,7 @@ def cast_vote(election: Election, voter: Voter) -> Response:
         cast_vote.valid_cast_votes += 1
         cast_vote.save()
         return make_response(jsonify({"message": "Voto registrado con exito."}), 200)
-        
+
     else:
         PsifosModel.discard_changes(cast_vote)
         cast_vote = CastVote.get_by_voter_id(schema=cast_vote_schema, voter_id=voter.id)
