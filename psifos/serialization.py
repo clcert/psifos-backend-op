@@ -68,7 +68,7 @@ class SerializableObject(object):
         if isinstance(obj, str):
             return obj
 
-        a_obj = copy(a_obj)
+        a_obj = copy(obj)
         class_attributes = [attr for attr in dir(a_obj) if not attr.startswith("_")]
         for attr in class_attributes:
             attr_value = getattr(a_obj, attr)
