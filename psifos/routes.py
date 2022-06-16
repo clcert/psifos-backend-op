@@ -22,6 +22,7 @@ from psifos import utils as route_utils
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.forms import ElectionForm
 from psifos.models import Election, SharedPoint, Voter, User, Trustee, CastVote
+from psifos.psifos_model import PsifosModel
 from psifos.schemas import (
     election_schema,
     voter_schema,
@@ -316,21 +317,73 @@ def openreg(election: Election) -> Response:
     return make_response(jsonify({"message": "Elección reanudada con exito!"}), 200)
 
 
-@app.route("/<election_uuid>/freeze-election", methods=["POST"])
+@app.route("/<election_uuid>/start-election", methods=["POST"])
 @token_required
 @election_route(election_schema=election_schema)
-def freeze_election(election: Election) -> Response:
+def start_election(election: Election) -> Response:
+    """
+    Route for starting an election, once it happens the election
+    gets "frozen" which means it shouldn't be modified from now on.
+
+    Require a valid token to access >>> token_required
+    """
+    try:
+        trustees = Trustee.get_by_election(
+            schema=trustee_schema,
+            election_id=election.id,
+            deserialize=True 
+        )
+        voters = Voter.get_by_election(
+            schema=voter_schema,
+            election_id=election.id,
+            deserialize=False
+        )
+        election.start(trustees=trustees, voters=voters)
+        return make_response(jsonify({"message": "Eleccion iniciada con exito!"}), 200)
+    
+    except:
+        return make_response(jsonify({"message": "Error al iniciar la eleccion!"}), 400)
+
+
+@app.route("/<election_uuid>/end-election", methods=["POST"])
+@token_required
+@election_route(election_schema=election_schema)
+def end_election(election: Election) -> Response:
+    """
+    Route for ending an election, once it happens no voter
+    should be able to cast a vote.
+
+    Require a valid token to access >>> token_required
+    """
+    try:
+        voters = Voter.get_by_election(
+            schema=voter_schema,
+            election_id=election.id,
+            deserialize=False
+        )
+        not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
+        election.end(voters=not_null_voters)
+        return make_response(jsonify({"message": "Eleccion terminada con exito!"}), 200)
+    
+    except:
+        return make_response(jsonify({"message": "Error al terminar la eleccion!"}), 400)
+
+
+@app.route("/<election_uuid>/compute-tally", methods=["POST"])
+@token_required
+@election_route(election_schema=election_schema)
+def compute_tally(election: Election) -> Response:
     """
     Route for freezing an election
     Require a valid token to access >>> token_required
     """
-    trustees = Trustee.get_by_election(
-            schema=trustee_schema,
-            election_id=election.id,
-            deserialize=True
-    )
-    election.freeze(trustees)
-    return make_response(jsonify({"message": "Eleccion congelada con exito!"}), 200)
+    try:
+        election.compute_tally()
+        return make_response(jsonify({"message": "Se computado el tally de la eleccion con exito!"}), 200)
+    except:
+        return make_response(jsonify({"message": "Error al computar el tally de la eleccion"}), 400)
+
+
 
 @app.route("/<election_uuid>/cast-vote", methods=["POST"])
 @token_required
@@ -369,10 +422,15 @@ def cast_vote(election: Election) -> Response:
         }
 
         cast_vote = CastVote.update_or_create(schema=cast_vote_schema, **cv_params)
-        if True: #cast_vote.verify(election):
+        if cast_vote.verify(election):
+            cast_vote.valid_cast_votes += 1
             cast_vote.save()
             return make_response(jsonify({"message": "Voto registrado con exito."}), 200)
         else:
+            PsifosModel.discard_changes(cast_vote)
+            cast_vote = CastVote.get_by_voter_id(schema=cast_vote_schema, voter_id=voter.id)
+            cast_vote.invalid_cast_votes += 1
+            cast_vote.save()
             return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
     
     except:

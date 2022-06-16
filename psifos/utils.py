@@ -39,7 +39,7 @@ def do_cast_vote_checks(request, election, voter_schema):
     if not election.voting_has_started():
         return False, "Error al enviar el voto: la eleccion aun no comienza"
 
-    if election.voting_has_stopped():
+    if election.voting_has_ended():
         return False, "Error al enviar el voto: el proceso de voto ha concluido"
 
     if request.get_json().get("encrypted_vote") is None:

@@ -5,6 +5,7 @@ Marshmallow Schemas for Psifos models.
 """
 
 from psifos import ma
+from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.fields import SerializableField
 from psifos.enums import ElectionTypeEnum
 from psifos.models import AuditedBallot, CastVote, Election, SharedPoint, Trustee, Voter
@@ -26,13 +27,20 @@ class CastVoteSchema(ma.SQLAlchemySchema):
     # Fields:
     id = ma.auto_field()
     voter_id = ma.auto_field()
-    vote = ma.auto_field()  # SerializableField(EncryptedVote)
+
+    vote = SerializableField(EncryptedVote)
     vote_hash = ma.auto_field()
     vote_tinyhash = ma.auto_field()
+
+    valid_cast_votes = ma.auto_field()
+    invalid_cast_votes = ma.auto_field()
+
+    cast_ip = ma.auto_field()
+    hash_cast_ip = ma.auto_field()
+
     cast_at = ma.auto_field()
     verified_at = ma.auto_field()
     invalidated_at = ma.auto_field()
-    hash_cast_ip = ma.auto_field()
 
 
 class AuditedBallotSchema(ma.SQLAlchemyAutoSchema):
@@ -43,7 +51,13 @@ class AuditedBallotSchema(ma.SQLAlchemyAutoSchema):
         model = AuditedBallot
         load_instance = True
         include_fk = True
+    
+    id = ma.auto_field()
+    election_id = ma.auto_field()
 
+    raw_vote = ma.auto_field()
+    vote_hash = ma.auto_field()
+    added_at = ma.auto_field()
 
 class TrusteeSchema(ma.SQLAlchemySchema):
 
@@ -59,19 +73,24 @@ class TrusteeSchema(ma.SQLAlchemySchema):
     election_id = ma.auto_field()
     trustee_id = ma.auto_field()
     uuid = ma.auto_field()
+
     name = ma.auto_field()
     trustee_login_id = ma.auto_field()
     email = ma.auto_field()
     secret = ma.auto_field()
+
     current_step = ma.auto_field()
+
     public_key = SerializableField(PublicKey)
     public_key_hash = ma.auto_field()
     secret_key = ma.auto_field()  # SerializableField(SecretKey)
     pok = ma.auto_field()  # SerializableField(DLogProof)
+
     answers_decryption_factors = SerializableField(DecryptionFactors)
     answers_decryption_proofs = SerializableField(DecryptionProofs)
     open_answers_decryption_factors = SerializableField(DecryptionFactors)
     open_answers_decryption_proofs = SerializableField(DecryptionProofs)
+
     certificate = SerializableField(Certificate)
     coefficients = SerializableField(ListOfCoefficients)
     acknowledgements = SerializableField(ListOfSignatures)
@@ -89,6 +108,7 @@ class SharedPointSchema(ma.SQLAlchemySchema):
     # Fields:
     id = ma.auto_field()
     election_id = ma.auto_field()
+
     sender = ma.auto_field()
     recipient = ma.auto_field()
     point = SerializableField(Point)
@@ -108,14 +128,13 @@ class VoterSchema(ma.SQLAlchemySchema):
     id = ma.auto_field()
     election_id = ma.auto_field()
     uuid = ma.auto_field()
+
     voter_login_id = ma.auto_field()
     voter_name = ma.auto_field()
     voter_weight = ma.auto_field()
-    total_cast_votes = ma.auto_field()
-    invalid_cast_votes = ma.auto_field()
 
     # One-to-one relationship
-    casted_votes = ma.Nested(CastVoteSchema)
+    cast_vote = ma.Nested(CastVoteSchema)
 
 
 class ElectionSchema(ma.SQLAlchemySchema):
@@ -138,7 +157,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
     private_p = ma.auto_field()
     description = ma.auto_field()
 
-    public_key = ma.auto_field()  # SerializableField(PublicKey)
+    public_key = SerializableField(PublicKey)
     private_key = ma.auto_field()  # SerializableField(SecretKey)
     questions = SerializableField(Questions)
     openreg = ma.auto_field()
@@ -162,6 +181,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
 
     voting_started_at = ma.auto_field()
     voting_stopped_at = ma.auto_field()
+    
     voters_by_weight_init = ma.auto_field()
     voters_by_weight_end = ma.auto_field()
 

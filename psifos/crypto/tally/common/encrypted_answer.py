@@ -101,7 +101,6 @@ class EncryptedClosedAnswer(AbstractEncryptedAnswer):
     """
     An encrypted closed answer to a single election question.
     """
-
     def __init__(self, **kwargs):
         super(EncryptedClosedAnswer, self).__init__(**kwargs)
 

@@ -10,6 +10,7 @@ import functools
 import json
 
 from psifos import db
+from psifos.crypto.tally.tally import TallyManager
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
 from psifos.enums import ElectionTypeEnum
@@ -54,7 +55,8 @@ class Election(PsifosModel, db.Model):
     open_answers_result = db.Column(db.Text, nullable=True)  # PsifosObject: Result (?)
 
     voting_started_at = db.Column(db.DateTime, nullable=True)
-    voting_stopped_at = db.Column(db.DateTime, nullable=True)
+    voting_ended_at = db.Column(db.DateTime, nullable=True)
+    
     voters_by_weight_init = db.Column(db.Text, nullable=True)
     voters_by_weight_end = db.Column(db.Text, nullable=True)
 
@@ -108,7 +110,7 @@ class Election(PsifosModel, db.Model):
         )
         return ElGamal.serialize(params) if serialize else params
 
-    def freeze(self, trustees):
+    def start(self, trustees, voters):
         self.voting_started_at = datetime.datetime.utcnow()
 
         t_first_coefficients = [t.coefficients.instances[0].coefficient for t in trustees]
@@ -120,15 +122,37 @@ class Election(PsifosModel, db.Model):
         combined_pk = functools.reduce((lambda x, y: x*y), t_first_coefficients)
         self.public_key = trustees[0].public_key.clone_with_new_y(combined_pk)
 
-        normalized_weights = [v.voter_weight / self.max_weight for v in self.voters]
+        normalized_weights = [v.voter_weight / self.max_weight for v in voters]
         self.voters_by_weight_init = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
         self.save()
+    
+    def end(self, voters):
+        self.voting_ended_at = datetime.datetime.utcnow()
+
+        normalized_weights = [v.voter_weight / self.max_weight for v in voters]
+        self.votes_by_weight_final = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
+        self.save()
+
+
+    def compute_tally(self):
+        # First we instantiate the TallyManager class.
+        tally_params = [{
+            "tally_type": q_dict["tally_type"],
+            "question": q_dict,
+            "public_key": self.public_key
+        } for q_dict in json.loads(self.questions)]
+        enc_tally = TallyManager(*tally_params)
+
+        # Then we compute the encrypted_tally.
+        # enc_tally.compute()
+
+
     
     def voting_has_started(self):
         return True if self.voting_started_at is not None else False
     
-    def voting_has_stopped(self):
-        return True if self.voting_stopped_at is not None else False
+    def voting_has_ended(self):
+        return True if self.voting_ended_at is not None else False
 
 class Voter(PsifosModel, db.Model):
     __tablename__ = "psifos_voter"
@@ -141,11 +165,8 @@ class Voter(PsifosModel, db.Model):
     voter_name = db.Column(db.String(200), nullable=False)
     voter_weight = db.Column(db.Integer, nullable=False)
 
-    total_cast_votes = db.Column(db.Integer, default=0)
-    invalid_cast_votes = db.Column(db.Integer, default=0)
-    
     # One-to-one relationship
-    casted_votes = db.relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
+    cast_vote = db.relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
 
     @classmethod
     def get_by_login_id_and_election(cls, schema, voter_login_id, election_id, deserialize=False):
@@ -171,7 +192,15 @@ class Voter(PsifosModel, db.Model):
         else:
             voter = cls(**kwargs)
         return voter
-
+    
+    @classmethod
+    def get_by_election(cls, schema, election_id, deserialize=False):
+        return cls.filter_by(
+            schema=schema,
+            election_id=election_id,
+            deserialize=deserialize,
+        )
+    
 
 class CastVote(PsifosModel, db.Model):
     __table_name__ = "psifos_cast_vote"
@@ -182,6 +211,9 @@ class CastVote(PsifosModel, db.Model):
     vote = db.Column(db.Text, nullable=True)   # PsifosObject: EncryptedVote
     vote_hash = db.Column(db.String(500), nullable=True)
     vote_tinyhash = db.Column(db.String(500), nullable=True)
+
+    valid_cast_votes = db.Column(db.Integer, default=0)
+    invalid_cast_votes = db.Column(db.Integer, default=0)
     
     cast_ip = db.Column(db.Text, nullable=True)
     hash_cast_ip = db.Column(db.String(500), nullable=True)
@@ -325,9 +357,10 @@ class SharedPoint(PsifosModel, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     election_id = db.Column(db.Integer, db.ForeignKey("psifos_election.id"))
+
     sender = db.Column(db.Integer, nullable=False)
     recipient = db.Column(db.Integer, nullable=False)
-    point = db.Column(db.Text, nullable=True)  # PsifosObject: Point
+    point = db.Column(db.Text, nullable=True)  # SerializableField: Point
 
     @classmethod
     def get_by_sender(cls, schema, sender, deserialize=False,):
