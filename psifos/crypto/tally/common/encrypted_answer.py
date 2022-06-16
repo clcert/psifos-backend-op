@@ -47,10 +47,10 @@ class AbstractEncryptedAnswer(SerializableObject):
         possible_plaintexts = self.generate_plaintexts(pk)
         homomorphic_sum = 0
 
-        for choice_num in range(len(self.choices)):
-            choice = self.choices[choice_num]
+        for choice_num in range(len(self.choices.instances)):
+            choice = self.choices.instances[choice_num]
             choice.pk = pk
-            individual_proof = self.individual_proofs[choice_num]
+            individual_proof = self.individual_proofs.instances[choice_num]
 
             # verify that elements belong to the proper group
             check_group = choice.check_group_membership(pk)
