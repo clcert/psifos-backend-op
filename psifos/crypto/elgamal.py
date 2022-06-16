@@ -483,7 +483,7 @@ class ZKProof(SerializableObject):
         self.challenge = challenge
         self.response = response
         commitment_params = commitment or {}
-        self.commitment = ZKProofCommitment(commitment_params)
+        self.commitment = ZKProofCommitment(**commitment_params)
 
     @classmethod
     def generate(cls, little_g, little_h, x, p, q, challenge_generator):
@@ -543,8 +543,8 @@ class ListOfZKProofs(SerializableList):
 class ZKProofCommitment(SerializableObject):
     def __init__(self, A=None, B=None) -> None:
         super(ZKProofCommitment, self).__init__()
-        self.A = int(A)
-        self.B = int(B)
+        self.A = int(A or 0)
+        self.B = int(B or 0)
 
 
 class DecryptionFactors(SerializableList):
