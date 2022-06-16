@@ -12,6 +12,7 @@ import logging
 
 class ListOfEncryptedAnswers(SerializableList):
     def __init__(self, *answers) -> None:
+        super(ListOfEncryptedAnswers, self).__init__()
         for ans_dict in answers:
             self.instances.append(EncryptedAnswerFactory.create(**ans_dict))
 

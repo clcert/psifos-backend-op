@@ -35,7 +35,7 @@ def format_points(points):
 
 # -- CastVote validation --
 
-def do_cast_vote_checks(request, election, voter_schema):
+def do_cast_vote_checks(request, election, voter):
     if not election.voting_has_started():
         return False, "Error al enviar el voto: la eleccion aun no comienza"
 
@@ -46,14 +46,9 @@ def do_cast_vote_checks(request, election, voter_schema):
         return False, "Error al enviar el voto: no se envio el encrypted vote"
 
     if election.private_p:
-        voter_login_id = get_user()
-        voter = Voter.get_by_login_id_and_election(
-                schema=voter_schema,
-                election_id=election.id,
-                voter_login_id=voter_login_id
-        )
         if voter is None:
             return False, "Error al enviar el voto: votante no encontrado"
+    return True, None
 
 
 

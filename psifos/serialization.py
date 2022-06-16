@@ -69,7 +69,7 @@ class SerializableObject(object):
         class_attributes = [attr for attr in dir(obj) if not attr.startswith("_")]
         for attr in class_attributes:
             attr_value = getattr(obj, attr)
-            if isinstance(attr_value, SerializableObject) or isinstance(obj, SerializableList):
+            if isinstance(attr_value, SerializableObject) or isinstance(attr_value, SerializableList):
                 attr_class = attr_value.__class__
                 serialized_attr = attr_class.serialize(attr_value, to_json=False)
                 setattr(obj, attr, serialized_attr)

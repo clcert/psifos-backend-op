@@ -386,55 +386,49 @@ def compute_tally(election: Election) -> Response:
 
 
 @app.route("/<election_uuid>/cast-vote", methods=["POST"])
-@token_required
-@election_route(election_schema=election_schema)
-def cast_vote(election: Election) -> Response:
+@auth_requires
+@voter_cas(election_schema=election_schema, voter_schema=voter_schema)
+def cast_vote(election: Election, voter: Voter) -> Response:
     """
     Route for casting a vote
     Require a valid token to access >>> token_required
     """
-    try:
-        allowed, msg = route_utils.do_cast_vote_checks(request, election, voter_schema)
-        if not allowed:
-            return make_response(jsonify({"message": f"{msg}"}), 400)
+   
+    allowed, msg = route_utils.do_cast_vote_checks(request, election, voter)
+    if not allowed:
+        return make_response(jsonify({"message": f"{msg}"}), 400)
 
-        voter_login_id = get_user()
-        voter = Voter.get_by_login_id_and_election(
-            schema=voter_schema,
-            election_id=election.id,
-            voter_login_id=voter_login_id
-        )
-        
-        data = request.get_json()
-        enc_vote_data = route_utils.from_json(data["encrypted_vote"])
-        encrypted_vote = EncryptedVote(**enc_vote_data)
-        vote_fingerprint = crypto_utils.hash_b64(encrypted_vote)
-        cast_ip = request.headers.getlist("X-Forwarded-For") if ("X-Forwarded-For" in request.headers) else request.remote_addr
-        ip_fingerprint = crypto_utils.hash_b64(cast_ip)
-
-        cv_params = {
-            "voter_id": voter.id,
-            "vote": encrypted_vote,
-            "vote_hash": vote_fingerprint,
-            "cast_at": datetime.now(),
-            "cast_ip": cast_ip,
-            "ip_fingerprint": ip_fingerprint
-        }
-
-        cast_vote = CastVote.update_or_create(schema=cast_vote_schema, **cv_params)
-        if cast_vote.verify(election):
-            cast_vote.valid_cast_votes += 1
-            cast_vote.save()
-            return make_response(jsonify({"message": "Voto registrado con exito."}), 200)
-        else:
-            PsifosModel.discard_changes(cast_vote)
-            cast_vote = CastVote.get_by_voter_id(schema=cast_vote_schema, voter_id=voter.id)
-            cast_vote.invalid_cast_votes += 1
-            cast_vote.save()
-            return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
     
-    except:
-        return make_response(jsonify({"message": "Error al enviar el voto"}), 400)
+    data = route_utils.from_json(request.get_json())
+    enc_vote_data = route_utils.from_json(data["encrypted_vote"])
+    encrypted_vote = EncryptedVote(**enc_vote_data)
+    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(obj=encrypted_vote))
+    cast_ip = request.headers.getlist("X-Forwarded-For")[0] if ("X-Forwarded-For" in request.headers) else request.remote_addr
+    print("cast", cast_ip   )
+    ip_fingerprint = crypto_utils.hash_b64(cast_ip)
+
+    cv_params = {
+        "voter_id": voter.id,
+        "vote": encrypted_vote,
+        "vote_hash": vote_fingerprint,
+        "cast_at": datetime.now(),
+        "cast_ip": cast_ip,
+        "ip_fingerprint": ip_fingerprint
+    }
+
+    cast_vote = CastVote.update_or_create(schema=cast_vote_schema, **cv_params)
+    if cast_vote.verify(election):
+        cast_vote.valid_cast_votes += 1
+        cast_vote.save()
+        return make_response(jsonify({"message": "Voto registrado con exito."}), 200)
+    else:
+        PsifosModel.discard_changes(cast_vote)
+        cast_vote = CastVote.get_by_voter_id(schema=cast_vote_schema, voter_id=voter.id)
+        cast_vote.invalid_cast_votes += 1
+        cast_vote.save()
+        return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
+
+
         
 
 
