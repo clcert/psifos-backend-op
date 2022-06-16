@@ -6,7 +6,7 @@ reworked for Psifos: 27-05-2022
 """
 import itertools
 
-from psifos.crypto.elgamal import ListofCipherText
+from psifos.crypto.elgamal import ListOfCipherTexts
 from ..common.abstract_tally import AbstractTally
 from ..common.dlogtable import DLogTable
 
@@ -27,7 +27,7 @@ class HomomorphicTally(AbstractTally):
             self.tally = [0] * self.question.total_options
 
         else:
-            self.tally = ListofCipherText(*tally)
+            self.tally = ListOfCipherTexts(*tally)
     
     def compute(self, encrypted_answers, weights):
         self.computed = True
@@ -39,7 +39,7 @@ class HomomorphicTally(AbstractTally):
                 vote.choices[answer_num].beta = pow(vote.choices[answer_num].beta, weight, self.public_key.p)
                 self.tally[answer_num] = vote.choices[answer_num] * self.tally[answer_num]
             self.num_tallied += 1
-        self.tally = ListofCipherText(*self.tally)
+        self.tally = ListOfCipherTexts(*self.tally)
 
     def decryption_factors_and_proofs(self, sk):
         """

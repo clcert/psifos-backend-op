@@ -4,8 +4,8 @@ Encrypted answer for Psifos vote.
 27-05-2022
 """
 
+from psifos.crypto.elgamal import Ciphertext, ListOfCipherTexts, ListOfZKDisjunctiveProofs, Plaintext, ZKDisjunctiveProof, disjunctive_challenge_generator
 from psifos.serialization import SerializableObject
-from psifos.crypto import elgamal
 
 class EncryptedAnswerFactory(SerializableObject):
     def create(**kwargs):
@@ -22,13 +22,9 @@ class AbstractEncryptedAnswer(SerializableObject):
     def __init__(self, **kwargs) -> None:
         self.enc_ans_type = kwargs["enc_ans_type"]
 
-        self.answer = kwargs.get("answer", None)
-        self.choices = kwargs.get("choices", None)
-
-        self.individual_proofs = kwargs.get("individual_proofs", None)
-        self.randomness = kwargs.get("randomness", None)
-
-        self.overall_proof = kwargs.get("overall_proof", None)
+        self.choices : ListOfCipherTexts = ListOfCipherTexts(*kwargs["choices"])
+        self.individual_proofs : ListOfZKDisjunctiveProofs = ListOfZKDisjunctiveProofs(*kwargs["individual_proofs"])
+        self.overall_proof : ZKDisjunctiveProof = ZKDisjunctiveProof(*kwargs["overall_proof"])
         
     @classmethod
     def generate_plaintexts(cls, pk, min_ptxt=0, max_ptxt=1):
@@ -39,7 +35,7 @@ class AbstractEncryptedAnswer(SerializableObject):
         for i in range(max_ptxt + 1):
             # if we're in the range, add it to the array
             if i >= min_ptxt:
-                plaintexts.append(elgamal.Plaintext(running_product, pk))
+                plaintexts.append(Plaintext(running_product, pk))
 
             # next value in running product
             running_product = (running_product * pk.g) % pk.p
@@ -65,7 +61,7 @@ class AbstractEncryptedAnswer(SerializableObject):
             verify_disjunctive_enc_proof = choice.verify_disjunctive_encryption_proof(
                 possible_plaintexts,
                 individual_proof,
-                elgamal.disjunctive_challenge_generator
+                disjunctive_challenge_generator
             )
             if not verify_disjunctive_enc_proof:
                 return False
@@ -82,7 +78,7 @@ class AbstractEncryptedAnswer(SerializableObject):
             return homomorphic_sum.verify_disjunctive_encryption_proof(
                 sum_possible_plaintexts,
                 self.overall_proof,
-                elgamal.disjunctive_challenge_generator
+                disjunctive_challenge_generator
             )
         else:
             # approval voting, no need for overall proof verification
@@ -93,7 +89,7 @@ class EncryptedOpenAnswer(AbstractEncryptedAnswer):
     An encrypted open answer to a single election question.
     """
     def __init__(self, **kwargs) -> None:
-        self.open_answer = kwargs.get("open_answer", None)
+        self.open_answer : Ciphertext = Ciphertext(**kwargs["open_answer"])
         super(EncryptedOpenAnswer, self).__init__(**kwargs)
 
 
@@ -154,12 +150,12 @@ class EncryptedClosedAnswer(AbstractEncryptedAnswer):
                 num_selected_answers += 1
 
             # randomness and encryption
-            randomness[answer_num] = elgamal.random.mpz_lt(pk.q)
+            randomness[answer_num] = random.mpz_lt(pk.q)
             choices[answer_num] = pk.encrypt_with_r(plaintexts[plaintext_index], randomness[answer_num])
 
             # generate proof
             individual_proofs[answer_num] = choices[answer_num].generate_disjunctive_encryption_proof(
-                plaintexts, plaintext_index, randomness[answer_num], elgamal.disjunctive_challenge_generator)
+                plaintexts, plaintext_index, randomness[answer_num], disjunctive_challenge_generator)
             # sum things up homomorphically if needed
             if max_answers is not None:
                 homomorphic_sum = choices[answer_num] * homomorphic_sum
@@ -176,7 +172,7 @@ class EncryptedClosedAnswer(AbstractEncryptedAnswer):
 
             # need to subtract the min from the offset
             overall_proof = homomorphic_sum.generate_disjunctive_encryption_proof(
-                sum_plaintexts, num_selected_answers - min_answers, randomness_sum, elgamal.disjunctive_challenge_generator)
+                sum_plaintexts, num_selected_answers - min_answers, randomness_sum, disjunctive_challenge_generator)
         else:
             # approval voting
             overall_proof = None

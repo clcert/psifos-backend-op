@@ -471,9 +471,9 @@ class Ciphertext(SerializableObject):
         else:
             return True
 
-class ListofCipherText(SerializableList):
+class ListOfCipherTexts(SerializableList):
     def __init__(self, *args) -> None:
-        super(ListofCipherText, self).__init__()
+        super(ListOfCipherTexts, self).__init__()
         for ctxt_dict in args:
             self.instances.append(Ciphertext(**ctxt_dict))
 
@@ -560,13 +560,21 @@ class DecryptionProofs(SerializableList):
             self.instances.append(ListOfZKProofs(*d_p_list))
 
 class ZKDisjunctiveProof(SerializableList):
-    def __init__(self, *proofs):
-        for p_dict in proofs:
+    def __init__(self, *args):
+        super(ZKDisjunctiveProof, self).__init__()
+        for p_dict in args:
             self.instances.append(ZKProof(**p_dict))
         
     @property
     def proofs(self):
         return self.instances
+
+class ListOfZKDisjunctiveProofs(SerializableList):
+    def __init__(self, *args) -> None:
+        super(ListOfZKDisjunctiveProofs, self).__init__()
+        for zkdp_list in args:
+            self.instances.append(ZKDisjunctiveProof(*zkdp_list))
+
 
 class DLogProof(object):
     def __init__(self, commitment, challenge, response):
