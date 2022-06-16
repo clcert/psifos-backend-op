@@ -107,8 +107,9 @@ def voter_cas(**kwargs):
     """
 
     election_schema = kwargs.get("election_schema", None)
-    deserialize_election = kwargs.get("deserialize_election", None)
+    deserialize_election = kwargs.get("deserialize_election", False)
     voter_schema = kwargs.get("voter_schema", None)
+    deserialize_voter = kwargs.get("deserialize_voter", False)
 
     def voter_cas_decorator(f):
         def voter_cas_wrapper(user_session=None, election_uuid=None, *args, **kwargs):
@@ -124,6 +125,7 @@ def voter_cas(**kwargs):
                     schema=voter_schema,
                     voter_login_id=user_session,
                     election_id=election.id,
+                    deserialize=deserialize_voter
                 )
 
                 if not verify_voter(election, voter, voter_schema):

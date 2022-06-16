@@ -387,7 +387,7 @@ def compute_tally(election: Election) -> Response:
 
 @app.route("/<election_uuid>/cast-vote", methods=["POST"])
 @auth_requires
-@voter_cas(election_schema=election_schema, voter_schema=voter_schema)
+@voter_cas(election_schema=election_schema, deserialize_election=True, voter_schema=voter_schema)
 def cast_vote(election: Election, voter: Voter) -> Response:
     """
     Route for casting a vote
@@ -404,7 +404,6 @@ def cast_vote(election: Election, voter: Voter) -> Response:
     encrypted_vote = EncryptedVote(**enc_vote_data)
     vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(obj=encrypted_vote))
     cast_ip = request.headers.getlist("X-Forwarded-For")[0] if ("X-Forwarded-For" in request.headers) else request.remote_addr
-    print("cast", cast_ip   )
     ip_fingerprint = crypto_utils.hash_b64(cast_ip)
 
     cv_params = {
@@ -417,10 +416,14 @@ def cast_vote(election: Election, voter: Voter) -> Response:
     }
 
     cast_vote = CastVote.update_or_create(schema=cast_vote_schema, **cv_params)
-    if cast_vote.verify(election):
+    valid_cast_vote = cast_vote.verify(election)
+    PsifosModel.discard_changes(election)
+
+    if valid_cast_vote:
         cast_vote.valid_cast_votes += 1
         cast_vote.save()
         return make_response(jsonify({"message": "Voto registrado con exito."}), 200)
+        
     else:
         PsifosModel.discard_changes(cast_vote)
         cast_vote = CastVote.get_by_voter_id(schema=cast_vote_schema, voter_id=voter.id)

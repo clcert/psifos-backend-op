@@ -29,8 +29,8 @@ class EncryptedVote(SerializableObject):
     def verify(self, election):
         # correct number of answers
         # noinspection PyUnresolvedReferences
-        n_answers = len(self.encrypted_answers) if self.encrypted_answers is not None else 0
-        n_questions = len(election.questions) if election.questions is not None else 0
+        n_answers = len(self.answers.instances)
+        n_questions = len(election.questions.instances)
         if n_answers != n_questions:
             logging.error(f"Incorrect number of answers ({n_answers}) vs questions ({n_questions})")
             return False
