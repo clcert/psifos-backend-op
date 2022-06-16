@@ -50,10 +50,10 @@ class KeyPair(object):
 
 class PublicKey(SerializableObject):
     def __init__(self, y=None, p=None, g=None, q=None):
-        self.y = int(y)
-        self.p = int(p)
-        self.g = int(g)
-        self.q = int(q)
+        self.y = int(y or 0)
+        self.p = int(p or 0)
+        self.g = int(g or 0)
+        self.q = int(q or 0)
 
     def encrypt_with_r(self, plaintext, r, encode_message=False):
         """
