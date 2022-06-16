@@ -180,7 +180,7 @@ class ElectionSchema(ma.SQLAlchemySchema):
     open_answers_result = ma.auto_field()  # SerializableField(Result)
 
     voting_started_at = ma.auto_field()
-    voting_stopped_at = ma.auto_field()
+    voting_ended_at = ma.auto_field()
     
     voters_by_weight_init = ma.auto_field()
     voters_by_weight_end = ma.auto_field()
