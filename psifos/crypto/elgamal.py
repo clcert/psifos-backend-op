@@ -253,8 +253,8 @@ class Ciphertext(SerializableObject):
     def __init__(self, alpha=None, beta=None, pk=None):
         pk_params = pk or {}
         self.pk = PublicKey(**pk_params)
-        self.alpha = int(alpha)
-        self.beta = int(beta)
+        self.alpha = int(alpha or 0)
+        self.beta = int(beta or 0)
 
     def __mul__(self, other):
         """
