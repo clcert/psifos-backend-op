@@ -480,8 +480,8 @@ class ListOfCipherTexts(SerializableList):
 
 class ZKProof(SerializableObject):
     def __init__(self, challenge=None, response=None, commitment=None):
-        self.challenge = challenge
-        self.response = response
+        self.challenge = int(challenge or 0)
+        self.response = int(response or 0)
         commitment_params = commitment or {}
         self.commitment = ZKProofCommitment(**commitment_params)
 
