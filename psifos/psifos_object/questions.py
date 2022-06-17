@@ -54,12 +54,12 @@ class AbstractQuestion(SerializableObject):
         self.q_text: str = kwargs["q_text"]
         self.q_description: str = kwargs["q_description"]
 
-        self.total_options: int = kwargs["total_options"]
-        self.total_closed_options: int = kwargs["total_closed_options"]
+        self.total_options: int = int(kwargs["total_options"])
+        self.total_closed_options: int = int(kwargs["total_closed_options"])
         self.closed_options: list = kwargs["closed_options"]
 
-        self.max_answers: int = kwargs["max_answers"]
-        self.min_answers: int = kwargs["min_answers"]
+        self.max_answers: int = int(kwargs["max_answers"])
+        self.min_answers: int = int(kwargs["min_answers"])
 
         self.tally_type = "homomorphic"
 
@@ -71,8 +71,8 @@ class OpenQuestion(AbstractQuestion):
     """
 
     def __init__(self, **kwargs) -> None:
-        self.total_open_options: int = kwargs["total_open_options"]
-        self.open_option_max_size: int = kwargs["open_option_max_size"]
+        self.total_open_options: int = int(kwargs["total_open_options"])
+        self.open_option_max_size: int = int(kwargs["open_option_max_size"])
         super(OpenQuestion, self).__init__(**kwargs)
 
 
