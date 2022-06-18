@@ -100,6 +100,14 @@ class PublicKey(SerializableObject):
         if self.p != other.p or self.q != other.q or self.g != other.g:
             raise Exception("incompatible public keys")
 
+        
+        result = PublicKey()
+        result.p = self.p
+        result.q = self.q
+        result.g = self.g
+        result.y = (self.y * other.y) % result.p
+        
+        """
         params = {
             "p": self.p,
             "q": self.q,
@@ -107,9 +115,11 @@ class PublicKey(SerializableObject):
             "y": (self.y * other.y) % self.p,
         }
         return PublicKey(**params)
-
+        """
+        return result
 
     def clone_with_new_y(self, y):
+        """
         params = {
             "p": self.p,
             "q": self.q,
@@ -117,6 +127,14 @@ class PublicKey(SerializableObject):
             "y": y
         }
         return PublicKey(**params)
+        """
+        result = PublicKey()
+        result.p = self.p
+        result.q = self.q
+        result.g = self.g
+        result.y = y
+        return result
+
 
     def validate_pk_params(self):
         # check primality of p
