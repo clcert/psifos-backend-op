@@ -481,7 +481,7 @@ def delete_trustee(current_user: User, election_uuid: str) -> Response:
         election = Election.get_by_uuid(uuid=election_uuid)
         if election.admin_id == current_user.get_id():
             trustee = Trustee.get_by_uuid(uuid=data["uuid"])
-            trustee.delete()
+            PsifosModel.delete(trustee)
             return make_response(jsonify({"message": "Eliminado con exito!"}), 200)
         else:
             return make_response(
@@ -680,7 +680,7 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
             sender=trustee.trustee_id
         )
         for point in t_sent_points:
-            point.delete()
+            PsifosModel.delete(point)
 
         for i in range(len(points)):
             obj = SharedPoint(
