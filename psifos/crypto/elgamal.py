@@ -108,8 +108,6 @@ class PublicKey(SerializableObject):
         }
         return PublicKey(**params)
 
-    def __eq__(self, other):
-        return self.p == other.p and self.q == other.q and self.g == other.g and self.y == other.y
 
     def clone_with_new_y(self, y):
         params = {
@@ -391,7 +389,7 @@ class Ciphertext(SerializableObject):
         # set the real proof
         proofs[real_index] = real_proof
 
-        serialized_proofs = [ZKProof.serialize(obj=proof) for proof in proofs]
+        serialized_proofs = [ZKProof.serialize(proof) for proof in proofs]
 
         return ZKDisjunctiveProof(*serialized_proofs)
 
@@ -438,8 +436,16 @@ class Ciphertext(SerializableObject):
         # logging.info("made it past the two encryption proofs")
 
         # check the overall challenge
-        return (challenge_generator([p.commitment for p in proof.proofs]) == (
-                sum([p.challenge for p in proof.proofs]) % self.pk.q))
+        x = challenge_generator([p.commitment for p in proof.proofs])
+
+
+        # overall_proofs error, len(proof.proofs) == 1 & p.challenge < self.pk.q
+        first = sum([p.challenge for p in proof.proofs])
+        second = self.pk.q
+        if first < second and len(proof.proofs):
+            print("ERROR! overall_proof.challenge < election.public_key.q")
+        y = first % second
+        return x==y
 
     def decrypt(self, decryption_factors, public_key):
         """

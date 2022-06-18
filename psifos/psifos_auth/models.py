@@ -29,11 +29,11 @@ class User(db.Model, PsifosModel):
         return self.id
 
     @classmethod
-    def get_by_name(cls, schema, name):
-        query = cls.filter_by(schema=schema, name=name)
+    def get_by_name(cls, name):
+        query = cls.filter_by(name=name)
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def get_by_public_id(cls, schema, public_id):
-        query = cls.filter_by(schema=schema, public_id=public_id)
+    def get_by_public_id(cls, public_id):
+        query = cls.filter_by(public_id=public_id)
         return query[0] if len(query) > 0 else None

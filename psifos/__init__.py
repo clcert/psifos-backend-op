@@ -25,8 +25,6 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 wtforms_json.init()
 
-# Schemas
-
 # Connection credentials
 db_user = config['local']['user']
 db_pass = config['local']['password']

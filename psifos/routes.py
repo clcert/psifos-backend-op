@@ -26,9 +26,7 @@ from psifos.psifos_model import PsifosModel
 from psifos.schemas import (
     election_schema,
     voter_schema,
-    cast_vote_schema,
     trustee_schema,
-    shared_point_schema,
 )
 from psifos.psifos_object.questions import Questions
 from psifos.psifos_auth.utils import (
@@ -64,13 +62,12 @@ def create_election(current_user: User) -> Response:
 
     if form.validate():
         if Election.get_by_short_name(
-            schema=election_schema, short_name=form.short_name.data
+            short_name=form.short_name.data
         ):
             return make_response({"message": "La elección ya existe"}, 400)
 
         uuid_election = str(uuid.uuid4())
-        election = Election.update_or_create(
-            schema=election_schema,
+        Election.update_or_create(
             admin_id=current_user.get_id(),
             uuid=uuid_election,
             short_name=data["short_name"],
@@ -84,7 +81,7 @@ def create_election(current_user: User) -> Response:
             normalization=data["normalization"],
             openreg=False,
         )
-        election.save()
+        PsifosModel.commit()
         return make_response(
             jsonify({"message": "Elección creada con exito!", "uuid": uuid_election}),
             200,
@@ -96,7 +93,7 @@ def create_election(current_user: User) -> Response:
 
 @app.route("/get-election/<election_uuid>", methods=["GET"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def get_election(election: Election) -> Response:
     """
     Route for get a election by uuid
@@ -117,7 +114,7 @@ def get_elections(current_user: User):
     """
 
     elections = Election.filter_by(
-        schema=election_schema, admin_id=current_user.get_id()
+        admin_id=current_user.get_id()
     )
     result = [Election.to_dict(schema=election_schema, obj=e) for e in elections]
     return make_response(jsonify(result), 200)
@@ -125,7 +122,7 @@ def get_elections(current_user: User):
 
 @app.route("/edit-election/<election_uuid>", methods=["POST"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def edit_election(election: Election) -> Response:
     """
     Route for edit a election
@@ -138,14 +135,13 @@ def edit_election(election: Election) -> Response:
     if form.validate():
         if (
             Election.get_by_short_name(
-                schema=election_schema, short_name=form.short_name.data
+                short_name=form.short_name.data
             )
             and election.short_name != form.short_name.data
         ):
             return make_response({"message": "La elección ya existe"}, 400)
 
-        election = Election.update_or_create(
-            schema=election_schema,
+        Election.update_or_create(
             uuid=election.uuid,
             short_name=data["short_name"],
             name=data["name"],
@@ -157,7 +153,7 @@ def edit_election(election: Election) -> Response:
             private_p=data["private_p"],
             normalization=data["normalization"],
         )
-        election.save()
+        PsifosModel.commit()
         return make_response(
             jsonify(
                 {
@@ -174,7 +170,7 @@ def edit_election(election: Election) -> Response:
 
 @app.route("/create-questions/<election_uuid>", methods=["POST"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def create_questions(election: Election) -> Response:
     """
     Route for create questions
@@ -184,13 +180,13 @@ def create_questions(election: Election) -> Response:
     data = request.get_json()
     questions = Questions(*data["question"])
     election.questions = questions
-    election.save()
+    PsifosModel.commit()
     return make_response(jsonify({"message": "Preguntas creadas con exito!"}), 200)
 
 
 @app.route("/get-questions/<election_uuid>", methods=["GET"])
 @token_required
-@election_route(election_schema=election_schema, deserialize_election=True)
+@election_route()
 def get_questions(election: Election) -> response:
     """
     Route for get questions
@@ -203,13 +199,12 @@ def get_questions(election: Election) -> response:
             {"message": "Esta eleccion no tiene preguntas definidas!"}, 200
         )
 
-    json_questions = Questions.serialize(election.questions)
-    return make_response(json_questions, 200)
+    return make_response(election.questions, 200)
 
 
 @app.route("/<election_uuid>/send-voters", methods=["POST"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def send_voters(election: Election) -> Response:
     """
     Route for send voters
@@ -222,51 +217,49 @@ def send_voters(election: Election) -> Response:
     data = [x.split(",") for x in strip_lines]
     total_voters = len(data)
     for voter in data:
-        a_voter = Voter.update_or_create(
-            schema=voter_schema,
+        voter = Voter.update_or_create(
             election_id=election.id,
             uuid=str(uuid.uuid1()),
             voter_login_id=voter[0],
             voter_name=voter[1],
             voter_weight=voter[2],
         )
-        a_voter.save()
-        a_cast_vote = CastVote.update_or_create(
-            schema=cast_vote_schema,
-            voter_id=a_voter.id,
+        CastVote.update_or_create(
+            voter_id=voter.id
         )
-        a_cast_vote.save()
-
+        PsifosModel.commit()
     election.total_voters = total_voters
-    election.save()
     return make_response(jsonify({"message": "Votantes creados con exito!"}), 200)
 
 
 @app.route("/<election_uuid>/get-voters", methods=["GET"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def get_voters(election: Election) -> Response:
     """
     Route for get voters
     Require a valid token to access >>> token_required
     """
 
-    voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
+    voters = Voter.filter_by(election_id=election.id)
     result = [Voter.to_dict(schema=voter_schema, obj=e) for e in voters]
     return make_response(jsonify(result), 200)
 
 
 @app.route("/<election_uuid>/delete-voters", methods=["POST"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def delete_voters(election: Election) -> Response:
     """
     Route for delete voters
     Require a valid token to access >>> token_required
     """
 
-    voters = Voter.filter_by(schema=voter_schema, election_id=election.id)
-    list(map(lambda x: x.delete(), voters))
+    voters = Voter.filter_by(election_id=election.id)
+    for v in voters:
+        PsifosModel.delete(v)
+    
+    PsifosModel.commit()
     return make_response(jsonify({"message": "Votantes eliminados con exito!"}), 200)
 
 
@@ -278,8 +271,8 @@ def resume(current_user: User, election_uuid: str) -> Response:
     Require a valid token to access >>> token_required
     """
     try:
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
-        voters_election = Voter.filter_by(schema=voter_schema, election_id=election.id)
+        election = Election.get_by_uuid(uuid=election_uuid)
+        voters_election = Voter.filter_by(election_id=election.id)
         if election.admin_id == current_user.get_id():
             count_weight = (
                 Voter.query.with_entities(
@@ -304,7 +297,7 @@ def resume(current_user: User, election_uuid: str) -> Response:
 
 @app.route("/<election_uuid>/openreg", methods=["POST"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def openreg(election: Election) -> Response:
     """
     Route for open election
@@ -313,13 +306,14 @@ def openreg(election: Election) -> Response:
 
     data = request.get_json()
     election.openreg = data["openreg"]
-    election.save()
+    PsifosModel.add(election)
+    PsifosModel.commit()
     return make_response(jsonify({"message": "Elección reanudada con exito!"}), 200)
 
 
 @app.route("/<election_uuid>/start-election", methods=["POST"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def start_election(election: Election) -> Response:
     """
     Route for starting an election, once it happens the election
@@ -328,16 +322,8 @@ def start_election(election: Election) -> Response:
     Require a valid token to access >>> token_required
     """
     try:
-        trustees = Trustee.get_by_election(
-            schema=trustee_schema,
-            election_id=election.id,
-            deserialize=True 
-        )
-        voters = Voter.get_by_election(
-            schema=voter_schema,
-            election_id=election.id,
-            deserialize=False
-        )
+        trustees = Trustee.get_by_election(election_id=election.id)
+        voters = Voter.get_by_election(election_id=election.id)
         election.start(trustees=trustees, voters=voters)
         return make_response(jsonify({"message": "Eleccion iniciada con exito!"}), 200)
     
@@ -347,7 +333,7 @@ def start_election(election: Election) -> Response:
 
 @app.route("/<election_uuid>/end-election", methods=["POST"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def end_election(election: Election) -> Response:
     """
     Route for ending an election, once it happens no voter
@@ -356,11 +342,7 @@ def end_election(election: Election) -> Response:
     Require a valid token to access >>> token_required
     """
     try:
-        voters = Voter.get_by_election(
-            schema=voter_schema,
-            election_id=election.id,
-            deserialize=False
-        )
+        voters = Voter.get_by_election(election_id=election.id)
         not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
         election.end(voters=not_null_voters)
         return make_response(jsonify({"message": "Eleccion terminada con exito!"}), 200)
@@ -371,7 +353,7 @@ def end_election(election: Election) -> Response:
 
 @app.route("/<election_uuid>/compute-tally", methods=["POST"])
 @token_required
-@election_route(election_schema=election_schema)
+@election_route()
 def compute_tally(election: Election) -> Response:
     """
     Route for freezing an election
@@ -387,7 +369,7 @@ def compute_tally(election: Election) -> Response:
 
 @app.route("/<election_uuid>/cast-vote", methods=["POST"])
 @auth_requires
-@voter_cas(election_schema=election_schema, deserialize_election=True, voter_schema=voter_schema)
+@voter_cas()
 def cast_vote(election: Election, voter: Voter) -> Response:
     """
     Route for casting a vote
@@ -402,7 +384,14 @@ def cast_vote(election: Election, voter: Voter) -> Response:
     data = route_utils.from_json(request.get_json())
     enc_vote_data = route_utils.from_json(data["encrypted_vote"])
     encrypted_vote = EncryptedVote(**enc_vote_data)
-    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(obj=encrypted_vote))
+
+    if not encrypted_vote.verify(election):
+        voter.cast_vote.invalid_cast_votes += 1
+        PsifosModel.add(voter)
+        PsifosModel.commit()
+        return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
+
+    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
     cast_ip = request.headers.getlist("X-Forwarded-For")[0] if ("X-Forwarded-For" in request.headers) else request.remote_addr
     ip_fingerprint = crypto_utils.hash_b64(cast_ip)
 
@@ -412,25 +401,13 @@ def cast_vote(election: Election, voter: Voter) -> Response:
         "vote_hash": vote_fingerprint,
         "cast_at": datetime.now(),
         "cast_ip": cast_ip,
-        "ip_fingerprint": ip_fingerprint
+        "ip_fingerprint": ip_fingerprint,
     }
 
-    cast_vote = CastVote.update_or_create(schema=cast_vote_schema, **cv_params)
-    valid_cast_vote = cast_vote.verify(election)
-    PsifosModel.discard_changes(election)
-
-    if valid_cast_vote:
-        cast_vote.valid_cast_votes += 1
-        cast_vote.save()
-        return make_response(jsonify({"message": "Voto registrado con exito."}), 200)
-
-    else:
-        PsifosModel.discard_changes(cast_vote)
-        cast_vote = CastVote.get_by_voter_id(schema=cast_vote_schema, voter_id=voter.id)
-        cast_vote.invalid_cast_votes += 1
-        cast_vote.save()
-        return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
-
+    cast_vote = CastVote.update_or_create(**cv_params)
+    cast_vote.valid_cast_votes += 1
+    PsifosModel.commit()
+    return make_response(jsonify({"message": "Voto registrado con exito."}), 200)
 
         
 
@@ -446,7 +423,7 @@ def cast_vote(election: Election, voter: Voter) -> Response:
 
 @app.route("/<election_uuid>/questions")
 @auth_requires
-@voter_cas(election_schema=election_schema, voter_schema=voter_schema)
+@voter_cas()
 def get_questions_voters(election: Election, voter: Voter) -> Response:
     """
     Route for get questions
@@ -455,8 +432,7 @@ def get_questions_voters(election: Election, voter: Voter) -> Response:
     """
 
     result = Election.to_dict(schema=election_schema, obj=election)
-    response = create_response_cors(make_response(result, 200))
-    return response
+    return create_response_cors(make_response(result, 200))
 
 
 # Trustee Routes
@@ -471,20 +447,18 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
     """
     try:
         data = request.get_json()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            trustee = Trustee.update_or_create(
-                schema=trustee_schema,
+            Trustee.update_or_create(
                 election_id=election.id,
                 uuid=str(uuid.uuid1()),
                 name=data["name"],
-                trustee_id=Trustee.get_next_trustee_id(trustee_schema, election.id),
+                trustee_id=Trustee.get_next_trustee_id(election.id),
                 trustee_login_id=data["trustee_login_id"],
                 email=data["email"],
             )
-            trustee.save()
             election.total_trustees += 1
-            election.save()
+            PsifosModel.commit()
             return make_response(jsonify({"message": "Creado con exito!"}), 200)
         else:
             return make_response(
@@ -504,9 +478,9 @@ def delete_trustee(current_user: User, election_uuid: str) -> Response:
     """
     try:
         data = request.get_json()
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=data["uuid"])
+            trustee = Trustee.get_by_uuid(uuid=data["uuid"])
             trustee.delete()
             return make_response(jsonify({"message": "Eliminado con exito!"}), 200)
         else:
@@ -526,9 +500,9 @@ def get_trustees(current_user: User, election_uuid: str) -> Response:
     Require a valid token to access >>> token_required
     """
     try:
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(uuid=election_uuid)
         if election.admin_id == current_user.get_id():
-            trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id)
+            trustees = Trustee.filter_by(election_id=election.id)
             result = [Trustee.to_dict(schema=trustee_schema, obj=e) for e in trustees]
             response = make_response(jsonify(result), 200)
             return response
@@ -547,7 +521,7 @@ def get_trustee(trustee_uuid):
     Route for get trustee
     """
     try:
-        trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=trustee_uuid)
+        trustee = Trustee.get_by_uuid(uuid=trustee_uuid)
         response = make_response(
             jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
         )
@@ -559,7 +533,7 @@ def get_trustee(trustee_uuid):
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/home", methods=["GET"])
 @auth_requires
-@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+@trustee_cas()
 def get_trustee_home(election, trustee):
     """
     Route for get trustee home
@@ -567,14 +541,17 @@ def get_trustee_home(election, trustee):
     """
 
     response = create_response_cors(
-        make_response(jsonify({"election": Election.to_dict(schema=election_schema, obj=election), "trustee": Trustee.to_dict(schema=trustee_schema, obj=trustee)}), 200)
+        make_response(jsonify({
+            "election": Election.to_dict(schema=election_schema, obj=election), 
+            "trustee": Trustee.to_dict(schema=trustee_schema, obj=trustee)
+        }), 200)
     )
     return response
 
 
 @app.route("/<election_uuid>/get-randomness", methods=["GET"])
 @auth_requires
-@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+@trustee_cas()
 def get_randomness(election: Election, trustee: Trustee) -> Response:
     """
     Get some randomness to sprinkle into the sjcl entropy pool
@@ -595,14 +572,14 @@ def get_randomness(election: Election, trustee: Trustee) -> Response:
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/get-step", methods=["GET"])
 @auth_requires
-@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+@trustee_cas()
 def get_step(election: Election, trustee: Trustee) -> Response:
     """
     Get the step of the trustee
     """
 
     trustee_step = Trustee.get_global_trustee_step(
-        schema=trustee_schema, election_id=election.id
+        election_id=election.id
     )
 
     return create_response_cors(
@@ -624,7 +601,7 @@ def election_get_eg_params(election_uuid: str) -> Response:
     Returns a JSON with the election eg_params.
     """
     try:
-        election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+        election = Election.get_by_uuid(uuid=election_uuid)
         eg_params = election.get_eg_params()
         return create_response_cors(make_response(eg_params, 200))
 
@@ -640,13 +617,13 @@ def election_get_eg_params(election_uuid: str) -> Response:
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/upload-pk", methods=["POST"])
 @auth_requires
-@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+@trustee_cas()
 def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
     """
     Upload public key of trustee
     """
 
-    trustee = Trustee.get_by_uuid(schema=trustee_schema, uuid=trustee.uuid)
+    trustee = Trustee.get_by_uuid(uuid=trustee.uuid)
 
     body = request.get_json()
     public_key_and_proof = route_utils.from_json(body["public_key_json"])
@@ -660,7 +637,8 @@ def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
 
     # as uploading the pk is the "step 0", we need to update the current_step
     trustee.current_step = 1
-    trustee.save()
+    PsifosModel.add(trustee)
+    PsifosModel.commit()
 
     return create_response_cors(
         make_response(
@@ -671,13 +649,13 @@ def trustee_upload_pk(election: Election, trustee: Trustee) -> Response:
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step-1", methods=["GET", "POST"])
 @auth_requires
-@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+@trustee_cas()
 def trustee_step_1(election: Election, trustee: Trustee) -> Response:
     """
     Step 1 of the keygenerator trustee
     """
     global_trustee_step = Trustee.get_global_trustee_step(
-        schema=trustee_schema, election_id=election.id
+        election_id=election.id
     )
     if global_trustee_step != 1:
         return create_response_cors(
@@ -699,7 +677,7 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
 
         # TODO: perform server-side checks here!
         t_sent_points = SharedPoint.get_by_sender(
-            schema=shared_point_schema, sender=trustee.trustee_id
+            sender=trustee.trustee_id
         )
         for point in t_sent_points:
             point.delete()
@@ -711,11 +689,11 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
                 recipient=i + 1,
                 point=points[i],
             )
-
-            obj.save()
+            PsifosModel.add(obj)
         trustee.coefficients = coefficients
         trustee.current_step = 2  # trustee completed step 1 and now is ready for step 2
-        trustee.save()
+        PsifosModel.add(trustee)
+        PsifosModel.commit()
 
         return create_response_cors(
             make_response(jsonify({"message": "Step 1 completado con exito!"}), 200)
@@ -725,10 +703,10 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
         try:
             params = election.get_eg_params()
             trustees = Trustee.filter_by(
-                schema=trustee_schema, election_id=election.id, deserialize=True
+                election_id=election.id
             )
             certificates = [
-                sharedpoint.Certificate.serialize(obj=t.certificate, to_json=False)
+                sharedpoint.Certificate.serialize(t.certificate, to_json=False)
                 for t in trustees
             ]
             assert None not in certificates
@@ -756,14 +734,14 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step-2", methods=["GET", "POST"])
 @auth_requires
-@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+@trustee_cas()
 def trustee_step_2(election: Election, trustee: Trustee) -> Response:
     """
     Step 2 of the keygenerator trustee
     """
 
     global_trustee_step = Trustee.get_global_trustee_step(
-        schema=trustee_schema, election_id=election.id
+        election_id=election.id
     )
     if global_trustee_step != 2:
         return create_response_cors(
@@ -781,7 +759,8 @@ def trustee_step_2(election: Election, trustee: Trustee) -> Response:
         # TODO: perform server-side checks here!
         trustee.acknowledgements = acks
         trustee.current_step = 3  # trustee completed step 2 and now is ready for step 3
-        trustee.save()
+        PsifosModel.add(trustee)
+        PsifosModel.commit()
 
         return create_response_cors(
             make_response(jsonify({"message": "Step 2 completado con exito!"}), 200)
@@ -790,15 +769,20 @@ def trustee_step_2(election: Election, trustee: Trustee) -> Response:
     if request.method == "GET":
         try:
             params = election.get_eg_params()
-            trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id)
-            coefficents = [route_utils.from_json(t.coefficients) for t in trustees]
-            assert None not in coefficents
+            trustees = Trustee.filter_by(election_id=election.id)
+            coefficients = [
+                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False)
+                for t in trustees
+            ]
+            assert None not in coefficients
 
-            certificates = [route_utils.from_json(t.certificate) for t in trustees]
+            certificates = [
+                sharedpoint.Certificate.serialize(t.certificate, to_json=False)
+                for t in trustees
+            ]
             assert None not in certificates
 
             points = SharedPoint.format_points_sent_to(
-                schema=shared_point_schema,
                 election_id=election.id,
                 trustee_id=trustee.trustee_id,
             )
@@ -809,7 +793,7 @@ def trustee_step_2(election: Election, trustee: Trustee) -> Response:
                         {
                             "params": params,
                             "certificates": route_utils.to_json(certificates),
-                            "coefficients": route_utils.to_json(coefficents),
+                            "coefficients": route_utils.to_json(coefficients),
                             "points": route_utils.to_json(points),
                         }
                     ),
@@ -817,7 +801,8 @@ def trustee_step_2(election: Election, trustee: Trustee) -> Response:
                 )
             )
 
-        except:
+        except Exception as e:
+            print(e)
             return create_response_cors(
                 make_response(
                     jsonify(
@@ -830,14 +815,14 @@ def trustee_step_2(election: Election, trustee: Trustee) -> Response:
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/step-3", methods=["GET", "POST"])
 @auth_requires
-@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+@trustee_cas()
 def trustee_step_3(election: Election, trustee: Trustee) -> Response:
     """
     Step 3 of the keygenerator trustee
     """
 
     global_trustee_step = Trustee.get_global_trustee_step(
-        schema=trustee_schema, election_id=election.id
+        election_id=election.id
     )
     if global_trustee_step != 3:
         return create_response_cors(
@@ -858,7 +843,8 @@ def trustee_step_3(election: Election, trustee: Trustee) -> Response:
         trustee.current_step = (
             4  # trustee completed step 3 so the process is completed (step 4)
         )
-        trustee.save()
+        PsifosModel.add(trustee)
+        PsifosModel.commit()
 
         return create_response_cors(
             make_response(jsonify({"message": "Step 3 completado con exito!"}), 200)
@@ -867,29 +853,34 @@ def trustee_step_3(election: Election, trustee: Trustee) -> Response:
     if request.method == "GET":
         try:
             params = election.get_eg_params()
-            trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id)
+            trustees = Trustee.filter_by(election_id=election.id)
 
-            coefficients = [route_utils.from_json(t.coefficients) for t in trustees]
+            coefficients = [
+                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False)
+                for t in trustees
+            ]
             assert None not in coefficients
 
             acks_trustees = [
-                route_utils.from_json(t.acknowledgements) for t in trustees
+                sharedpoint.ListOfSignatures.serialize(t.acknowledgements, to_json=False) 
+                for t in trustees
             ]
             assert None not in acks_trustees
             ack_indx = trustee.trustee_id - 1
             acknowledgements = [acks[ack_indx] for acks in acks_trustees]
 
-            certificates = [route_utils.from_json(t.certificate) for t in trustees]
+            certificates = [
+                sharedpoint.Certificate.serialize(t.certificate, to_json=False)
+                for t in trustees
+            ]
             assert None not in certificates
 
             points = SharedPoint.format_points_sent_to(
-                schema=shared_point_schema,
                 election_id=election.id,
                 trustee_id=trustee.trustee_id,
             )
 
             points_sent = SharedPoint.format_points_sent_by(
-                schema=shared_point_schema,
                 election_id=election.id,
                 trustee_id=trustee.trustee_id,
             )
@@ -923,7 +914,7 @@ def trustee_step_3(election: Election, trustee: Trustee) -> Response:
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/check-sk", methods=["GET"])
 @auth_requires
-@trustee_cas(election_schema=election_schema, trustee_schema=trustee_schema)
+@trustee_cas()
 def trustee_check_sk(election: Election, trustee: Trustee) -> Response:
     """
     Trustee Stage 2
@@ -932,8 +923,8 @@ def trustee_check_sk(election: Election, trustee: Trustee) -> Response:
         make_response(
             jsonify(
                 {
-                    "election": Election.to_json(schema=election_schema, obj=election),
-                    "trustee": Trustee.to_json(schema=trustee_schema, obj=trustee)
+                    "election": Election.to_json(obj=election),
+                    "trustee": Trustee.to_json(obj=trustee)
                 }
             ),
             200,
@@ -944,9 +935,7 @@ def trustee_check_sk(election: Election, trustee: Trustee) -> Response:
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/decrypt-and-prove", methods=["GET", "POST"])
 @auth_requires
 @trustee_cas(
-    election_schema=election_schema,
     deserialize_election=True,
-    trustee_schema=trustee_schema,
 )
 def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
     """
@@ -982,7 +971,8 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
             trustee.open_answers_decryption_proofs = proofs["open_answers"]
 
         if trustee.verify_decryption_proofs(election):
-            trustee.save()
+            PsifosModel.add(trustee)
+            PsifosModel.commit()
 
         else:
             return create_response_cors(
@@ -996,10 +986,9 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
 
     elif request.method == "GET":
         params = election.get_eg_params()
-        trustees = Trustee.filter_by(schema=trustee_schema, election_id=election.id)
+        trustees = Trustee.filter_by(election_id=election.id)
         certificates = [route_utils.from_json(t.certificate) for t in trustees]
         points = SharedPoint.format_points_sent_to(
-            schema=shared_point_schema,
             election_id=election.id,
             trustee_id=trustee.trustee_id,
         )
@@ -1008,7 +997,7 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
                 jsonify(
                     {
                         "params": params,
-                        "election": Election.to_json(schema=election_schema, obj=election),
+                        "election": Election.to_json(obj=election),
                         "certificates": route_utils.to_json(certificates),
                         "points": route_utils.to_json(points),
                     }

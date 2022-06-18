@@ -1,27 +1,15 @@
-from psifos import config
-from operator import and_
-from os import abort
-from subprocess import call
-from sqlalchemy import true
-from werkzeug.security import generate_password_hash
-from functools import update_wrapper, wraps
-from flask import request, jsonify, session, redirect, make_response
-from psifos import app, db
-from requests_oauthlib import OAuth2Session
-from psifos.psifos_auth.models import User
-from psifos.psifos_auth.schemas import UserSchema
-from psifos.models import Election, Trustee, Voter
-
 import jwt
 import uuid
 
+from psifos import config
+from werkzeug.security import generate_password_hash
+from functools import update_wrapper, wraps
+from flask import request, jsonify, session, make_response
+from psifos import app, db
+from requests_oauthlib import OAuth2Session
+from psifos.psifos_auth.models import User
+from psifos.models import Election, Trustee, Voter
 from psifos.models import Voter
-from psifos.schemas import (
-    election_schema,
-    voter_schema,
-    trustee_schema,
-)
-from psifos.psifos_auth.schemas import user_schema
 
 
 def token_required(f):
@@ -41,10 +29,7 @@ def token_required(f):
 
         try:
             data = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
-            user_schema = UserSchema()
-            current_user = User.get_by_public_id(
-                schema=user_schema, public_id=data["public_id"]
-            )
+            current_user = User.get_by_public_id(public_id=data["public_id"])
 
         except Exception as e:
             return make_response(jsonify({"message": "token is invalid"}), 401)
@@ -60,19 +45,13 @@ def election_route(**kwargs):
 
     """
 
-    election_schema = kwargs.get("election_schema", None)
     admin_election = kwargs.get("admin_election", True)
-    deserialize_election = kwargs.get("deserialize_election", False)
 
     def election_route_decorator(f):
         def election_route_wrapper(
             current_user=None, election_uuid=None, *args, **kwargs
         ):
-            election = Election.get_by_uuid(
-                schema=election_schema,
-                uuid=election_uuid,
-                deserialize=deserialize_election,
-            )
+            election = Election.get_by_uuid(uuid=election_uuid)
             if not election:
                 return jsonify({"message": "election not found"})
             if admin_election and election.admin_id != current_user.id:
@@ -106,29 +85,18 @@ def voter_cas(**kwargs):
 
     """
 
-    election_schema = kwargs.get("election_schema", None)
-    deserialize_election = kwargs.get("deserialize_election", False)
-    voter_schema = kwargs.get("voter_schema", None)
-    deserialize_voter = kwargs.get("deserialize_voter", False)
-
     def voter_cas_decorator(f):
         def voter_cas_wrapper(user_session=None, election_uuid=None, *args, **kwargs):
 
             try:
-                election = Election.get_by_uuid(
-                    schema=election_schema,
-                    uuid=election_uuid,
-                    deserialize=deserialize_election,
-                )
+                election = Election.get_by_uuid(uuid=election_uuid,)
 
                 voter = Voter.get_by_login_id_and_election(
-                    schema=voter_schema,
                     voter_login_id=user_session,
                     election_id=election.id,
-                    deserialize=deserialize_voter
                 )
 
-                if not verify_voter(election, voter, voter_schema):
+                if not verify_voter(election, voter):
                     response = create_response_cors(
                         make_response(
                             jsonify(
@@ -165,30 +133,19 @@ def trustee_cas(**kwargs):
 
     """
 
-    election_schema = kwargs.get("election_schema", None)
-    trustee_schema = kwargs.get("trustee_schema", None)
-    deserialize_election = kwargs.get("deserialize_election", None)
-    deserialize_trustee = kwargs.get("deserialize_trustee", None)
-
     def trustee_cas_decorator(f):
         def trustee_cas_wrapper(
             user_session=None, election_uuid=None, trustee_uuid=None, *args, **kwargs
         ):
             try:
-                election = Election.get_by_uuid(
-                    schema=election_schema,
-                    uuid=election_uuid,
-                    deserialize=deserialize_election,
-                )
+                election = Election.get_by_uuid(uuid=election_uuid)
 
                 trustee = Trustee.get_by_login_id_and_election(
-                    schema=trustee_schema,
                     trustee_login_id=user_session,
                     election_id=election.id,
-                    deserialize=deserialize_trustee,
                 )
 
-                if not verify_trustee(election, trustee, trustee_schema):
+                if not verify_trustee(election, trustee):
                     response = create_response_cors(
                         make_response(
                             jsonify(
@@ -244,7 +201,7 @@ def create_user(username: str, password: str) -> str:
     return "Usuario creado"
 
 
-def verify_voter(election, voter, voter_schema):
+def verify_voter(election, voter):
     """
     Verify if the voter is registered in the election
 
@@ -263,7 +220,6 @@ def verify_voter(election, voter, voter_schema):
     if not voter:
         if voter_login_id[-10:] == "@uchile.cl":
             voter = Voter.get_by_login_id_and_election(
-                schema=voter_schema,
                 voter_login_id=voter_login_id[:-10],
                 election_id=election.id,
             )
@@ -274,7 +230,7 @@ def verify_voter(election, voter, voter_schema):
     return True
 
 
-def verify_trustee(election, trustee, trustee_schema):
+def verify_trustee(election, trustee):
     """
     Verify if the trustee is registered in the election
     """
@@ -286,7 +242,6 @@ def verify_trustee(election, trustee, trustee_schema):
     if not trustee:
         if trustee_login_id[-10:] == "@uchile.cl":
             trustee = Trustee.get_by_login_id_and_election(
-                schema=trustee_schema,
                 trustee_login_id=trustee_login_id[:-10],
                 election_id=election.id,
             )

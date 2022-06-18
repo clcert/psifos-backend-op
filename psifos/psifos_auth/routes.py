@@ -1,26 +1,10 @@
-from psifos import app
-from psifos import config
-from psifos.models import Election, Trustee
-from psifos.psifos_auth.auth_model import Auth, CASAuth
-from psifos.models import Election, Trustee
-from psifos.psifos_auth.models import User
-from psifos.psifos_auth.schemas import UserSchema
-from psifos.routes import election_schema, trustee_schema
-
-
-from werkzeug.security import check_password_hash
-
-from flask_cors import cross_origin
-from flask.wrappers import Response
-from flask import request, jsonify, make_response, redirect, session
-
 import jwt
-
-from psifos.schemas import (
-    election_schema,
-    trustee_schema,
-)
-from psifos.psifos_auth.schemas import user_schema
+from flask import make_response, request
+from flask.wrappers import Response
+from psifos import app, config
+from psifos.psifos_auth.auth_model import Auth, CASAuth
+from psifos.psifos_auth.models import User
+from werkzeug.security import check_password_hash
 
 auth_factory = Auth()
 protocol = config["AUTH"]["type_auth"]
@@ -37,7 +21,7 @@ def login_user() -> Response:
     if not auth or not auth.username or not auth.password:
         return make_response({"message": "Ocurrio un error, intente nuevamente"}, 401)
 
-    user = User.get_by_name(schema=user_schema, name=auth.username)
+    user = User.get_by_name(name=auth.username)
 
     if not user:
         return make_response({"message": "Usuario o contraseñas incorrectos"}, 401)
@@ -80,7 +64,7 @@ def login_trustee(election_uuid: str) -> Response:
     """
     
     auth = auth_factory.get_auth(protocol)
-    return auth.login_trustee(election_uuid, election_schema, trustee_schema)
+    return auth.login_trustee(election_uuid)
 
 
 

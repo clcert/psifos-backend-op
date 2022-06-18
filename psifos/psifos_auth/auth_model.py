@@ -46,7 +46,6 @@ class CASAuth:
         )
 
     def redirect_cas(self, redirect_url):
-
         """
         Redirects to the CAS server
 
@@ -93,14 +92,13 @@ class CASAuth:
         response.set_cookie("session", expires=0)
         return response
 
-    def login_trustee(self, election_uuid: str, election_schema, trustee_schema):
+    def login_trustee(self, election_uuid: str):
 
         cookie = request.cookies.get("session")
 
         if "username" in session:
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+            election = Election.get_by_uuid(uuid=election_uuid)
             trustee = Trustee.get_by_login_id_and_election(
-                schema=trustee_schema,
                 trustee_login_id=session["username"],
                 election_id=election.id,
             )
@@ -134,9 +132,8 @@ class CASAuth:
             return make_response({"message": "ERROR"}, 401)
         else:
             session["username"] = user
-            election = Election.get_by_uuid(schema=election_schema, uuid=election_uuid)
+            election = Election.get_by_uuid(uuid=election_uuid)
             trustee = Trustee.get_by_login_id_and_election(
-                schema=trustee_schema,
                 trustee_login_id=session["username"],
                 election_id=election.id,
             )
@@ -176,7 +173,6 @@ class CASAuth:
 
 class OAuth2Auth:
     def __init__(self) -> None:
-
         """
         Class responsible for solving the logic of
         authentication with the OAUTH2 protocol
@@ -217,11 +213,9 @@ class OAuth2Auth:
             "https://cas.labs.clcert.cl/oauth/revoke_token?token=NW0ynxy0paUfPZ1YfvWU6wr7SFJZlm&client_id=Vro0Bd2MoRKEg4Lxn9mc8bySKlMAlbgObf2UeXuY&client_secret=pWegIkGmtVIdfqIsBo3lwuKiAygusL1NbpzT7nzyN6ArfVfEhwglpkD753VzfslAlXQ3vEMYJysUKjxsdsmPlELBnkfA560MhX9lwMyKW3ZKgUNebRQHF5NIu91U2qK6"
         )
 
-    def login_trustee(self, election_uuid: str, election_schema, trustee_schema):
+    def login_trustee(self, election_uuid: str):
 
         self.election_uuid = election_uuid
-        self.election_schema = election_schema
-        self.trustee_schema = trustee_schema
         self.type_logout = "trustee"
         client = OAuth2Session(
             client_id=self.client_id,
@@ -261,10 +255,9 @@ class OAuth2Auth:
         elif self.type_logout == "trustee":
 
             election = Election.get_by_uuid(
-                schema=self.election_schema, uuid=self.election_uuid
+                uuid=self.election_uuid
             )
             trustee = Trustee.get_by_login_id_and_election(
-                schema=self.trustee_schema,
                 trustee_login_id=get_user(),
                 election_id=election.id,
             )

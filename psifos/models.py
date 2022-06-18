@@ -5,18 +5,25 @@ SQLAlchemy Models for Psifos.
 """
 
 from __future__ import annotations
+
 import datetime
 import functools
 import json
 
+import psifos.utils as utils
 from psifos import db
+from psifos.crypto.elgamal import (DecryptionFactors, DecryptionProofs,
+                                   ElGamal, PublicKey,
+                                   fiatshamir_challenge_generator)
+from psifos.crypto.sharedpoint import (Certificate, ListOfCoefficients,
+                                       ListOfSignatures, Point)
+from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.crypto.tally.tally import TallyManager
+from psifos.custom_fields.enums import ElectionTypeEnum
+from psifos.custom_fields.sqlalchemy import SerializableField
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
-from psifos.enums import ElectionTypeEnum
-from psifos.crypto.elgamal import ElGamal, fiatshamir_challenge_generator
-
-import psifos.utils as utils
+from psifos.psifos_object.questions import Questions
 
 
 class Election(PsifosModel, db.Model):
@@ -32,9 +39,9 @@ class Election(PsifosModel, db.Model):
     private_p = db.Column(db.Boolean, default=False, nullable=False)
     description = db.Column(db.Text)
 
-    public_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGPublicKey
+    public_key = db.Column(SerializableField(PublicKey), nullable=True)
     private_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
-    questions = db.Column(db.Text, nullable=True)   # PsifosObject: Questions
+    questions = db.Column(SerializableField(Questions), nullable=True)
     openreg = db.Column(db.Boolean, default=False)
 
     obscure_voter_names = db.Column(db.Boolean, default=False, nullable=False)
@@ -71,27 +78,27 @@ class Election(PsifosModel, db.Model):
         return '<Election %r>' % self.name
 
     @classmethod
-    def get_by_short_name(cls, schema, short_name, deserialize=False) -> Election:
-        query = cls.filter_by(schema=schema, short_name=short_name, deserialize=deserialize)
+    def get_by_short_name(cls, short_name) -> Election:
+        query = cls.filter_by(short_name=short_name)
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def get_by_uuid(cls, schema, uuid, deserialize=False):
-        query = cls.filter_by(schema=schema, uuid=uuid, deserialize=deserialize)
+    def get_by_uuid(cls, uuid):
+        query = cls.filter_by(uuid=uuid)
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def update_or_create(cls, schema, **kwargs):
+    def update_or_create(cls, **kwargs):
         election = cls.get_by_uuid(
-            schema=schema,
-            uuid=kwargs['uuid'],
-            deserialize=True
+            uuid=kwargs['uuid']
         )
         if election is not None:
             for key, value in kwargs.items():
                 setattr(election, key, value)
         else:
             election = cls(**kwargs)
+        
+        PsifosModel.add(election)
         return election
 
     def get_eg_params(self, serialize=True):
@@ -115,23 +122,23 @@ class Election(PsifosModel, db.Model):
 
         t_first_coefficients = [t.coefficients.instances[0].coefficient for t in trustees]
         
-        # MUST discard changes done to trustee instances due to deserializarion before calling 
-        # .save() method for any PsifosModel instance, in this case Election.
-        Trustee.discard_changes(target=trustees, many=True)
-
         combined_pk = functools.reduce((lambda x, y: x*y), t_first_coefficients)
         self.public_key = trustees[0].public_key.clone_with_new_y(combined_pk)
 
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
         self.voters_by_weight_init = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
-        self.save()
+        
+        PsifosModel.add(self)
+        PsifosModel.commit()
     
     def end(self, voters):
         self.voting_ended_at = datetime.datetime.utcnow()
 
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
         self.votes_by_weight_final = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
-        self.save()
+        
+        PsifosModel.add(self)
+        PsifosModel.commit()
 
 
     def compute_tally(self):
@@ -169,37 +176,31 @@ class Voter(PsifosModel, db.Model):
     cast_vote = db.relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
 
     @classmethod
-    def get_by_login_id_and_election(cls, schema, voter_login_id, election_id, deserialize=False):
+    def get_by_login_id_and_election(cls, voter_login_id, election_id):
         query = cls.filter_by(
-            schema=schema,
             voter_login_id=voter_login_id,
-            election_id=election_id,
-            deserialize=deserialize,
+            election_id=election_id
         )
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def update_or_create(cls, schema, **kwargs):
+    def update_or_create(cls, **kwargs):
         voter = cls.get_by_login_id_and_election(
-            schema=schema,
             voter_login_id=kwargs["voter_login_id"],
-            election_id=kwargs["election_id"],
-            deserialize=True,
+            election_id=kwargs["election_id"]
         )
         if voter is not None:
             for key, value in kwargs.items():
                 setattr(voter, key, value)
         else:
             voter = cls(**kwargs)
+
+        PsifosModel.add(voter)
         return voter
     
     @classmethod
-    def get_by_election(cls, schema, election_id, deserialize=False):
-        return cls.filter_by(
-            schema=schema,
-            election_id=election_id,
-            deserialize=deserialize,
-        )
+    def get_by_election(cls, election_id):
+        return cls.filter_by(election_id=election_id)
     
 
 class CastVote(PsifosModel, db.Model):
@@ -208,7 +209,7 @@ class CastVote(PsifosModel, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     voter_id = db.Column(db.Integer, db.ForeignKey("psifos_voter.id"), unique=True)
     
-    vote = db.Column(db.Text, nullable=True)   # PsifosObject: EncryptedVote
+    vote = db.Column(SerializableField(EncryptedVote), nullable=True)
     vote_hash = db.Column(db.String(500), nullable=True)
     vote_tinyhash = db.Column(db.String(500), nullable=True)
 
@@ -223,27 +224,24 @@ class CastVote(PsifosModel, db.Model):
     invalidated_at = db.Column(db.DateTime, nullable=True)
 
     @classmethod
-    def get_by_voter_id(cls, schema, voter_id, deserialize=False):
-        query = cls.filter_by(schema=schema, voter_id=voter_id, deserialize=deserialize)
+    def get_by_voter_id(cls, voter_id):
+        query = cls.filter_by(voter_id=voter_id)
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def update_or_create(cls, schema, **kwargs):
-        cast_vote = cls.get_by_voter_id(
-            schema=schema,
-            voter_id=kwargs["voter_id"],
-            deserialize=True,
-        )
+    def update_or_create(cls, **kwargs):
+        cast_vote = cls.get_by_voter_id(voter_id=kwargs["voter_id"])
         if cast_vote is not None:
+            print("Encontro un cast_vote para", kwargs["voter_id"])
             for key, value in kwargs.items():
                 setattr(cast_vote, key, value)
         else:
+            print("No encontro un cast_vote para", kwargs["voter_id"])
             cast_vote = cls(**kwargs)
+
+        PsifosModel.add(cast_vote)
         return cast_vote
     
-    def verify(self, election):
-        return self.vote.verify(election)
-
 
 
 class AuditedBallot(PsifosModel, db.Model):
@@ -272,71 +270,63 @@ class Trustee(PsifosModel, db.Model):
 
     current_step = db.Column(db.Integer, default=0)
 
-    public_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGPublicKey
+    public_key = db.Column(SerializableField(PublicKey), nullable=True)
     public_key_hash = db.Column(db.String(100), nullable=True)
     secret_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
     pok = db.Column(db.Text, nullable=True)  # PsifosObject: DLogProof
 
-    answers_decryption_factors = db.Column(db.Text, nullable=True)  # PsifosObject: Arrayof(Arrayof(BigInteger))
-    answers_decryption_proofs = db.Column(db.Text, nullable=True)  # PsifosObject: Arrayof(Arrayof(EGZKProof))
-    open_answers_decryption_factors = db.Column(db.Text, nullable=True)  # PsifosObject: Arrayof(Arrayof(BigInteger))
-    open_answers_decryption_proofs = db.Column(db.Text, nullable=True)  # PsifosObject: Arrayof(Arrayof(EGZKProof))
+    answers_decryption_factors = db.Column(SerializableField(DecryptionFactors), nullable=True)
+    answers_decryption_proofs = db.Column(SerializableField(DecryptionProofs), nullable=True)
+    open_answers_decryption_factors = db.Column(SerializableField(DecryptionFactors), nullable=True)
+    open_answers_decryption_proofs = db.Column(SerializableField(DecryptionProofs), nullable=True)
 
-    certificate = db.Column(db.Text, nullable=True)  # PsifosObject: Certificate
-    coefficients = db.Column(db.Text, nullable=True)  # PsifosObject: Coefficient
-    acknowledgements = db.Column(db.Text, nullable=True)  # PsifosObject: Signature
+    certificate = db.Column(SerializableField(Certificate), nullable=True)
+    coefficients = db.Column(SerializableField(ListOfCoefficients), nullable=True)
+    acknowledgements = db.Column(SerializableField(ListOfSignatures), nullable=True)
 
     @classmethod
-    def get_by_uuid(cls, schema, uuid, deserialize=False):
-        query = cls.filter_by(schema=schema, uuid=uuid, deserialize=deserialize)
+    def get_by_uuid(cls, uuid):
+        query = cls.filter_by(uuid=uuid)
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def get_by_login_id(cls, schema, trustee_login_id, deserialize=False):
-        query = cls.filter_by(schema=schema, trustee_login_id=trustee_login_id, deserialize=deserialize)
+    def get_by_login_id(cls, trustee_login_id):
+        query = cls.filter_by(trustee_login_id=trustee_login_id)
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def update_or_create(cls, schema, **kwargs):
-        trustee = cls.get_by_uuid(
-            schema=schema,
-            uuid=kwargs['uuid'],
-            deserialize=True,
-        )
+    def update_or_create(cls, **kwargs):
+        trustee = cls.get_by_uuid(uuid=kwargs['uuid'])
         if trustee is not None:
             for key, value in kwargs.items():
                 setattr(trustee, key, value)
         else:
             trustee = cls(**kwargs)
+
+        PsifosModel.add(trustee)
         return trustee
 
     @classmethod
-    def get_by_login_id_and_election(cls, schema, trustee_login_id, election_id, deserialize=False):
+    def get_by_login_id_and_election(cls, trustee_login_id, election_id):
         query = cls.filter_by(
-            schema=schema,
             trustee_login_id=trustee_login_id,
-            election_id=election_id,
-            deserialize=deserialize,
+            election_id=election_id
         )
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def get_next_trustee_id(cls, schema, election_id):
-        query = Trustee.filter_by(schema=schema, election_id=election_id)
+    def get_next_trustee_id(cls, election_id):
+        query = Trustee.filter_by(election_id=election_id)
         return 1 if len(query) == 0 else max(query, key=(lambda t: t.trustee_id)).trustee_id + 1
 
     @classmethod
-    def get_global_trustee_step(cls, schema, election_id):
-        trustee_steps = [t.current_step for t in Trustee.filter_by(schema=schema, election_id=election_id)]
+    def get_global_trustee_step(cls, election_id):
+        trustee_steps = [t.current_step for t in Trustee.filter_by(election_id=election_id)]
         return 0 if len(trustee_steps) == 0 else min(trustee_steps)
 
     @classmethod
-    def get_by_election(cls, schema, election_id, deserialize=False):
-        return cls.filter_by(
-            schema=schema,
-            election_id=election_id,
-            deserialize=deserialize,
-        )
+    def get_by_election(cls, election_id):
+        return cls.filter_by(election_id=election_id)
     
     def verify_decryption_proofs(self, election):
         """
@@ -360,25 +350,23 @@ class SharedPoint(PsifosModel, db.Model):
 
     sender = db.Column(db.Integer, nullable=False)
     recipient = db.Column(db.Integer, nullable=False)
-    point = db.Column(db.Text, nullable=True)  # SerializableField: Point
+    point = db.Column(SerializableField(Point), nullable=True)
 
     @classmethod
-    def get_by_sender(cls, schema, sender, deserialize=False,):
+    def get_by_sender(cls, sender):
         query = cls.filter_by(
-            schema=schema,
-            sender=sender,
-            deserialize=deserialize,
+            sender=sender
         )
         return query if len(query) > 0 else []
 
     @classmethod
-    def format_points_sent_to(cls, schema, election_id, trustee_id):
-        points = cls.filter_by(schema=schema, election_id=election_id, recipient=trustee_id)
+    def format_points_sent_to(cls, election_id, trustee_id):
+        points = cls.filter_by(election_id=election_id, recipient=trustee_id)
         points.sort(key=(lambda x: x.sender))
         return utils.format_points(points)
 
     @classmethod
-    def format_points_sent_by(cls, schema, election_id, trustee_id):
-        points = cls.filter_by(schema=schema, election_id=election_id, sender=trustee_id)
+    def format_points_sent_by(cls, election_id, trustee_id):
+        points = cls.filter_by(election_id=election_id, sender=trustee_id)
         points.sort(key=(lambda x: x.recipient))
         return utils.format_points(points)

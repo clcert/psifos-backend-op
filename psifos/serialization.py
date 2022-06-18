@@ -19,7 +19,7 @@ class SerializableList(object):
         self.instances = []
 
     @classmethod
-    def serialize(cls, s_list: SerializableList, to_json: bool = True) -> str:
+    def serialize(cls, s_list: SerializableList = None, to_json: bool = True) -> str:
         """ 
         Serializes an object to a JSON like string. 
         """
@@ -42,7 +42,7 @@ class SerializableList(object):
         return json.dumps(serialized_instances) if to_json else serialized_instances
 
     @classmethod
-    def deserialize(cls, json_data: str) -> SerializableObject:
+    def deserialize(cls, json_data: str = '[]') -> SerializableObject:
         """ 
         Deserializes a JSON like string to a specific 
         class instance. 
@@ -57,7 +57,7 @@ class SerializableObject(object):
     """
 
     @classmethod
-    def serialize(cls, obj: SerializableObject, to_json=True) -> str:
+    def serialize(cls, obj: SerializableObject = None, to_json=True) -> str:
         """ 
         Serializes an object to a JSON like string. 
         """
@@ -83,7 +83,7 @@ class SerializableObject(object):
         return json.dumps(a_obj.__dict__) if to_json else a_obj.__dict__
 
     @classmethod
-    def deserialize(cls, json_data: str) -> SerializableObject:
+    def deserialize(cls, json_data: str = '{}') -> SerializableObject:
         """ 
         Deserializes a JSON like string to a specific 
         class instance. 

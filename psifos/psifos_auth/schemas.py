@@ -9,7 +9,7 @@ from psifos.psifos_auth.models import User
 from psifos.schemas import ElectionSchema
 
 
-class UserSchema(ma.SQLAlchemySchema):
+class UserSchema(ma.SQLAlchemyAutoSchema):
 
     # Schema for the User detail
 
@@ -18,13 +18,6 @@ class UserSchema(ma.SQLAlchemySchema):
         load_instance = True
         include_relationships = True
 
-    id = ma.auto_field()
-    public_id = ma.auto_field()
-    user_type = ma.auto_field()
-    user_id = ma.auto_field()
-    name = ma.auto_field()
-    password = ma.auto_field()
-    admin_p = ma.auto_field()
     elections = ma.Nested(ElectionSchema, many=True)
 
 

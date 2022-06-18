@@ -5,6 +5,7 @@ Utilities for Psifos.
 """
 
 import json
+from psifos.crypto.sharedpoint import Point
 
 from psifos.models import Voter
 from psifos.psifos_auth.utils import get_user
@@ -31,7 +32,7 @@ def from_json(value):
 
 # -- SharedPoint manipulation --
 def format_points(points):
-    return [from_json(x.point) for x in points]
+    return [Point.serialize(x.point, to_json=False) for x in points]
 
 # -- CastVote validation --
 
