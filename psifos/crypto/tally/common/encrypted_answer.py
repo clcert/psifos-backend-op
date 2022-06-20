@@ -27,12 +27,7 @@ class AbstractEncryptedAnswer(SerializableObject):
         self.overall_proof : ZKDisjunctiveProof = ZKDisjunctiveProof(*kwargs["overall_proof"])
         
     @classmethod
-    def generate_plaintexts(cls, pk, min_ptxt=0, max_ptxt=1):
-        print("pk.y = ", type(pk.y))
-        print("pk.p = ", type(pk.p))
-        print("pk.g = ", type(pk.g))
-        print("pk.q = ", type(pk.q))
-        
+    def generate_plaintexts(cls, pk, min_ptxt=0, max_ptxt=1): 
         plaintexts = []
         running_product = 1
 

@@ -391,7 +391,7 @@ def cast_vote(election: Election, voter: Voter) -> Response:
         PsifosModel.commit()
         return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
 
-    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)) #, api=True))
+    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)) #)
     cast_ip = request.headers.getlist("X-Forwarded-For")[0] if ("X-Forwarded-For" in request.headers) else request.remote_addr
     ip_fingerprint = crypto_utils.hash_b64(cast_ip)
 
@@ -706,7 +706,7 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
             params = election.get_eg_params()
             trustees = Trustee.filter_by(election_id=election.id)
             certificates = [
-                sharedpoint.Certificate.serialize(t.certificate, to_json=False, api=True)
+                sharedpoint.Certificate.serialize(t.certificate, to_json=False)
                 for t in trustees
             ]
             assert None not in certificates
@@ -771,13 +771,13 @@ def trustee_step_2(election: Election, trustee: Trustee) -> Response:
             params = election.get_eg_params()
             trustees = Trustee.filter_by(election_id=election.id)
             coefficients = [
-                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False, api=True)
+                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False)
                 for t in trustees
             ]
             assert None not in coefficients
 
             certificates = [
-                sharedpoint.Certificate.serialize(t.certificate, to_json=False, api=True)
+                sharedpoint.Certificate.serialize(t.certificate, to_json=False)
                 for t in trustees
             ]
             assert None not in certificates
@@ -856,13 +856,13 @@ def trustee_step_3(election: Election, trustee: Trustee) -> Response:
             trustees = Trustee.filter_by(election_id=election.id)
 
             coefficients = [
-                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False, api=True)
+                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False)
                 for t in trustees
             ]
             assert None not in coefficients
 
             acks_trustees = [
-                sharedpoint.ListOfSignatures.serialize(t.acknowledgements, to_json=False, api=True) 
+                sharedpoint.ListOfSignatures.serialize(t.acknowledgements, to_json=False) 
                 for t in trustees
             ]
             assert None not in acks_trustees
@@ -870,7 +870,7 @@ def trustee_step_3(election: Election, trustee: Trustee) -> Response:
             acknowledgements = [acks[ack_indx] for acks in acks_trustees]
 
             certificates = [
-                sharedpoint.Certificate.serialize(t.certificate, to_json=False, api=True)
+                sharedpoint.Certificate.serialize(t.certificate, to_json=False)
                 for t in trustees
             ]
             assert None not in certificates

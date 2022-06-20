@@ -19,7 +19,7 @@ class SerializableList(object):
         self.instances = []
 
     @classmethod
-    def serialize(cls, s_list: SerializableList = None, to_json: bool = True, api=False) -> str:
+    def serialize(cls, s_list: SerializableList = None, to_json: bool = True) -> str:
         """ 
         Serializes an object to a JSON like string. 
         """
@@ -35,8 +35,8 @@ class SerializableList(object):
         for obj in a_list.instances:
             if isinstance(obj, SerializableObject) or isinstance(obj, SerializableList):
                 obj_class = obj.__class__
-                serialized_instances.append(obj_class.serialize(obj, to_json=False, api=api))
-            elif isinstance(obj, int) and api:
+                serialized_instances.append(obj_class.serialize(obj, to_json=False))
+            elif isinstance(obj, int):
                 serialized_instances.append(str(obj))
 
         return json.dumps(serialized_instances) if to_json else serialized_instances
@@ -57,7 +57,7 @@ class SerializableObject(object):
     """
 
     @classmethod
-    def serialize(cls, obj: SerializableObject = None, to_json=True, api=False) -> str:
+    def serialize(cls, obj: SerializableObject = None, to_json=True) -> str:
         """ 
         Serializes an object to a JSON like string. 
         """
@@ -74,9 +74,9 @@ class SerializableObject(object):
             attr_value = getattr(a_obj, attr)
             if isinstance(attr_value, SerializableObject) or isinstance(attr_value, SerializableList):
                 attr_class = attr_value.__class__
-                serialized_attr = attr_class.serialize(attr_value, to_json=False, api=api)
+                serialized_attr = attr_class.serialize(attr_value, to_json=False)
                 setattr(a_obj, attr, serialized_attr)
-            elif isinstance(attr_value, int) and api:
+            elif isinstance(attr_value, int):
                 serialized_attr = str(attr_value)
                 setattr(a_obj, attr, serialized_attr)
 

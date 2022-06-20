@@ -32,7 +32,7 @@ def from_json(value):
 
 # -- SharedPoint manipulation --
 def format_points(points):
-    return [Point.serialize(x.point, to_json=False, api=True) for x in points]
+    return [Point.serialize(x.point, to_json=False) for x in points]
 
 # -- CastVote validation --
 

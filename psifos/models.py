@@ -115,7 +115,7 @@ class Election(PsifosModel, db.Model):
             l=self.total_trustees,
             t=self.total_trustees//2,
         )
-        return ElGamal.serialize(params, api=True) if serialize else params
+        return ElGamal.serialize(params) if serialize else params
 
     def start(self, trustees, voters):
         self.voting_started_at = datetime.datetime.utcnow()
