@@ -115,14 +115,21 @@ class Election(PsifosModel, db.Model):
             l=self.total_trustees,
             t=self.total_trustees//2,
         )
-        return ElGamal.serialize(params) if serialize else params
+        return ElGamal.serialize(params, api=True) if serialize else params
 
     def start(self, trustees, voters):
         self.voting_started_at = datetime.datetime.utcnow()
 
+        a_combined_pk = trustees[0].coefficients.instances[0].coefficient
+        for t in trustees[1:]:
+            a_combined_pk = combined_pk * t.coefficients.instances[0].coefficient
+
+        print("a_combined_pk", a_combined_pk)
+        
         t_first_coefficients = [t.coefficients.instances[0].coefficient for t in trustees]
         
         combined_pk = functools.reduce((lambda x, y: x*y), t_first_coefficients)
+        print("combined_pk", combined_pk)
         self.public_key = trustees[0].public_key.clone_with_new_y(combined_pk)
 
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]

@@ -1,11 +1,8 @@
 """
 ElGamal encryption classes for Psifos.
-
 Ben Adida
 reworked for Psifos: 14-04-2022
 """
-import json
-
 from psifos.crypto.utils import ListOfIntegers, random
 from Crypto.Util import number
 from Crypto.Hash import SHA1
@@ -15,9 +12,9 @@ from psifos.serialization import SerializableList, SerializableObject
 
 class ElGamal(SerializableObject):
     def __init__(self, p=None, q=None, g=None, l=None, t=None):
-        self.p = int(p)
-        self.q = int(q)
-        self.g = int(g)
+        self.p = p
+        self.q = q
+        self.g = g
         self.l = l
         self.t = t
 
@@ -28,7 +25,7 @@ class ElGamal(SerializableObject):
         return KeyPair().generate(self.p, self.q, self.g)
 
 
-class KeyPair(object):
+class KeyPair(SerializableObject):
     def __init__(self):
         self.pk = PublicKey()
         self.sk = SecretKey()
@@ -37,23 +34,22 @@ class KeyPair(object):
         """
         Generate an ElGamal keypair
         """
-        self.pk.g = int(g)
-        self.pk.p = int(p)
-        self.pk.q = int(q)
+        self.pk.g = g
+        self.pk.p = p
+        self.pk.q = q
 
         self.sk.x = random.mpz_lt(q)
         self.pk.y = pow(g, self.sk.x, p)
 
         self.sk.pk = self.pk
-        return self
 
 
 class PublicKey(SerializableObject):
     def __init__(self, y=None, p=None, g=None, q=None):
-        self.y = int(y or 0)
-        self.p = int(p or 0)
-        self.g = int(g or 0)
-        self.q = int(q or 0)
+        self.y = y
+        self.p = p
+        self.g = g
+        self.q = q
 
     def encrypt_with_r(self, plaintext, r, encode_message=False):
         """
@@ -100,41 +96,32 @@ class PublicKey(SerializableObject):
         if self.p != other.p or self.q != other.q or self.g != other.g:
             raise Exception("incompatible public keys")
 
-        
         result = PublicKey()
         result.p = self.p
         result.q = self.q
         result.g = self.g
         result.y = (self.y * other.y) % result.p
-        
-        """
-        params = {
-            "p": self.p,
-            "q": self.q,
-            "g": self.g,
-            "y": (self.y * other.y) % self.p,
-        }
-        return PublicKey(**params)
-        """
         return result
 
+    def verify_sk_proof(self, dlog_proof, challenge_generator=None):
+        """
+        verify the proof of knowledge of the secret key
+        g^response = commitment * y^challenge
+        """
+        left_side = pow(self.g, dlog_proof.response, self.p)
+        right_side = (dlog_proof.commitment * pow(self.y, dlog_proof.challenge, self.p)) % self.p
+
+        expected_challenge = challenge_generator(dlog_proof.commitment) % self.q
+
+        return (left_side == right_side) and (dlog_proof.challenge == expected_challenge)
+
     def clone_with_new_y(self, y):
-        """
-        params = {
-            "p": self.p,
-            "q": self.q,
-            "g": self.g,
-            "y": y
-        }
-        return PublicKey(**params)
-        """
         result = PublicKey()
         result.p = self.p
         result.q = self.q
         result.g = self.g
         result.y = y
         return result
-
 
     def validate_pk_params(self):
         # check primality of p
@@ -168,10 +155,8 @@ class PublicKey(SerializableObject):
 
 class SecretKey(SerializableObject):
     def __init__(self, x=None, pk=None):
-        pk_params = pk or {}
-        self.pk = PublicKey(**pk_params)
-        self.x = int(x)
-        
+        self.x = x
+        self.pk = pk
 
     def decryption_factor(self, ciphertext):
         """
@@ -217,11 +202,9 @@ class SecretKey(SerializableObject):
         """
         given g, y, alpha, beta/(encoded m), prove equality of discrete log
         with Chaum Pedersen, and that discrete log is x, the secret key.
-
         Prover sends a=g^w, b=alpha^w for random w
         Challenge c = sha1(a,b) with and b in decimal form
         Prover sends t = w + xc
-
         Verifier will check that g^t = a * y^c
         and alpha^t = b * beta/m ^ c
         """
@@ -259,18 +242,17 @@ class SecretKey(SerializableObject):
         return DLogProof(commitment, challenge, response)
 
 
-class Plaintext(object):
+class Plaintext(SerializableObject):
     def __init__(self, m=None, pk=None):
         self.m = m
         self.pk = pk
 
 
 class Ciphertext(SerializableObject):
-    def __init__(self, alpha=None, beta=None, pk=None):
-        pk_params = pk or {}
-        self.pk = PublicKey(**pk_params)
-        self.alpha = int(alpha or 0)
-        self.beta = int(beta or 0)
+    def __init__(self, alpha=None, beta=None, pk={}):
+        self.pk = PublicKey(**pk)
+        self.alpha = alpha
+        self.beta = beta
 
     def __mul__(self, other):
         """
@@ -407,15 +389,12 @@ class Ciphertext(SerializableObject):
         # set the real proof
         proofs[real_index] = real_proof
 
-        serialized_proofs = [ZKProof.serialize(proof) for proof in proofs]
-
-        return ZKDisjunctiveProof(*serialized_proofs)
+        return ZKDisjunctiveProof(proofs)
 
     def verify_encryption_proof(self, plaintext, proof):
         """
         Checks for the DDH tuple g, y, alpha, beta/plaintext.
         (PoK of randomness r.)
-
         Proof contains commitment = {A, B}, challenge, response
         """
         # check that A, B are in the correct group
@@ -438,7 +417,6 @@ class Ciphertext(SerializableObject):
     def verify_disjunctive_encryption_proof(self, plaintexts, proof, challenge_generator):
         """
         plaintexts and proofs are all lists of equal length, with matching.
-
         overall_challenge is what all of the challenges combined should yield.
         """
         if len(plaintexts) != len(proof.proofs):
@@ -454,16 +432,8 @@ class Ciphertext(SerializableObject):
         # logging.info("made it past the two encryption proofs")
 
         # check the overall challenge
-        x = challenge_generator([p.commitment for p in proof.proofs])
-
-
-        # overall_proofs error, len(proof.proofs) == 1 & p.challenge < self.pk.q
-        first = sum([p.challenge for p in proof.proofs])
-        second = self.pk.q
-        if first < second and len(proof.proofs):
-            print("ERROR! overall_proof.challenge < election.public_key.q")
-        y = first % second
-        return x==y
+        return (challenge_generator([p.commitment for p in proof.proofs]) == (
+                sum([p.challenge for p in proof.proofs]) % self.pk.q))
 
     def decrypt(self, decryption_factors, public_key):
         """
@@ -495,19 +465,12 @@ class Ciphertext(SerializableObject):
         else:
             return True
 
-class ListOfCipherTexts(SerializableList):
-    def __init__(self, *args) -> None:
-        super(ListOfCipherTexts, self).__init__()
-        for ctxt_dict in args:
-            self.instances.append(Ciphertext(**ctxt_dict))
-
 
 class ZKProof(SerializableObject):
-    def __init__(self, challenge=None, response=None, commitment=None):
-        self.challenge = int(challenge or 0)
-        self.response = int(response or 0)
-        commitment_params = commitment or {}
-        self.commitment = ZKProofCommitment(**commitment_params)
+    def __init__(self, challenge=None, response=None, commitment={}):
+        self.challenge = None
+        self.response = None
+        self.commitment = ZKProofCommitment(**commitment)
 
     @classmethod
     def generate(cls, little_g, little_h, x, p, q, challenge_generator):
@@ -558,18 +521,40 @@ class ZKProof(SerializableObject):
 
         return first_check and second_check and third_check
 
+class DLogProof(object):
+    def __init__(self, commitment=None, challenge=None, response=None):
+        self.commitment = commitment
+        self.challenge = challenge
+        self.response = response
+
+def disjunctive_challenge_generator(commitments):
+    array_to_hash = []
+    for commitment in commitments:
+        array_to_hash.append(str(commitment.A))
+        array_to_hash.append(str(commitment.B))
+
+    string_to_hash = ",".join(array_to_hash)
+    return int(SHA1.new(bytes(string_to_hash, 'utf-8')).hexdigest(), 16)
+
+
+# a challenge generator for Fiat-Shamir with A,B commitment
+def fiatshamir_challenge_generator(commitment):
+    return disjunctive_challenge_generator([commitment])
+
+def DLog_challenge_generator(commitment):
+    string_to_hash = str(commitment)
+    return int(SHA1.new(bytes(string_to_hash, 'utf-8')).hexdigest(), 16)
+
 class ListOfZKProofs(SerializableList):
     def __init__(self, *args) -> None:
         super(ListOfZKProofs, self).__init__()
         for proof_dict in args:
             self.instances.append(ZKProof(**proof_dict))
-
 class ZKProofCommitment(SerializableObject):
     def __init__(self, A=None, B=None) -> None:
         super(ZKProofCommitment, self).__init__()
         self.A = int(A or 0)
         self.B = int(B or 0)
-
 
 class DecryptionFactors(SerializableList):
     def __init__(self, *args) -> None:
@@ -599,29 +584,8 @@ class ListOfZKDisjunctiveProofs(SerializableList):
         for zkdp_list in args:
             self.instances.append(ZKDisjunctiveProof(*zkdp_list))
 
-
-class DLogProof(object):
-    def __init__(self, commitment, challenge, response):
-        self.commitment = int(commitment)
-        self.challenge = int(challenge)
-        self.response = int(response)
-
-
-def disjunctive_challenge_generator(commitments):
-    array_to_hash = []
-    for commitment in commitments:
-        array_to_hash.append(str(commitment.A))
-        array_to_hash.append(str(commitment.B))
-
-    string_to_hash = ",".join(array_to_hash)
-    return int(SHA1.new(bytes(string_to_hash, 'utf-8')).hexdigest(), 16)
-
-
-# a challenge generator for Fiat-Shamir with A,B commitment
-def fiatshamir_challenge_generator(commitment):
-    return disjunctive_challenge_generator([commitment])
-
-
-def DLog_challenge_generator(commitment):
-    string_to_hash = str(commitment)
-    return int(SHA1.new(bytes(string_to_hash, 'utf-8')).hexdigest(), 16)
+class ListOfCipherTexts(SerializableList):
+    def __init__(self, *args) -> None:
+        super(ListOfCipherTexts, self).__init__()
+        for ctxt_dict in args:
+            self.instances.append(Ciphertext(**ctxt_dict))

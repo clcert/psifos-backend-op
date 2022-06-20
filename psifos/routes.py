@@ -391,7 +391,7 @@ def cast_vote(election: Election, voter: Voter) -> Response:
         PsifosModel.commit()
         return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
 
-    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
+    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)) #, api=True))
     cast_ip = request.headers.getlist("X-Forwarded-For")[0] if ("X-Forwarded-For" in request.headers) else request.remote_addr
     ip_fingerprint = crypto_utils.hash_b64(cast_ip)
 
@@ -681,6 +681,7 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
         )
         for point in t_sent_points:
             PsifosModel.delete(point)
+        PsifosModel.commit()
 
         for i in range(len(points)):
             obj = SharedPoint(
@@ -690,6 +691,7 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
                 point=points[i],
             )
             PsifosModel.add(obj)
+        
         trustee.coefficients = coefficients
         trustee.current_step = 2  # trustee completed step 1 and now is ready for step 2
         PsifosModel.add(trustee)
@@ -702,11 +704,9 @@ def trustee_step_1(election: Election, trustee: Trustee) -> Response:
     if request.method == "GET":
         try:
             params = election.get_eg_params()
-            trustees = Trustee.filter_by(
-                election_id=election.id
-            )
+            trustees = Trustee.filter_by(election_id=election.id)
             certificates = [
-                sharedpoint.Certificate.serialize(t.certificate, to_json=False)
+                sharedpoint.Certificate.serialize(t.certificate, to_json=False, api=True)
                 for t in trustees
             ]
             assert None not in certificates
@@ -771,13 +771,13 @@ def trustee_step_2(election: Election, trustee: Trustee) -> Response:
             params = election.get_eg_params()
             trustees = Trustee.filter_by(election_id=election.id)
             coefficients = [
-                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False)
+                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False, api=True)
                 for t in trustees
             ]
             assert None not in coefficients
 
             certificates = [
-                sharedpoint.Certificate.serialize(t.certificate, to_json=False)
+                sharedpoint.Certificate.serialize(t.certificate, to_json=False, api=True)
                 for t in trustees
             ]
             assert None not in certificates
@@ -856,13 +856,13 @@ def trustee_step_3(election: Election, trustee: Trustee) -> Response:
             trustees = Trustee.filter_by(election_id=election.id)
 
             coefficients = [
-                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False)
+                sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False, api=True)
                 for t in trustees
             ]
             assert None not in coefficients
 
             acks_trustees = [
-                sharedpoint.ListOfSignatures.serialize(t.acknowledgements, to_json=False) 
+                sharedpoint.ListOfSignatures.serialize(t.acknowledgements, to_json=False, api=True) 
                 for t in trustees
             ]
             assert None not in acks_trustees
@@ -870,7 +870,7 @@ def trustee_step_3(election: Election, trustee: Trustee) -> Response:
             acknowledgements = [acks[ack_indx] for acks in acks_trustees]
 
             certificates = [
-                sharedpoint.Certificate.serialize(t.certificate, to_json=False)
+                sharedpoint.Certificate.serialize(t.certificate, to_json=False, api=True)
                 for t in trustees
             ]
             assert None not in certificates
@@ -934,9 +934,7 @@ def trustee_check_sk(election: Election, trustee: Trustee) -> Response:
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/decrypt-and-prove", methods=["GET", "POST"])
 @auth_requires
-@trustee_cas(
-    deserialize_election=True,
-)
+@trustee_cas()
 def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
     """
     Trustee Stage 3
