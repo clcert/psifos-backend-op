@@ -919,18 +919,14 @@ def trustee_check_sk(election: Election, trustee: Trustee) -> Response:
     """
     Trustee Stage 2
     """
+    cert = trustee.certificate
+    cert = sharedpoint.Certificate.serialize(cert, to_json=False)
     return create_response_cors(
-        make_response(
-            jsonify(
-                {
-                    "election": Election.to_json(obj=election),
-                    "trustee": Trustee.to_json(obj=trustee)
-                }
-            ),
-            200,
-        )
+    make_response(
+        cert,
+        200,
     )
-
+    )
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/decrypt-and-prove", methods=["GET", "POST"])
 @auth_requires
