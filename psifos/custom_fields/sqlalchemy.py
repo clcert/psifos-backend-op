@@ -1,4 +1,3 @@
-import re
 import sqlalchemy.types as types
 
 

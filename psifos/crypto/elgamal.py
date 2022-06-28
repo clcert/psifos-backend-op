@@ -451,16 +451,7 @@ class Ciphertext(SerializableObject):
         # logging.info("made it past the two encryption proofs")
 
         # check the overall challenge
-        x = challenge_generator([p.commitment for p in proof.proofs])
-
-
-        # overall_proofs error, len(proof.proofs) == 1 & p.challenge < self.pk.q
-        first = sum([p.challenge for p in proof.proofs])
-        second = self.pk.q
-        if first < second and len(proof.proofs):
-            print("ERROR! overall_proof.challenge < election.public_key.q")
-        y = first % second
-        return x==y
+        return (challenge_generator([p.commitment for p in proof.proofs])) == (sum([p.challenge for p in proof.proofs]) % self.pk.q)
 
     def decrypt(self, decryption_factors, public_key):
         """
