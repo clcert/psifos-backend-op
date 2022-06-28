@@ -199,7 +199,7 @@ def get_questions(election: Election) -> response:
             {"message": "Esta eleccion no tiene preguntas definidas!"}, 200
         )
 
-    return make_response(election.questions, 200)
+    return make_response(Questions.serialize(election.questions), 200)
 
 
 @app.route("/<election_uuid>/send-voters", methods=["POST"])
@@ -919,18 +919,14 @@ def trustee_check_sk(election: Election, trustee: Trustee) -> Response:
     """
     Trustee Stage 2
     """
+    cert = trustee.certificate
+    cert = sharedpoint.Certificate.serialize(cert, to_json=False)
     return create_response_cors(
-        make_response(
-            jsonify(
-                {
-                    "election": Election.to_json(obj=election),
-                    "trustee": Trustee.to_json(obj=trustee)
-                }
-            ),
-            200,
-        )
+    make_response(
+        cert,
+        200,
     )
-
+    )
 
 @app.route("/<election_uuid>/trustee/<trustee_uuid>/decrypt-and-prove", methods=["GET", "POST"])
 @auth_requires
@@ -985,7 +981,7 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
     elif request.method == "GET":
         params = election.get_eg_params()
         trustees = Trustee.filter_by(election_id=election.id)
-        certificates = [route_utils.from_json(t.certificate) for t in trustees]
+        certificates = [sharedpoint.Certificate.serialize(t.certificate, to_json=False) for t in trustees]
         points = SharedPoint.format_points_sent_to(
             election_id=election.id,
             trustee_id=trustee.trustee_id,
@@ -995,7 +991,8 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
                 jsonify(
                     {
                         "params": params,
-                        "election": Election.to_json(obj=election),
+                        "election": Election.to_json(schema=election_schema ,obj=election),
+                        "trustee": Trustee.to_json(schema=trustee_schema, obj=trustee),     
                         "certificates": route_utils.to_json(certificates),
                         "points": route_utils.to_json(points),
                     }
