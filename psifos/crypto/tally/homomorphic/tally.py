@@ -31,15 +31,18 @@ class HomomorphicTally(AbstractTally):
     
     def compute(self, encrypted_answers, weights):
         self.computed = True
-        for vote, weight in zip(encrypted_answers, weights):
+        for enc_ans, weight in zip(encrypted_answers, weights):
+            choices = enc_ans.get_choices()
             for answer_num in range(len(self.tally)):
                 # do the homomorphic addition into the tally
-                vote.choices[answer_num].pk = self.public_key
-                vote.choices[answer_num].alpha = pow(vote.choices[answer_num].alpha, weight, self.public_key.p)
-                vote.choices[answer_num].beta = pow(vote.choices[answer_num].beta, weight, self.public_key.p)
-                self.tally[answer_num] = vote.choices[answer_num] * self.tally[answer_num]
+                choices[answer_num].pk = self.public_key
+                choices[answer_num].alpha = pow(choices[answer_num].alpha, weight, self.public_key.p)
+                choices[answer_num].beta = pow(choices[answer_num].beta, weight, self.public_key.p)
+                self.tally[answer_num] = choices[answer_num] * self.tally[answer_num]
             self.num_tallied += 1
-        self.tally = ListOfCipherTexts(*self.tally)
+        a_tally = ListOfCipherTexts()
+        a_tally.set_instances(self.tally)
+        self.tally = a_tally
 
     def decryption_factors_and_proofs(self, sk):
         """

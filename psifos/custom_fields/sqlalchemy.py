@@ -15,7 +15,7 @@ class SerializableField(types.TypeDecorator):
         return self.class_type.serialize(value)
 
     def process_result_value(self, value, dialect):
-        if value == "":
+        if value == "" or value is None:
             return None
 
         return self.class_type.deserialize(value)

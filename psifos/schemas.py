@@ -18,6 +18,7 @@ from psifos.crypto.sharedpoint import (
     Point
 )
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
+from psifos.crypto.tally.tally import TallyManager
 from psifos.custom_fields.enums import ElectionTypeEnum
 from psifos.custom_fields.marshmallow import SerializableField
 from psifos.models import (
@@ -123,7 +124,7 @@ class ElectionSchema(ma.SQLAlchemyAutoSchema):
     total_trustees = ma.auto_field()
 
     cast_url = ma.auto_field()
-    encrypted_tally = ma.auto_field()  # SerializableField(Tally)
+    encrypted_tally = SerializableField(TallyManager)
     result = ma.auto_field()  # SerializableField(Result)
     open_answers_result = ma.auto_field()  # SerializableField(Result)
 

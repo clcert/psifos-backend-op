@@ -6,9 +6,10 @@ Abstract tally for Psifos
 
 from psifos.crypto.elgamal import PublicKey
 from psifos.psifos_object.questions import AbstractQuestion, QuestionFactory
+from psifos.serialization import SerializableObject
 
 
-class AbstractTally(object):
+class AbstractTally(SerializableObject):
     """
     This class holds the common behaviour of a question's tally;
     """

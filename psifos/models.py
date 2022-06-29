@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime
 import functools
 import json
+from psifos.crypto.utils import hash_b64
 
 import psifos.utils as utils
 from psifos import db
@@ -53,8 +54,8 @@ class Election(PsifosModel, db.Model):
     total_trustees = db.Column(db.Integer, default=0)
 
     cast_url = db.Column(db.String(500))
-    encrypted_tally = db.Column(db.Text, nullable=True)  # PsifosObject: Tally
-    encrypted_tally_hash = db.Column(db.String(500), nullable=True)
+    encrypted_tally = db.Column(SerializableField(TallyManager), nullable=True)
+    encrypted_tally_hash = db.Column(db.Text, nullable=True)
     encrypted_open_answers = db.Column(db.Text, nullable=True)
     mixnet_open_answers = db.Column(db.Text, nullable=True)
 
@@ -148,18 +149,26 @@ class Election(PsifosModel, db.Model):
         PsifosModel.commit()
 
 
-    def compute_tally(self):
+    def compute_tally(self, encrypted_votes, weights):
         # First we instantiate the TallyManager class.
+        question_list = Questions.serialize(self.questions, to_json=False)
+        pk_dict = PublicKey.serialize(self.public_key, to_json=False)
         tally_params = [{
             "tally_type": q_dict["tally_type"],
             "question": q_dict,
-            "public_key": self.public_key
-        } for q_dict in json.loads(self.questions)]
+            "public_key": pk_dict
+        } for q_dict in question_list]
+
         enc_tally = TallyManager(*tally_params)
 
-        # Then we compute the encrypted_tally.
-        # enc_tally.compute()
+        # Then we compute the encrypted_tally
+        enc_tally.compute(encrypted_votes, weights)
+        
+        self.encrypted_tally = enc_tally
+        self.encrypted_tally_hash = hash_b64(TallyManager.serialize(enc_tally))
 
+        PsifosModel.add(self)
+        PsifosModel.commit()
 
     
     def voting_has_started(self):

@@ -84,6 +84,8 @@ class AbstractEncryptedAnswer(SerializableObject):
             # approval voting, no need for overall proof verification
             return True
 
+    def get_choices(self):
+        return self.choices.instances
 class EncryptedOpenAnswer(AbstractEncryptedAnswer):
     """
     An encrypted open answer to a single election question.

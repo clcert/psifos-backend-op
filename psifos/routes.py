@@ -360,9 +360,15 @@ def compute_tally(election: Election) -> Response:
     Require a valid token to access >>> token_required
     """
     try:
-        election.compute_tally()
+        voters = Voter.get_by_election(election_id=election.id)
+        not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
+
+        encrypted_votes = [v.cast_vote.vote for v in not_null_voters]
+        weights = [v.voter_weight for v in not_null_voters]
+        election.compute_tally(encrypted_votes, weights)
         return make_response(jsonify({"message": "Se computado el tally de la eleccion con exito!"}), 200)
-    except:
+    except Exception as e:
+        print(e)
         return make_response(jsonify({"message": "Error al computar el tally de la eleccion"}), 400)
 
 

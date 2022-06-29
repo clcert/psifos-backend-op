@@ -48,6 +48,9 @@ class SerializableList(object):
         class instance. 
         """
         return cls(*json.loads(json_data))
+    
+    def set_instances(self, new_instances):
+        self.instances = new_instances
 
 
 class SerializableObject(object):
