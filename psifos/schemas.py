@@ -19,7 +19,7 @@ from psifos.crypto.sharedpoint import (
 )
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.crypto.tally.tally import TallyManager
-from psifos.custom_fields.enums import ElectionTypeEnum
+from psifos.custom_fields.enums import ElectionStatusEnum, ElectionTypeEnum
 from psifos.custom_fields.marshmallow import SerializableField
 from psifos.models import (
     AuditedBallot,
@@ -118,6 +118,7 @@ class ElectionSchema(ma.SQLAlchemyAutoSchema):
 
     # Custom fields
     election_type = EnumField(ElectionTypeEnum, by_value=True)
+    election_status = EnumField(ElectionStatusEnum, by_value=True)
     public_key = SerializableField(PublicKey)
     questions = SerializableField(Questions)
     private_key = ma.auto_field()  # SerializableField(SecretKey)

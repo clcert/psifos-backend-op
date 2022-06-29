@@ -290,8 +290,7 @@ def resume(current_user: User, election_uuid: str) -> Response:
                 jsonify({"message": "No tiene permisos ver esta elección"}), 401
             )
 
-    except Exception as e:
-        print(e)
+    except:
         return make_response(jsonify({"message": "Error al acceder al resumen de la elección"}), 400)
 
 
@@ -367,8 +366,7 @@ def compute_tally(election: Election) -> Response:
         weights = [v.voter_weight for v in not_null_voters]
         election.compute_tally(encrypted_votes, weights)
         return make_response(jsonify({"message": "Se computado el tally de la eleccion con exito!"}), 200)
-    except Exception as e:
-        print(e)
+    except:
         return make_response(jsonify({"message": "Error al computar el tally de la eleccion"}), 400)
 
 
@@ -391,11 +389,16 @@ def cast_vote(election: Election, voter: Voter) -> Response:
     enc_vote_data = route_utils.from_json(data["encrypted_vote"])
     encrypted_vote = EncryptedVote(**enc_vote_data)
 
+    # FIXME: -- verify asynchronously --
     if not encrypted_vote.verify(election):
         voter.cast_vote.invalid_cast_votes += 1
-        PsifosModel.add(voter)
-        PsifosModel.commit()
+        voter.cast_vote.invalidated_at = datetime.now()
         return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
+    else:
+        voter.cast_vote.verified_at = datetime.now()
+
+    PsifosModel.add(voter)
+    PsifosModel.commit()
 
     vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)) #)
     cast_ip = request.headers.getlist("X-Forwarded-For")[0] if ("X-Forwarded-For" in request.headers) else request.remote_addr
@@ -470,7 +473,7 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
             return make_response(
                 jsonify({"message": "No tiene permisos para crear un trustee"}), 401
             )
-    except Exception as e:
+    except:
         raise e
         return make_response(jsonify({"message": "Error al crear el trustee"}), 400)
 
@@ -493,8 +496,7 @@ def delete_trustee(current_user: User, election_uuid: str) -> Response:
             return make_response(
                 jsonify({"message": "No tiene permisos para eliminar un trustee"}), 401
             )
-    except Exception as e:
-        print(e)
+    except:
         return make_response(jsonify({"message": "Error al eliminar el trustee"}), 400)
 
 
@@ -516,8 +518,7 @@ def get_trustees(current_user: User, election_uuid: str) -> Response:
             return make_response(
                 jsonify({"message": "No tiene permisos para obtener los trustees"}), 401
             )
-    except Exception as e:
-        print(e)
+    except:
         return make_response(jsonify({"message": "Error al obtener los trustees"}), 400)
 
 
@@ -532,8 +533,7 @@ def get_trustee(trustee_uuid):
             jsonify(Trustee.to_dict(schema=trustee_schema, obj=trustee)), 200
         )
         return response
-    except Exception as e:
-        print(e)
+    except:
         return make_response(jsonify({"message": "Error al obtener el trustee"}), 400)
 
 
@@ -611,8 +611,7 @@ def election_get_eg_params(election_uuid: str) -> Response:
         eg_params = election.get_eg_params()
         return create_response_cors(make_response(eg_params, 200))
 
-    except Exception as e:
-        print(e)
+    except:
         return create_response_cors(
             make_response(
                 jsonify({"message": "Error al obtener los parametros de la eleccion."}),
@@ -807,8 +806,7 @@ def trustee_step_2(election: Election, trustee: Trustee) -> Response:
                 )
             )
 
-        except Exception as e:
-            print(e)
+        except:
             return create_response_cors(
                 make_response(
                     jsonify(

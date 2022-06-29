@@ -20,7 +20,7 @@ from psifos.crypto.sharedpoint import (Certificate, ListOfCoefficients,
                                        ListOfSignatures, Point)
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.crypto.tally.tally import TallyManager
-from psifos.custom_fields.enums import ElectionTypeEnum
+from psifos.custom_fields.enums import ElectionStatusEnum, ElectionTypeEnum
 from psifos.custom_fields.sqlalchemy import SerializableField
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
@@ -37,6 +37,7 @@ class Election(PsifosModel, db.Model):
     short_name = db.Column(db.String(100), nullable=False, unique=True)
     name = db.Column(db.String(250), nullable=False)
     election_type = db.Column(db.Enum(ElectionTypeEnum), nullable=False)
+    election_status = db.Column(db.Enum(ElectionStatusEnum), default="setting_up")
     private_p = db.Column(db.Boolean, default=False, nullable=False)
     description = db.Column(db.Text)
 
@@ -120,17 +121,15 @@ class Election(PsifosModel, db.Model):
 
     def start(self, trustees, voters):
         self.voting_started_at = datetime.datetime.utcnow()
+        self.election_status = "started"
 
         a_combined_pk = trustees[0].coefficients.instances[0].coefficient
         for t in trustees[1:]:
             a_combined_pk = combined_pk * t.coefficients.instances[0].coefficient
 
-        print("a_combined_pk", a_combined_pk)
-        
         t_first_coefficients = [t.coefficients.instances[0].coefficient for t in trustees]
         
         combined_pk = functools.reduce((lambda x, y: x*y), t_first_coefficients)
-        print("combined_pk", combined_pk)
         self.public_key = trustees[0].public_key.clone_with_new_y(combined_pk)
 
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
@@ -141,6 +140,7 @@ class Election(PsifosModel, db.Model):
     
     def end(self, voters):
         self.voting_ended_at = datetime.datetime.utcnow()
+        self.election_status = "ended"
 
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
         self.votes_by_weight_final = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
@@ -164,6 +164,7 @@ class Election(PsifosModel, db.Model):
         # Then we compute the encrypted_tally
         enc_tally.compute(encrypted_votes, weights)
         
+        self.election_status = "tally_computed"
         self.encrypted_tally = enc_tally
         self.encrypted_tally_hash = hash_b64(TallyManager.serialize(enc_tally))
 
@@ -248,11 +249,9 @@ class CastVote(PsifosModel, db.Model):
     def update_or_create(cls, **kwargs):
         cast_vote = cls.get_by_voter_id(voter_id=kwargs["voter_id"])
         if cast_vote is not None:
-            print("Encontro un cast_vote para", kwargs["voter_id"])
             for key, value in kwargs.items():
                 setattr(cast_vote, key, value)
         else:
-            print("No encontro un cast_vote para", kwargs["voter_id"])
             cast_vote = cls(**kwargs)
 
         PsifosModel.add(cast_vote)
