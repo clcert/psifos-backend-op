@@ -81,7 +81,6 @@ def create_election(current_user: User) -> Response:
             randomize_answer_order=data["randomize_answer_order"],
             private_p=data["private_p"],
             normalization=data["normalization"],
-            openreg=False,
         )
         PsifosModel.commit()
         return make_response(
@@ -294,22 +293,6 @@ def resume(current_user: User, election_uuid: str) -> Response:
 
     except:
         return make_response(jsonify({"message": "Error al acceder al resumen de la elección"}), 400)
-
-
-@app.route("/<election_uuid>/openreg", methods=["POST"])
-@token_required
-@election_route()
-def openreg(election: Election) -> Response:
-    """
-    Route for open election
-    Require a valid token to access >>> token_required
-    """
-
-    data = request.get_json()
-    election.openreg = data["openreg"]
-    PsifosModel.add(election)
-    PsifosModel.commit()
-    return make_response(jsonify({"message": "Elección reanudada con exito!"}), 200)
 
 
 @app.route("/<election_uuid>/start-election", methods=["POST"])
@@ -964,7 +947,13 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
 
         if answers_decryptions.verify(encrypted_tally=election.encrypted_tally):
             trustee.answers_decryptions = answers_decryptions
+            election.decryptions_uploaded += 1
+
+            if election.decryptions_uploaded == len(election.trustees):
+                election.election_status = "decryptions_uploaded"
+
             PsifosModel.add(trustee)
+            PsifosModel.add(election)
             PsifosModel.commit()
 
         else:

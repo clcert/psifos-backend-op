@@ -44,7 +44,6 @@ class Election(PsifosModel, db.Model):
     public_key = db.Column(SerializableField(PublicKey), nullable=True)
     private_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
     questions = db.Column(SerializableField(Questions), nullable=True)
-    openreg = db.Column(db.Boolean, default=False)
 
     obscure_voter_names = db.Column(db.Boolean, default=False, nullable=False)
     randomize_answer_order = db.Column(db.Boolean, default=False, nullable=False)
@@ -57,11 +56,9 @@ class Election(PsifosModel, db.Model):
     cast_url = db.Column(db.String(500))
     encrypted_tally = db.Column(SerializableField(TallyManager), nullable=True)
     encrypted_tally_hash = db.Column(db.Text, nullable=True)
-    encrypted_open_answers = db.Column(db.Text, nullable=True)
-    mixnet_open_answers = db.Column(db.Text, nullable=True)
 
+    decryptions_uploaded = db.Column(db.Integer, default=0)
     result = db.Column(db.Text, nullable=True)  # PsifosObject: Result
-    open_answers_result = db.Column(db.Text, nullable=True)  # PsifosObject: Result (?)
 
     voting_started_at = db.Column(db.DateTime, nullable=True)
     voting_ended_at = db.Column(db.DateTime, nullable=True)
@@ -186,6 +183,7 @@ class Election(PsifosModel, db.Model):
         ]
 
         self.result = self.encrypted_tally.decrypt(partial_decryptions, self.total_trustees//2, self.max_weight)
+        self.election_status = "decryptions_combined"
         print(self.result)
 
     

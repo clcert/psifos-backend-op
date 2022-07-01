@@ -6,6 +6,7 @@ Marshmallow Schemas for Psifos models.
 from marshmallow_enum import EnumField
 
 from psifos import ma
+from psifos.crypto.decryption import TrusteeDecryptions
 from psifos.crypto.elgamal import (
     DecryptionFactors,
     DecryptionProofs,
@@ -69,10 +70,7 @@ class TrusteeSchema(ma.SQLAlchemyAutoSchema):
     secret_key = ma.auto_field()  # SerializableField(SecretKey)
     pok = ma.auto_field()  # SerializableField(DLogProof)
 
-    answers_decryption_factors = SerializableField(DecryptionFactors)
-    answers_decryption_proofs = SerializableField(DecryptionProofs)
-    open_answers_decryption_factors = SerializableField(DecryptionFactors)
-    open_answers_decryption_proofs = SerializableField(DecryptionProofs)
+    decryptions = SerializableField(TrusteeDecryptions)
 
     certificate = SerializableField(Certificate)
     coefficients = SerializableField(ListOfCoefficients)
@@ -127,7 +125,6 @@ class ElectionSchema(ma.SQLAlchemyAutoSchema):
     cast_url = ma.auto_field()
     encrypted_tally = SerializableField(TallyManager)
     result = ma.auto_field()  # SerializableField(Result)
-    open_answers_result = ma.auto_field()  # SerializableField(Result)
 
     # One-to-many relationships
     voters = ma.Nested(VoterSchema, many=True)
