@@ -44,6 +44,7 @@ class HomomorphicTally(AbstractTally):
         a_tally.set_instances(self.tally)
         self.tally = a_tally
 
+    ####
     def decryption_factors_and_proofs(self, sk):
         """
         returns an array of decryption factors and a corresponding array of decryption proofs.
@@ -64,33 +65,7 @@ class HomomorphicTally(AbstractTally):
 
         return question_factors, question_proofs
 
-    def verify_decryption_proofs(self, decryption_factors, decryption_proofs, public_key, challenge_generator):
-        """
-        decryption_factors is a list of lists of dec factors
-        decryption_proofs are the corresponding proofs
-        public_key is, of course, the public key of the trustee
-        """
-
-        # go through each one
-        for a_num, answer_tally in enumerate(self.tally):
-            proof = decryption_proofs[a_num]
-
-            # check that g, alpha, y, dec_factor is a DH tuple
-            cond = proof.verify(
-                public_key.g,
-                answer_tally.alpha,
-                public_key.y,
-                int(decryption_factors[a_num]),
-                public_key.p,
-                public_key.q,
-                challenge_generator
-            )
-            if not cond:
-                return False
-
-        return True
-
-    def decrypt_from_factors(self, decryption_factors, public_key, t, max_weight=1):
+    def decrypt(self, decryption_factors, t, max_weight=1):
         """
         decrypt a tally given decryption factors
 
@@ -99,18 +74,23 @@ class HomomorphicTally(AbstractTally):
         """
 
         # pre-compute a dlog table
-        dlog_table = DLogTable(base=public_key.g, modulus=public_key.p)
+        dlog_table = DLogTable(base=self.public_key.g, modulus=self.public_key.p)
         dlog_table.precompute(self.num_tallied * max_weight)
 
         q_result = []
 
         for a_num, a in enumerate(self.tally):
             last_raw_value = None
+            
             # generate al subsets of size t+1 and compare values between each iteration
-            for subset_factor_list in itertools.combinations(
-                [(di, df[a_num]) for di, df in decryption_factors],
-                    t + 1):
-                raw_value = a.decrypt(subset_factor_list, public_key)
+            iterator = itertools.combinations([
+                (di, df[a_num]) 
+                for di, df in decryption_factors
+            ], t+1)
+            
+            for subset_factor_list in iterator:
+                raw_value = a.decrypt(subset_factor_list, self.public_key)
+                
                 if raw_value is None:
                     raise Exception("Error computing decryption: None returned")
                 if last_raw_value is not None and raw_value != last_raw_value:

@@ -523,7 +523,7 @@ class ZKProof(SerializableObject):
         # return proof
         return proof
 
-    def verify(self, little_g, little_h, big_g, big_h, p, q, challenge_generator=None):
+    def verify(self, little_g=None, little_h=None, big_g=None, big_h=None, p=None, challenge_generator=None):
         """
         Verify a DH tuple proof
         """

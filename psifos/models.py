@@ -171,7 +171,29 @@ class Election(PsifosModel, db.Model):
         PsifosModel.add(self)
         PsifosModel.commit()
 
+    def combine_decryptions(self, trustees):
+        """
+        combine all of the decryption results
+        """
+
+        total_questions = len(self.encrypted_tally.tally)
+        partial_decryptions = [
+            [
+                (t.trustee_id, t.get_decryptions()[q_num]) 
+                for t in trustees if t.answers_decryptions is not None
+            ]
+            for q_num in range(total_questions)
+        ]
+
+        self.result = self.encrypted_tally.decrypt(partial_decryptions, self.total_trustees//2, self.max_weight)
+        print(self.result)
+
     
+    def get_tallies(self):
+        if self.encrypted_tally:
+            return self.encrypted_tally.instances
+        return None
+
     def voting_has_started(self):
         return True if self.voting_started_at is not None else False
     
@@ -290,10 +312,7 @@ class Trustee(PsifosModel, db.Model):
     secret_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
     pok = db.Column(db.Text, nullable=True)  # PsifosObject: DLogProof
 
-    answers_decryption_factors = db.Column(SerializableField(DecryptionFactors), nullable=True)
-    answers_decryption_proofs = db.Column(SerializableField(DecryptionProofs), nullable=True)
-    open_answers_decryption_factors = db.Column(SerializableField(DecryptionFactors), nullable=True)
-    open_answers_decryption_proofs = db.Column(SerializableField(DecryptionProofs), nullable=True)
+    answers_decryptions = db.Column(SerializableField(TrusteeDecryptions), nullable=True)
 
     certificate = db.Column(SerializableField(Certificate), nullable=True)
     coefficients = db.Column(SerializableField(ListOfCoefficients), nullable=True)
@@ -342,18 +361,11 @@ class Trustee(PsifosModel, db.Model):
     @classmethod
     def get_by_election(cls, election_id):
         return cls.filter_by(election_id=election_id)
-    
-    def verify_decryption_proofs(self, election):
-        """
-        verifies the decryption proofs of the tally.
-        """
 
-        return election.encrypted_tally.verify_decryption_proofs(
-        self.answers_decryption_factors,
-        self.answers_decryption_proofs,
-        self.public_key,
-        fiatshamir_challenge_generator
-        )
+    def get_decryptions(self):
+        if self.answers_decryptions:
+            return self.answers_decryptions.instances
+        return None
 
 
 

@@ -19,6 +19,8 @@ from flask.wrappers import Response
 
 from psifos import app
 from psifos import utils as route_utils
+from psifos.crypto import decryption
+from psifos.crypto.decryption import TrusteeDecryptions
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.forms import ElectionForm
 from psifos.models import Election, SharedPoint, Voter, User, Trustee, CastVote
@@ -368,6 +370,21 @@ def compute_tally(election: Election) -> Response:
         return make_response(jsonify({"message": "Se computado el tally de la eleccion con exito!"}), 200)
     except:
         return make_response(jsonify({"message": "Error al computar el tally de la eleccion"}), 400)
+
+@app.route("/<election_uuid>/combine-decryptions", methods=["POST"])
+@token_required
+@election_route()
+def compute_tally(election: Election) -> Response:
+    """
+    Route for freezing an election
+    Require a valid token to access >>> token_required
+    """
+    try:
+        trustees = Trustee.get_by_election(election.id)
+        election.combine_decryptions(trustees)
+        return make_response(jsonify({"message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"}), 200)
+    except:
+        return make_response(jsonify({"message": "Error al combinar las desencriptaciones parciales"}), 400)
 
 
 
@@ -941,34 +958,12 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
     """
 
     if request.method == "POST":
-        if not (election.questions.check_tally_type("homomorphic") and election.encrypted_tally):
-            return create_response_cors(
-                make_response(
-                    jsonify(
-                        {"message": "La eleccion no cumple con los requisitos necesarios"}
-                    ),
-                    400,
-                )
-            )
-
         body = request.get_json()
-        factors_and_proofs = route_utils.from_json(body["factors_and_proofs"])
-        factors = {}
-        proofs = {}
-        for key in factors_and_proofs:  # 'answers' or 'open_answers'
-            # verify the decryption factors
-            factors[key] = elgamal.DecryptionFactors(*factors_and_proofs[key]["decryption_factors"])
+        decryption_list = route_utils.from_json(body["decryptions"])
+        answers_decryptions : TrusteeDecryptions = TrusteeDecryptions(*decryption_list)
 
-            # each proof needs to be deserialized
-            proofs[key] = elgamal.DecryptionProofs(*factors_and_proofs[key]["decryption_proofs"])
-
-        trustee.answers_decryption_factors = factors["answers"]
-        trustee.answers_decryption_proofs = proofs["answers"]
-        if trustee.election.mixnet_open_answers is not None:
-            trustee.open_answers_decryption_factors = factors["open_answers"]
-            trustee.open_answers_decryption_proofs = proofs["open_answers"]
-
-        if trustee.verify_decryption_proofs(election):
+        if answers_decryptions.verify(encrypted_tally=election.encrypted_tally):
+            trustee.answers_decryptions = answers_decryptions
             PsifosModel.add(trustee)
             PsifosModel.commit()
 

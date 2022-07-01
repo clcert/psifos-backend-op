@@ -44,21 +44,8 @@ class TallyManager(SerializableList):
             decryption_proofs.append(q_dec_p)
         return decryption_factors, decryption_proofs
     
-    def verify_decryption_proofs(self, decryption_factors, decryption_proofs, public_key, challenge_generator):
-        for q_num, tally in enumerate(self.instances):
-            verified_q =  tally.verify_decryption_proofs(
-                decryption_factors[q_num],
-                decryption_proofs[q_num],
-                public_key,
-                challenge_generator
-            )
-
-            if not verified_q:
-                return False    
-        return True
-    
-    def decrypt_from_factors(self, decryption_factors, public_key, t, max_weight=1):
+    def decrypt(self, partial_decryptions, t, max_weight=1):
         return [
-            tally.decrypt_from_factors(decryption_factors[q_num], public_key, t, max_weight)
+            tally.decrypt(partial_decryptions[q_num], t, max_weight)
             for q_num, tally in self.instances
         ]

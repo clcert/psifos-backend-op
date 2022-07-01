@@ -12,3 +12,4 @@ class MixnetTally(AbstractTally):
     """
     def __init__(self, *args, **kwargs) -> None:
         super(MixnetTally, self).__init__(*args, **kwargs)
+        # TODO: implement MixnetTally.
