@@ -357,7 +357,7 @@ def compute_tally(election: Election) -> Response:
 @app.route("/<election_uuid>/combine-decryptions", methods=["POST"])
 @token_required
 @election_route()
-def compute_tally(election: Election) -> Response:
+def combine_decryptions(election: Election) -> Response:
     """
     Route for freezing an election
     Require a valid token to access >>> token_required

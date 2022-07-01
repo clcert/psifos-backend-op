@@ -9,17 +9,16 @@ from __future__ import annotations
 import datetime
 import functools
 import json
-from psifos.crypto.utils import hash_b64
 
 import psifos.utils as utils
 from psifos import db
-from psifos.crypto.elgamal import (DecryptionFactors, DecryptionProofs,
-                                   ElGamal, PublicKey,
-                                   fiatshamir_challenge_generator)
+from psifos.crypto.decryption import TrusteeDecryptions
+from psifos.crypto.elgamal import ElGamal, PublicKey
 from psifos.crypto.sharedpoint import (Certificate, ListOfCoefficients,
                                        ListOfSignatures, Point)
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.crypto.tally.tally import TallyManager
+from psifos.crypto.utils import hash_b64
 from psifos.custom_fields.enums import ElectionStatusEnum, ElectionTypeEnum
 from psifos.custom_fields.sqlalchemy import SerializableField
 from psifos.psifos_auth.models import User
@@ -57,6 +56,7 @@ class Election(PsifosModel, db.Model):
     encrypted_tally = db.Column(SerializableField(TallyManager), nullable=True)
     encrypted_tally_hash = db.Column(db.Text, nullable=True)
 
+    decryptions = db.Column(SerializableField(TrusteeDecryptions), nullable=True)
     decryptions_uploaded = db.Column(db.Integer, default=0)
     result = db.Column(db.Text, nullable=True)  # PsifosObject: Result
 
