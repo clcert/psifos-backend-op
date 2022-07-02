@@ -47,9 +47,8 @@ class TallyManager(SerializableList):
     def decrypt(self, partial_decryptions, t, max_weight=1):
         return [
             tally.decrypt(partial_decryptions[q_num], t, max_weight)
-            for q_num, tally in self.instances
+            for q_num, tally in enumerate(self.instances)
         ]
     
     def get_tallies(self):
         return self.instances
-        

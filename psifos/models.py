@@ -173,11 +173,11 @@ class Election(PsifosModel, db.Model):
         combine all of the decryption results
         """
 
-        total_questions = len(self.encrypted_tally.tally)
+        total_questions = len(self.encrypted_tally.get_tallies())
         partial_decryptions = [
             [
-                (t.trustee_id, t.get_decryptions()[q_num]) 
-                for t in trustees if t.answers_decryptions is not None
+                (t.trustee_id, t.get_decryptions()[q_num].get_decryption_factors()) 
+                for t in trustees if t.decryptions is not None
             ]
             for q_num in range(total_questions)
         ]
@@ -355,8 +355,8 @@ class Trustee(PsifosModel, db.Model):
         return cls.filter_by(election_id=election_id)
 
     def get_decryptions(self):
-        if self.answers_decryptions:
-            return self.answers_decryptions.instances
+        if self.decryptions:
+            return self.decryptions.instances
         return None
 
 

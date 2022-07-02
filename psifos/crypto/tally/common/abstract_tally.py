@@ -16,6 +16,6 @@ class AbstractTally(SerializableObject):
     def __init__(self, **kwargs) -> None:
         self.tally_type : str = kwargs.get("tally_type")
         self.computed : bool = kwargs.get("computed", False)
-        self.num_tallied : int = kwargs.get("num_tallied", 0)
+        self.num_tallied : int = int(kwargs.get("num_tallied", 0))
         self.question : AbstractQuestion = QuestionFactory.create(**kwargs.get("question"))
         self.public_key : PublicKey = PublicKey(**kwargs.get("public_key"))

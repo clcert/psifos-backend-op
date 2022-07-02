@@ -362,12 +362,12 @@ def combine_decryptions(election: Election) -> Response:
     Route for freezing an election
     Require a valid token to access >>> token_required
     """
-    try:
-        trustees = Trustee.get_by_election(election.id)
-        election.combine_decryptions(trustees)
-        return make_response(jsonify({"message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"}), 200)
-    except:
-        return make_response(jsonify({"message": "Error al combinar las desencriptaciones parciales"}), 400)
+    
+    trustees = Trustee.get_by_election(election.id)
+    election.combine_decryptions(trustees)
+    return make_response(jsonify({"message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"}), 200)
+    # except:
+    #     return make_response(jsonify({"message": "Error al combinar las desencriptaciones parciales"}), 400)
 
 
 

@@ -13,6 +13,12 @@ import logging
 from psifos.serialization import SerializableList, SerializableObject
 
 
+def lagrange(indices, index, modulus):
+    result = 1
+    for i in indices:
+        if i == index: continue
+        result = (result * i * number.inverse(i - index, modulus)) % modulus
+    return result
 class ElGamal(SerializableObject):
     def __init__(self, p=None, q=None, g=None, l=None, t=None):
         self.p = int(p)
@@ -454,15 +460,16 @@ class Ciphertext(SerializableObject):
         return (challenge_generator([p.commitment for p in proof.proofs])) == (sum([p.challenge for p in proof.proofs]) % self.pk.q)
 
     def decrypt(self, decryption_factors, public_key):
-        """
-        decrypt a ciphertext given a list of decryption factors (from multiple trustees)
-        For now, no support for threshold
-        """
-        running_decryption = self.beta
-        for dec_factor in decryption_factors:
-            running_decryption = (running_decryption * number.inverse(dec_factor, public_key.p)) % public_key.p
-
-        return running_decryption
+      """
+      decrypt a ciphertext given a list of decryption factors (from multiple trustees)
+      """
+      running_decryption = self.beta
+      indices = [f[0] for f in decryption_factors]
+      for dec_index, dec_factor in decryption_factors:
+        x = pow(dec_factor, lagrange(indices, dec_index, public_key.q), public_key.p)
+        running_decryption = (running_decryption * number.inverse(x, public_key.p)) % public_key.p
+        
+      return running_decryption
 
     def check_group_membership(self, pk):
         """
