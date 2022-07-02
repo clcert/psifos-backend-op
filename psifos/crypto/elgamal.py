@@ -566,7 +566,7 @@ class DecryptionFactors(SerializableList):
 
 class DecryptionProofs(SerializableList):
     def __init__(self, *args) -> None:
-        super(DecryptionFactors, self).__init__()
+        super(DecryptionProofs, self).__init__()
         for d_p_list in args:
             self.instances.append(ListOfZKProofs(*d_p_list))
 
