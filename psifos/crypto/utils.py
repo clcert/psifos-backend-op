@@ -12,13 +12,6 @@ from psifos.serialization import SerializableList
 
 random = StrongRandom()
 
-class ListOfIntegers(SerializableList):
-    def __init__(self, *args) -> None:
-        super(ListOfIntegers, self).__init__()
-        for value in args:
-            self.instances.append(int(value))
-
-
 def random_mpz_lt(maximum, strong_random=random):
     n_bits = int(math.floor(math.log(maximum, 2)))
     res = strong_random.getrandbits(n_bits)

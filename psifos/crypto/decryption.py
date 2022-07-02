@@ -1,4 +1,4 @@
-from psifos.crypto.elgamal import DecryptionFactors, DecryptionProofs
+from psifos.crypto.elgamal import ListOfZKProofs, ListOfIntegers
 from psifos.crypto.tally.homomorphic.tally import HomomorphicTally
 from psifos.crypto.tally.mixnet.tally import MixnetTally
 from psifos.serialization import SerializableList, SerializableObject
@@ -9,7 +9,7 @@ class TrusteeDecryptions(SerializableList):
     def __init__(self, *args) -> None:
         super(TrusteeDecryptions, self).__init__()
         for decryption_dict in args:
-            DecryptionFactory.create(**decryption_dict)
+            self.instances.append(DecryptionFactory.create(**decryption_dict))
     
     def verify(self, encrypted_tally):
         tallies = encrypted_tally.get_tallies()
@@ -37,10 +37,10 @@ class AbstractDecryption(SerializableObject):
     Holds the common behaviour of a Trustee's partial decryption
     for a question with an arbitrary tally_type.
     """
-    def __init__(self, **kwargs) -> None:
-        self.tally_type = kwargs.get("tally_type")
-        self.decryption_factors = DecryptionFactors(*kwargs["decryption_factors"])
-        self.decryption_proofs = DecryptionProofs(*kwargs["decryption_proofs"])
+    def __init__(self, tally_type, decryption_factors, decryption_proofs) -> None:
+        self.tally_type = tally_type
+        self.decryption_factors = ListOfIntegers(*decryption_factors)
+        self.decryption_proofs = ListOfZKProofs(*decryption_proofs)
 
     def verify(self, a_tally):
         """
@@ -50,15 +50,16 @@ class AbstractDecryption(SerializableObject):
         tally = a_tally.tally
 
         # go through each one
-        for a_num, ans_tally in enumerate(tally):
-            proof = self.decryption_proofs[a_num]
+        for a_num, ans_tally in enumerate(tally.instances):
+            proof = self.decryption_proofs.instances[a_num]
+            factor = self.decryption_factors.instances[a_num]
 
             # check that g, alpha, y, dec_factor is a DH tuple
             verify_params = {
                 "little_g" : public_key.g,
                 "little_h" : ans_tally.alpha,
                 "big_g" : public_key.y,
-                "big_h" : int(self.decryption_factors[a_num]),
+                "big_h" : factor,
                 "p" : public_key.p,
                 "challenge_generator" : fiatshamir_challenge_generator
             }
@@ -83,7 +84,9 @@ class HomomorphicDecryption(AbstractDecryption):
         super(HomomorphicDecryption, self).__init__(**kwargs)
 
     def verify(self, homomorphic_tally : HomomorphicTally):
-        super(HomomorphicDecryption, self).verify(homomorphic_tally)
+        abstract_verify = super(HomomorphicDecryption, self).verify(homomorphic_tally)
+        # new verifications ?
+        return abstract_verify
 
 
 class MixnetDecryption(AbstractDecryption):
@@ -97,5 +100,8 @@ class MixnetDecryption(AbstractDecryption):
         super(MixnetDecryption, self).__init__(**kwargs)
     
     def verify(self, mixnet_tally : MixnetTally):
-        super(MixnetDecryption, self).verify(mixnet_tally)
+        abstract_verify = super(MixnetDecryption, self).verify(mixnet_tally)
+        # new verifications ?
+        return abstract_verify
+
 

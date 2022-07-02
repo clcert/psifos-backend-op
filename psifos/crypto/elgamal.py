@@ -6,7 +6,7 @@ reworked for Psifos: 14-04-2022
 """
 import json
 
-from psifos.crypto.utils import ListOfIntegers, random
+from psifos.crypto.utils import random
 from Crypto.Util import number
 from Crypto.Hash import SHA1
 import logging
@@ -527,24 +527,25 @@ class ZKProof(SerializableObject):
         """
         Verify a DH tuple proof
         """
-        # check that A, B are in the correct group
-        if not (pow(self.commitment.A, self.pk.q, self.pk.p) == 1
-                and pow(self.commitment.B, self.pk.q, self.pk.p) == 1):
-            return False
-
         # check that little_g^response = A * big_g^challenge
         first_check = (pow(little_g, self.response, p) == ((pow(big_g, self.challenge, p) * self.commitment.A) % p))
-
+        
         # check that little_h^response = B * big_h^challenge
         second_check = (pow(little_h, self.response, p) == ((pow(big_h, self.challenge, p) * self.commitment.B) % p))
 
         # check the challenge?
         third_check = True
-
+        
         if challenge_generator:
             third_check = (self.challenge == challenge_generator(self.commitment))
 
-        return first_check and second_check and third_check
+        return (first_check and second_check and third_check)
+
+class ListOfIntegers(SerializableList):
+    def __init__(self, *args) -> None:
+        super(ListOfIntegers, self).__init__()
+        for value in args:
+            self.instances.append(int(value))
 
 class ListOfZKProofs(SerializableList):
     def __init__(self, *args) -> None:
@@ -557,18 +558,6 @@ class ZKProofCommitment(SerializableObject):
         self.A = int(A or 0)
         self.B = int(B or 0)
 
-
-class DecryptionFactors(SerializableList):
-    def __init__(self, *args) -> None:
-        super(DecryptionFactors, self).__init__()
-        for d_f_list in args:
-            self.instances.append(ListOfIntegers(*d_f_list))
-
-class DecryptionProofs(SerializableList):
-    def __init__(self, *args) -> None:
-        super(DecryptionProofs, self).__init__()
-        for d_p_list in args:
-            self.instances.append(ListOfZKProofs(*d_p_list))
 
 class ZKDisjunctiveProof(SerializableList):
     def __init__(self, *args):

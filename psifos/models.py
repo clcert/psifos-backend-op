@@ -186,12 +186,6 @@ class Election(PsifosModel, db.Model):
         self.election_status = "decryptions_combined"
         print(self.result)
 
-    
-    def get_tallies(self):
-        if self.encrypted_tally:
-            return self.encrypted_tally.instances
-        return None
-
     def voting_has_started(self):
         return True if self.voting_started_at is not None else False
     
@@ -310,7 +304,7 @@ class Trustee(PsifosModel, db.Model):
     secret_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
     pok = db.Column(db.Text, nullable=True)  # PsifosObject: DLogProof
 
-    answers_decryptions = db.Column(SerializableField(TrusteeDecryptions), nullable=True)
+    decryptions = db.Column(SerializableField(TrusteeDecryptions), nullable=True)
 
     certificate = db.Column(SerializableField(Certificate), nullable=True)
     coefficients = db.Column(SerializableField(ListOfCoefficients), nullable=True)

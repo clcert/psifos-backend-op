@@ -7,11 +7,7 @@ from marshmallow_enum import EnumField
 
 from psifos import ma
 from psifos.crypto.decryption import TrusteeDecryptions
-from psifos.crypto.elgamal import (
-    DecryptionFactors,
-    DecryptionProofs,
-    PublicKey
-)
+from psifos.crypto.elgamal import PublicKey
 from psifos.crypto.sharedpoint import (
     Certificate,
     ListOfCoefficients,
@@ -70,11 +66,11 @@ class TrusteeSchema(ma.SQLAlchemyAutoSchema):
     secret_key = ma.auto_field()  # SerializableField(SecretKey)
     pok = ma.auto_field()  # SerializableField(DLogProof)
 
-    decryptions = SerializableField(TrusteeDecryptions)
-
     certificate = SerializableField(Certificate)
     coefficients = SerializableField(ListOfCoefficients)
     acknowledgements = SerializableField(ListOfSignatures)
+
+    decryptions = SerializableField(TrusteeDecryptions)
 
 
 class SharedPointSchema(ma.SQLAlchemyAutoSchema):

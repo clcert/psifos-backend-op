@@ -946,7 +946,7 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
         answers_decryptions : TrusteeDecryptions = TrusteeDecryptions(*decryption_list)
 
         if answers_decryptions.verify(encrypted_tally=election.encrypted_tally):
-            trustee.answers_decryptions = answers_decryptions
+            trustee.decryptions = answers_decryptions
             election.decryptions_uploaded += 1
 
             if election.decryptions_uploaded == len(election.trustees):
@@ -955,6 +955,10 @@ def trustee_decrypt_and_prove(election: Election, trustee: Trustee) -> Response:
             PsifosModel.add(trustee)
             PsifosModel.add(election)
             PsifosModel.commit()
+        
+            return create_response_cors(
+                make_response(jsonify({"message": "La desencriptacion parcial fue subida con exito!"}), 200)
+            )
 
         else:
             return create_response_cors(
