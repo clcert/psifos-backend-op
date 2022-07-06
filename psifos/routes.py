@@ -416,7 +416,7 @@ def cast_vote(election: Election, voter: Voter) -> Response:
     cast_vote = CastVote.update_or_create(**cv_params)
     cast_vote.valid_cast_votes += 1
     PsifosModel.commit()
-    return make_response(jsonify({"message": "Voto registrado con exito."}), 200)
+    return make_response(jsonify({"message": "Voto registrado con exito.", "vote_hash": vote_fingerprint}), 200)
 
         
 
