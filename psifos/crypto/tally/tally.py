@@ -2,6 +2,7 @@
 Tally module for Psifos.
 """
 
+from psifos.psifos_object.result import ElectionResult
 from psifos.serialization import SerializableList
 from .homomorphic.tally import HomomorphicTally
 from .mixnet.tally import MixnetTally
@@ -45,10 +46,10 @@ class TallyManager(SerializableList):
         return decryption_factors, decryption_proofs
     
     def decrypt(self, partial_decryptions, t, max_weight=1):
-        return [
+        return ElectionResult(*[
             tally.decrypt(partial_decryptions[q_num], t, max_weight)
             for q_num, tally in enumerate(self.instances)
-        ]
+        ])
     
     def get_tallies(self):
         return self.instances

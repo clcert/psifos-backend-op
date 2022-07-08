@@ -5,7 +5,7 @@ Encrypted answer for Psifos vote.
 """
 
 from psifos.serialization import SerializableList, SerializableObject
-from .encrypted_answer import EncryptedAnswerFactory
+from .encrypted_answer.enc_ans_factory import EncryptedAnswerFactory
 
 import logging
 
@@ -53,30 +53,3 @@ class EncryptedVote(SerializableObject):
                 return False
 
         return True
-
-    '''
-    This method is only used to instantiate EncryptedAnswers when a client
-    is not able to encrypt his own answers at them computer. Due to the recent
-    change in how EncryptedAnswers are handled (i.e. now we have two classes, 
-    EncryptedClosedAnswer & EncryptedOpenAnswer), a re-thinking of this method is 
-    needed, hopefully using the EncryptedAnswerFactory as it's the "new way" of 
-    creating Encrypted Answers
-    
-    TODO: Adapt fromElectionAndAnswers method to the new structure of EncryptedAnswers.
-
-
-    @classmethod
-    def fromElectionAndAnswers(cls, election, answers):
-        pk = election.public_key
-
-        # each answer is an index into the answer array
-        encrypted_answers = [
-            EncryptedAnswer.fromElectionAndAnswer(election, answer_num, answers[answer_num])
-            for answer_num in range(len(answers))]
-        return_val = cls()
-        return_val.encrypted_answers = encrypted_answers
-        return_val.election_hash = election.hash
-        return_val.election_uuid = election.uuid
-
-        return return_val
-    '''

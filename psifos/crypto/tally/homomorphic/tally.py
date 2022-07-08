@@ -73,8 +73,6 @@ class HomomorphicTally(AbstractTally):
         Each decryption factor set is a list of lists of decryption factors (questions/answers).
         """
 
-        print(decryption_factors)
-
         # pre-compute a dlog table
         dlog_table = DLogTable(base=self.public_key.g, modulus=self.public_key.p)
         dlog_table.precompute(self.num_tallied * max_weight)
@@ -100,4 +98,9 @@ class HomomorphicTally(AbstractTally):
                 last_raw_value = raw_value
             q_result.append(raw_value)
 
-        return [dlog_table.lookup(result) for result in q_result]
+        result = {
+            "tally_type": "homomorphic",
+            "ans_results": [dlog_table.lookup(result) for result in q_result]
+        }
+        
+        return result

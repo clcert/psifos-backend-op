@@ -6,7 +6,7 @@ Marshmallow Schemas for Psifos models.
 from marshmallow_enum import EnumField
 
 from psifos import ma
-from psifos.crypto.decryption import TrusteeDecryptions
+from psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
 from psifos.crypto.elgamal import PublicKey
 from psifos.crypto.sharedpoint import (
     Certificate,
@@ -27,6 +27,7 @@ from psifos.models import (
     Voter
 )
 from psifos.psifos_object.questions import Questions
+from psifos.psifos_object.result import ElectionResult
 
 
 class CastVoteSchema(ma.SQLAlchemyAutoSchema):
@@ -120,7 +121,7 @@ class ElectionSchema(ma.SQLAlchemyAutoSchema):
 
     cast_url = ma.auto_field()
     encrypted_tally = SerializableField(TallyManager)
-    result = ma.auto_field()  # SerializableField(Result)
+    result = SerializableField(ElectionResult)
 
     # One-to-many relationships
     voters = ma.Nested(VoterSchema, many=True)

@@ -9,10 +9,11 @@ from __future__ import annotations
 import datetime
 import functools
 import json
+from psifos.psifos_object.result import ElectionResult
 
 import psifos.utils as utils
 from psifos import db
-from psifos.crypto.decryption import TrusteeDecryptions
+from psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
 from psifos.crypto.elgamal import ElGamal, PublicKey
 from psifos.crypto.sharedpoint import (Certificate, ListOfCoefficients,
                                        ListOfSignatures, Point)
@@ -58,7 +59,7 @@ class Election(PsifosModel, db.Model):
 
     decryptions = db.Column(SerializableField(TrusteeDecryptions), nullable=True)
     decryptions_uploaded = db.Column(db.Integer, default=0)
-    result = db.Column(db.Text, nullable=True)  # PsifosObject: Result
+    result = db.Column(SerializableField(ElectionResult), nullable=True)
 
     voting_started_at = db.Column(db.DateTime, nullable=True)
     voting_ended_at = db.Column(db.DateTime, nullable=True)
@@ -184,7 +185,9 @@ class Election(PsifosModel, db.Model):
 
         self.result = self.encrypted_tally.decrypt(partial_decryptions, self.total_trustees//2, self.max_weight)
         self.election_status = "decryptions_combined"
-        print(self.result)
+        PsifosModel.add(self)
+        PsifosModel.commit()
+
 
     def voting_has_started(self):
         return True if self.voting_started_at is not None else False

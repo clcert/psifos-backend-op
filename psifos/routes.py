@@ -19,8 +19,7 @@ from flask.wrappers import Response
 
 from psifos import app
 from psifos import utils as route_utils
-from psifos.crypto import decryption
-from psifos.crypto.decryption import TrusteeDecryptions
+from psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.forms import ElectionForm
 from psifos.models import Election, SharedPoint, Voter, User, Trustee, CastVote
@@ -474,7 +473,6 @@ def create_trustee(current_user: User, election_uuid: str) -> Response:
                 jsonify({"message": "No tiene permisos para crear un trustee"}), 401
             )
     except:
-        raise e
         return make_response(jsonify({"message": "Error al crear el trustee"}), 400)
 
 
