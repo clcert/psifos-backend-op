@@ -107,7 +107,7 @@ def get_election(election: Election) -> Response:
 @app.route("/get-election-stats/<election_uuid>", methods=["GET"])
 @token_required
 @election_route()
-def get_election(election: Election) -> Response:
+def get_election_stats(election: Election) -> Response:
     """
     Route for get the stats of an election by uuid
     Require a valid token to access >>> token_required
