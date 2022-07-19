@@ -104,6 +104,25 @@ def get_election(election: Election) -> Response:
     response = make_response(result, 200)
     return response
 
+@app.route("/get-election-stats/<election_uuid>", methods=["GET"])
+@token_required
+@election_route()
+def get_election(election: Election) -> Response:
+    """
+    Route for get the stats of an election by uuid
+    Require a valid token to access >>> token_required
+    """
+
+    return make_response(
+            jsonify(
+                {
+                    "num_casted_votes": election.current_num_casted_votes(),
+                    "total_voters": election.total_voters,
+                }
+            ),
+            200,
+        )
+
 
 @app.route("/get-elections", methods=["GET"])
 @token_required

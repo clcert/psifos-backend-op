@@ -189,6 +189,10 @@ class Election(PsifosModel, db.Model):
         PsifosModel.commit()
 
 
+    def current_num_casted_votes(self):
+        voters = Voter.get_by_election(election_id=self.id)
+        return len([v for v in voters if v.cast_vote.valid_cast_votes >= 1])
+    
     def voting_has_started(self):
         return True if self.voting_started_at is not None else False
     
