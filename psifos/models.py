@@ -141,7 +141,7 @@ class Election(PsifosModel, db.Model):
         self.election_status = "ended"
 
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
-        self.votes_by_weight_final = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
+        self.votes_by_weight_end = json.dumps({str(w):normalized_weights.count(w) for w in normalized_weights})
         
         PsifosModel.add(self)
         PsifosModel.commit()
