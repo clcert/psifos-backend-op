@@ -43,7 +43,8 @@ from psifos.psifos_auth.utils import (
 from psifos.crypto import sharedpoint
 from psifos.crypto import elgamal
 from psifos.crypto import utils as crypto_utils
-from sqlalchemy import func
+from sqlalchemy import func, null
+from sqlalchemy import case
 
 
 # Admin routes
@@ -248,6 +249,7 @@ def send_voters(election: Election) -> Response:
         )
         PsifosModel.commit()
     election.total_voters = total_voters
+    PsifosModel.commit()
     return make_response(jsonify({"message": "Votantes creados con exito!"}), 200)
 
 
@@ -293,23 +295,19 @@ def resume(current_user: User, election_uuid: str) -> Response:
         election = Election.get_by_uuid(uuid=election_uuid)
         voters_election = Voter.filter_by(election_id=election.id)
         if election.admin_id == current_user.get_id():
-            count_weight = (
-                Voter.query.with_entities(
-                    Voter.voter_weight, func.count(Voter.voter_weight)
-                )
-                .group_by(Voter.voter_weight)
-                .all()
-            )
-            total_voters = Voter.query.filter_by(election_id=election.id).count()
+
             return make_response(
-                jsonify({"weights": count_weight, "total_voters": total_voters}), 200
+                jsonify({"weights_init": election.voters_by_weight_init, 
+                         "weights_end": election.voters_by_weight_end
+                         }), 200
             )
         else:
             return make_response(
                 jsonify({"message": "No tiene permisos ver esta elección"}), 401
             )
 
-    except:
+    except Exception as e:
+        print(e)
         return make_response(jsonify({"message": "Error al acceder al resumen de la elección"}), 400)
 
 
