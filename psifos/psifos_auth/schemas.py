@@ -6,7 +6,7 @@ Marshmallow Schemas for Psifos Auth models.
 
 from psifos import ma
 from psifos.psifos_auth.models import User
-from psifos.schemas import ElectionSchema
+from psifos.database.schemas import ElectionSchema
 
 
 class UserSchema(ma.SQLAlchemyAutoSchema):

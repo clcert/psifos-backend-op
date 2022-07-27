@@ -8,8 +8,8 @@ from flask import request, jsonify, session, make_response
 from psifos import app, db
 from requests_oauthlib import OAuth2Session
 from psifos.psifos_auth.models import User
-from psifos.models import Election, Trustee, Voter
-from psifos.models import Voter
+from psifos.database.models import Election, Trustee, Voter
+from psifos.database.models import Voter
 
 
 def token_required(f):

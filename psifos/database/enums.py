@@ -6,11 +6,11 @@ Enums for Psifos model.
 
 import enum
 
-class ElectionTypeEnum(enum.Enum):
+class ElectionTypeEnum(str, enum.Enum):
     query = "Query"
     election = "Election"
 
-class ElectionStatusEnum(enum.Enum):
+class ElectionStatusEnum(str, enum.Enum):
     setting_up = "Setting up"
     started = "Started"
     ended = "Ended"

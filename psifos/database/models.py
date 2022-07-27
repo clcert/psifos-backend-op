@@ -12,7 +12,6 @@ import json
 from psifos.psifos_object.result import ElectionResult
 
 import psifos.utils as utils
-from psifos import db
 from psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
 from psifos.crypto.elgamal import ElGamal, PublicKey
 from psifos.crypto.sharedpoint import (Certificate, ListOfCoefficients,
@@ -20,59 +19,64 @@ from psifos.crypto.sharedpoint import (Certificate, ListOfCoefficients,
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.crypto.tally.tally import TallyManager
 from psifos.crypto.utils import hash_b64
-from psifos.custom_fields.enums import ElectionStatusEnum, ElectionTypeEnum
-from psifos.custom_fields.sqlalchemy import SerializableField
+from psifos.database.enums import ElectionStatusEnum, ElectionTypeEnum
+from psifos.database.custom_fields import SerializableField
 from psifos.psifos_auth.models import User
 from psifos.psifos_model import PsifosModel
 from psifos.psifos_object.questions import Questions
 
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Enum, DateTime, func
+from sqlalchemy.orm import relationship
 
-class Election(PsifosModel, db.Model):
+from . import Base
+
+
+class Election(PsifosModel, Base):
     __tablename__ = "psifos_election"
 
-    id = db.Column(db.Integer, primary_key=True)
-    admin_id = db.Column(db.Integer, db.ForeignKey('auth_user.id'))
-    uuid = db.Column(db.String(50), nullable=False, unique=True)
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey('auth_user.id'))
+    uuid = Column(String(50), nullable=False, unique=True)
 
-    short_name = db.Column(db.String(100), nullable=False, unique=True)
-    name = db.Column(db.String(250), nullable=False)
-    election_type = db.Column(db.Enum(ElectionTypeEnum), nullable=False)
-    election_status = db.Column(db.Enum(ElectionStatusEnum), default="setting_up")
-    private_p = db.Column(db.Boolean, default=False, nullable=False)
-    description = db.Column(db.Text)
+    short_name = Column(String(100), nullable=False, unique=True)
+    name = Column(String(250), nullable=False)
+    election_type = Column(Enum(ElectionTypeEnum), nullable=False)
+    election_status = Column(Enum(ElectionStatusEnum), default="setting_up")
+    private_p = Column(Boolean, default=False, nullable=False)
+    description = Column(Text)
 
-    public_key = db.Column(SerializableField(PublicKey), nullable=True)
-    private_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
-    questions = db.Column(SerializableField(Questions), nullable=True)
+    public_key = Column(SerializableField(PublicKey), nullable=True)
+    private_key = Column(Text, nullable=True)  # PsifosObject: EGSecretKey
+    questions = Column(SerializableField(Questions), nullable=True)
 
-    obscure_voter_names = db.Column(db.Boolean, default=False, nullable=False)
-    randomize_answer_order = db.Column(db.Boolean, default=False, nullable=False)
-    normalization = db.Column(db.Boolean, default=False, nullable=False)
-    max_weight = db.Column(db.Integer, nullable=False)
+    obscure_voter_names = Column(Boolean, default=False, nullable=False)
+    randomize_answer_order = Column(Boolean, default=False, nullable=False)
+    normalization = Column(Boolean, default=False, nullable=False)
+    max_weight = Column(Integer, nullable=False)
 
-    total_voters = db.Column(db.Integer, default=0)
-    total_trustees = db.Column(db.Integer, default=0)
+    total_voters = Column(Integer, default=0)
+    total_trustees = Column(Integer, default=0)
 
-    cast_url = db.Column(db.String(500))
-    encrypted_tally = db.Column(SerializableField(TallyManager), nullable=True)
-    encrypted_tally_hash = db.Column(db.Text, nullable=True)
+    cast_url = Column(String(500))
+    encrypted_tally = Column(SerializableField(TallyManager), nullable=True)
+    encrypted_tally_hash = Column(Text, nullable=True)
 
-    decryptions = db.Column(SerializableField(TrusteeDecryptions), nullable=True)
-    decryptions_uploaded = db.Column(db.Integer, default=0)
-    result = db.Column(SerializableField(ElectionResult), nullable=True)
+    decryptions = Column(SerializableField(TrusteeDecryptions), nullable=True)
+    decryptions_uploaded = Column(Integer, default=0)
+    result = Column(SerializableField(ElectionResult), nullable=True)
 
-    voting_started_at = db.Column(db.DateTime, nullable=True)
-    voting_ended_at = db.Column(db.DateTime, nullable=True)
+    voting_started_at = Column(DateTime, nullable=True)
+    voting_ended_at = Column(DateTime, nullable=True)
     
-    voters_by_weight_init = db.Column(db.Text, nullable=True)
-    voters_by_weight_end = db.Column(db.Text, nullable=True)
+    voters_by_weight_init = Column(Text, nullable=True)
+    voters_by_weight_end = Column(Text, nullable=True)
 
 
     # One-to-many relationships
-    voters = db.relationship("Voter", backref="psifos_election")
-    trustees = db.relationship("Trustee", backref="psifos_election")
-    sharedpoints = db.relationship("SharedPoint", backref="psifos_election")
-    audited_ballots = db.relationship("AuditedBallot", backref="psifos_election")
+    voters = relationship("Voter", backref="psifos_election")
+    trustees = relationship("Trustee", backref="psifos_election")
+    sharedpoints = relationship("SharedPoint", backref="psifos_election")
+    audited_ballots = relationship("AuditedBallot", backref="psifos_election")
 
     def __repr__(self):
         return '<Election %r>' % self.name
@@ -199,19 +203,19 @@ class Election(PsifosModel, db.Model):
     def voting_has_ended(self):
         return True if self.voting_ended_at is not None else False
 
-class Voter(PsifosModel, db.Model):
+class Voter(PsifosModel, Base):
     __tablename__ = "psifos_voter"
 
-    id = db.Column(db.Integer, primary_key=True)
-    election_id = db.Column(db.Integer, db.ForeignKey('psifos_election.id'))
-    uuid = db.Column(db.String(50), nullable=False, unique=True)
+    id = Column(Integer, primary_key=True, index=True)
+    election_id = Column(Integer, ForeignKey('psifos_election.id'))
+    uuid = Column(String(50), nullable=False, unique=True)
 
-    voter_login_id = db.Column(db.String(100), nullable=False)
-    voter_name = db.Column(db.String(200), nullable=False)
-    voter_weight = db.Column(db.Integer, nullable=False)
+    voter_login_id = Column(String(100), nullable=False)
+    voter_name = Column(String(200), nullable=False)
+    voter_weight = Column(Integer, nullable=False)
 
     # One-to-one relationship
-    cast_vote = db.relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
+    cast_vote = relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
 
     @classmethod
     def get_by_login_id_and_election(cls, voter_login_id, election_id):
@@ -241,25 +245,25 @@ class Voter(PsifosModel, db.Model):
         return cls.filter_by(election_id=election_id)
     
 
-class CastVote(PsifosModel, db.Model):
+class CastVote(PsifosModel, Base):
     __table_name__ = "psifos_cast_vote"
 
-    id = db.Column(db.Integer, primary_key=True)
-    voter_id = db.Column(db.Integer, db.ForeignKey("psifos_voter.id"), unique=True)
+    id = Column(Integer, primary_key=True, index=True)
+    voter_id = Column(Integer, ForeignKey("psifos_voter.id"), unique=True)
     
-    vote = db.Column(SerializableField(EncryptedVote), nullable=True)
-    vote_hash = db.Column(db.String(500), nullable=True)
-    vote_tinyhash = db.Column(db.String(500), nullable=True)
+    vote = Column(SerializableField(EncryptedVote), nullable=True)
+    vote_hash = Column(String(500), nullable=True)
+    vote_tinyhash = Column(String(500), nullable=True)
 
-    valid_cast_votes = db.Column(db.Integer, default=0)
-    invalid_cast_votes = db.Column(db.Integer, default=0)
+    valid_cast_votes = Column(Integer, default=0)
+    invalid_cast_votes = Column(Integer, default=0)
     
-    cast_ip = db.Column(db.Text, nullable=True)
-    hash_cast_ip = db.Column(db.String(500), nullable=True)
+    cast_ip = Column(Text, nullable=True)
+    hash_cast_ip = Column(String(500), nullable=True)
     
-    cast_at = db.Column(db.DateTime, default=db.func.now(), nullable=True)
-    verified_at = db.Column(db.DateTime, nullable=True)
-    invalidated_at = db.Column(db.DateTime, nullable=True)
+    cast_at = Column(DateTime, default=func.now(), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    invalidated_at = Column(DateTime, nullable=True)
 
     @classmethod
     def get_by_voter_id(cls, voter_id):
@@ -280,42 +284,42 @@ class CastVote(PsifosModel, db.Model):
     
 
 
-class AuditedBallot(PsifosModel, db.Model):
+class AuditedBallot(PsifosModel, Base):
     __table_name__ = "psifos_audited_ballot"
 
-    id = db.Column(db.Integer, primary_key=True)
-    election_id = db.Column(db.Integer, db.ForeignKey("psifos_election.id"))
+    id = Column(Integer, primary_key=True, index=True)
+    election_id = Column(Integer, ForeignKey("psifos_election.id"))
 
-    raw_vote = db.Column(db.Text)
-    vote_hash = db.Column(db.String(500))
-    added_at = db.Column(db.DateTime, default=db.func.now())
+    raw_vote = Column(Text)
+    vote_hash = Column(String(500))
+    added_at = Column(DateTime, default=func.now())
 
 
-class Trustee(PsifosModel, db.Model):
+class Trustee(PsifosModel, Base):
     __table_name__ = "psifos_trustee"
 
-    id = db.Column(db.Integer, primary_key=True)
-    election_id = db.Column(db.Integer, db.ForeignKey("psifos_election.id"))
-    trustee_id = db.Column(db.Integer, nullable=False)
-    uuid = db.Column(db.String(50), nullable=False, unique=True)
+    id = Column(Integer, primary_key=True, index=True)
+    election_id = Column(Integer, ForeignKey("psifos_election.id"))
+    trustee_id = Column(Integer, nullable=False)
+    uuid = Column(String(50), nullable=False, unique=True)
 
-    name = db.Column(db.String(200), nullable=False)
-    trustee_login_id = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.Text, nullable=False)
-    secret = db.Column(db.String(100))
+    name = Column(String(200), nullable=False)
+    trustee_login_id = Column(String(100), nullable=False)
+    email = Column(Text, nullable=False)
+    secret = Column(String(100))
 
-    current_step = db.Column(db.Integer, default=0)
+    current_step = Column(Integer, default=0)
 
-    public_key = db.Column(SerializableField(PublicKey), nullable=True)
-    public_key_hash = db.Column(db.String(100), nullable=True)
-    secret_key = db.Column(db.Text, nullable=True)  # PsifosObject: EGSecretKey
-    pok = db.Column(db.Text, nullable=True)  # PsifosObject: DLogProof
+    public_key = Column(SerializableField(PublicKey), nullable=True)
+    public_key_hash = Column(String(100), nullable=True)
+    secret_key = Column(Text, nullable=True)  # PsifosObject: EGSecretKey
+    pok = Column(Text, nullable=True)  # PsifosObject: DLogProof
 
-    decryptions = db.Column(SerializableField(TrusteeDecryptions), nullable=True)
+    decryptions = Column(SerializableField(TrusteeDecryptions), nullable=True)
 
-    certificate = db.Column(SerializableField(Certificate), nullable=True)
-    coefficients = db.Column(SerializableField(ListOfCoefficients), nullable=True)
-    acknowledgements = db.Column(SerializableField(ListOfSignatures), nullable=True)
+    certificate = Column(SerializableField(Certificate), nullable=True)
+    coefficients = Column(SerializableField(ListOfCoefficients), nullable=True)
+    acknowledgements = Column(SerializableField(ListOfSignatures), nullable=True)
 
     @classmethod
     def get_by_uuid(cls, uuid):
@@ -368,15 +372,15 @@ class Trustee(PsifosModel, db.Model):
 
 
 
-class SharedPoint(PsifosModel, db.Model):
+class SharedPoint(PsifosModel, Base):
     __table_name__ = "psifos_shared_point"
 
-    id = db.Column(db.Integer, primary_key=True)
-    election_id = db.Column(db.Integer, db.ForeignKey("psifos_election.id"))
+    id = Column(Integer, primary_key=True, index=True)
+    election_id = Column(Integer, ForeignKey("psifos_election.id"))
 
-    sender = db.Column(db.Integer, nullable=False)
-    recipient = db.Column(db.Integer, nullable=False)
-    point = db.Column(SerializableField(Point), nullable=True)
+    sender = Column(Integer, nullable=False)
+    recipient = Column(Integer, nullable=False)
+    point = Column(SerializableField(Point), nullable=True)
 
     @classmethod
     def get_by_sender(cls, sender):

@@ -16,9 +16,9 @@ from psifos.crypto.sharedpoint import (
 )
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.crypto.tally.tally import TallyManager
-from psifos.custom_fields.enums import ElectionStatusEnum, ElectionTypeEnum
+from psifos.database.enums import ElectionStatusEnum, ElectionTypeEnum
 from psifos.custom_fields.marshmallow import SerializableField
-from psifos.models import (
+from psifos.database.models import (
     AuditedBallot,
     CastVote,
     Election,

@@ -22,9 +22,9 @@ from psifos import utils as route_utils
 from psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.forms import ElectionForm
-from psifos.models import Election, SharedPoint, Voter, User, Trustee, CastVote
+from psifos.database.models import Election, SharedPoint, Voter, User, Trustee, CastVote
 from psifos.psifos_model import PsifosModel
-from psifos.schemas import (
+from psifos.database.schemas import (
     election_schema,
     voter_schema,
     trustee_schema,

@@ -2,7 +2,7 @@ from urllib import response
 from cas import CASClient
 from psifos import config, app
 from flask import request, make_response, redirect, session, url_for, jsonify
-from psifos.models import Election, Trustee
+from psifos.database.models import Election, Trustee
 from psifos.psifos_auth.utils import get_user
 from requests_oauthlib import OAuth2Session
 
