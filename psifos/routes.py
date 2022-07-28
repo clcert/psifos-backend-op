@@ -406,33 +406,32 @@ def cast_vote(election: Election, voter: Voter) -> Response:
     encrypted_vote = EncryptedVote(**enc_vote_data)
 
     # FIXME: -- verify asynchronously --
+
     if not encrypted_vote.verify(election):
         voter.cast_vote.invalid_cast_votes += 1
-        voter.cast_vote.invalidated_at = datetime.now()
+        PsifosModel.add(voter)
+        PsifosModel.commit()
         return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
+    
     else:
-        voter.cast_vote.verified_at = datetime.now()
+        vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
+        cast_ip = request.headers.getlist("X-Forwarded-For")[0] if ("X-Forwarded-For" in request.headers) else request.remote_addr
+        ip_fingerprint = crypto_utils.hash_b64(cast_ip)
 
-    PsifosModel.add(voter)
-    PsifosModel.commit()
+        cv_params = {
+            "voter_id": voter.id,
+            "vote": encrypted_vote,
+            "vote_hash": vote_fingerprint,
+            "cast_at": datetime.now(),
+            "cast_ip": cast_ip,
+            "ip_fingerprint": ip_fingerprint,
+        }
 
-    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)) #)
-    cast_ip = request.headers.getlist("X-Forwarded-For")[0] if ("X-Forwarded-For" in request.headers) else request.remote_addr
-    ip_fingerprint = crypto_utils.hash_b64(cast_ip)
-
-    cv_params = {
-        "voter_id": voter.id,
-        "vote": encrypted_vote,
-        "vote_hash": vote_fingerprint,
-        "cast_at": datetime.now(),
-        "cast_ip": cast_ip,
-        "ip_fingerprint": ip_fingerprint,
-    }
-
-    cast_vote = CastVote.update_or_create(**cv_params)
-    cast_vote.valid_cast_votes += 1
-    PsifosModel.commit()
-    return make_response(jsonify({"message": "Voto registrado con exito.", "vote_hash": vote_fingerprint}), 200)
+        cast_vote = CastVote.update_or_create(**cv_params)
+        cast_vote.valid_cast_votes += 1
+        PsifosModel.add(cast_vote)
+        PsifosModel.commit()
+        return make_response(jsonify({"message": "Voto registrado con exito.", "vote_hash": vote_fingerprint}), 200)
 
         
 

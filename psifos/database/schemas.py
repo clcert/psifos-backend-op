@@ -34,6 +34,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from psifos.crypto.elgamal import PublicKey
+from psifos.crypto.sharedpoint import Certificate, ListOfCoefficients, ListOfSignatures, Point
 from psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
 from psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from psifos.crypto.tally.tally import TallyManager
@@ -47,6 +48,7 @@ class PsifosSchema(BaseModel):
     """
     Base class for a Psifos schema, includes custom json_encoders.
     """
+
     class Config:
         json_encoders = {
             SerializableObject: lambda s_obj: SerializableObject.serialize(s_obj),
@@ -58,65 +60,10 @@ class PsifosSchema(BaseModel):
 # (TODO)
 
 
-# ------------------ model-related schemas ------------------ 
-
-#  AuditedBallot-related schemas 
+# ------------------ model-related schemas ------------------
 
 
-class AuditedBallotBase(PsifosSchema):
-    """
-    Basic auditedballot schema.
-    """
-
-    pass
-
-
-class AuditedBallotIn(AuditedBallotBase):
-    """
-    Schema for creating an auditedballot.
-    """
-
-    pass
-
-
-class AuditedBallotOut(AuditedBallotBase):
-    """
-    Schema for reading/returning auditedballot data.
-    """
-
-    class Config:
-        orm_mode = True
-
-
-#  SharedPoint-related schemas 
-
-
-class SharedPointBase(PsifosSchema):
-    """
-    Basic sharedpoint schema.
-    """
-
-    pass
-
-
-class SharedPointIn(SharedPointBase):
-    """
-    Schema for creating a sharedpoint.
-    """
-
-    pass
-
-
-class SharedPointOut(SharedPointBase):
-    """
-    Schema for reading/returning sharedpoint data.
-    """
-
-    class Config:
-        orm_mode = True
-
-
-#  Trustee-related schemas 
+#  Trustee-related schemas
 
 
 class TrusteeBase(PsifosSchema):
@@ -124,7 +71,9 @@ class TrusteeBase(PsifosSchema):
     Basic trustee schema.
     """
 
-    pass
+    name: str
+    email: str
+    trustee_login_id: str
 
 
 class TrusteeIn(TrusteeBase):
@@ -140,11 +89,22 @@ class TrusteeOut(TrusteeBase):
     Schema for reading/returning trustee data.
     """
 
+    id: int
+    trustee_id: int
+    uuid: str
+    current_step: int
+    public_key: PublicKey | None
+    public_key_hash: str | None
+    decryptions: TrusteeDecryptions | None
+    certificate: Certificate | None
+    coefficients: ListOfCoefficients | None
+    acknowledgements: ListOfSignatures | None
+
     class Config:
         orm_mode = True
 
 
-#  CastVote-related schemas 
+#  CastVote-related schemas
 
 
 class CastVoteBase(PsifosSchema):
@@ -152,19 +112,14 @@ class CastVoteBase(PsifosSchema):
     Basic castvote schema.
     """
 
-    voter_id : int
-    vote : EncryptedVote | None
-    vote_hash : str | None
-    vote_tinyhash : str | None
-    valid_cast_votes : int
-    invalid_cast_votes : int
-    cast_ip : str | None
-    hash_cast_ip : str
-    cast_at : datetime | None
-    verified_at : datetime | None
-    invalidated_at : datetime | None
-
-    pass
+    voter_id: int
+    vote_hash: str | None
+    vote_tinyhash: str | None
+    valid_cast_votes: int
+    invalid_cast_votes: int
+    cast_ip: str | None
+    hash_cast_ip: str
+    cast_at: datetime | None
 
 
 class CastVoteIn(CastVoteBase):
@@ -180,24 +135,22 @@ class CastVoteOut(CastVoteBase):
     Schema for reading/returning castvote data.
     """
 
-    id : int 
-    voter_id : int
-    vote : EncryptedVote | None
-    vote_hash : str | None
-    vote_tinyhash : str | None
-    valid_cast_votes : int
-    invalid_cast_votes : int
-    cast_ip : str | None
-    hash_cast_ip : str
-    cast_at : datetime | None
-    verified_at : datetime | None
-    invalidated_at : datetime | None
+    id: int
+    vote_hash: str | None
+    vote_tinyhash: str | None
+    valid_cast_votes: int
+    invalid_cast_votes: int
+    cast_ip: str | None
+    hash_cast_ip: str
+    cast_at: datetime | None
+    verified_at: datetime | None
+    invalidated_at: datetime | None
 
     class Config:
         orm_mode = True
 
 
-#  Voter-related schemas 
+#  Voter-related schemas
 
 
 class VoterBase(PsifosSchema):
@@ -205,15 +158,16 @@ class VoterBase(PsifosSchema):
     Basic election schema.
     """
 
-    voter_login_id : str
-    voter_weight : int
-    voter_name : str
+    voter_login_id: str
+    voter_weight: int
+    voter_name: str
 
 
 class VoterIn(VoterBase):
     """
     Schema for creating an election.
     """
+
     pass
 
 
@@ -222,8 +176,8 @@ class VoterOut(VoterBase):
     Schema for reading/returning voter data.
     """
 
-    id : int
-    uuid : str
+    id: int
+    uuid: str
 
     cast_vote: CastVoteOut = None
 
@@ -231,7 +185,7 @@ class VoterOut(VoterBase):
         orm_mode = True
 
 
-#  Election-related schemas 
+#  Election-related schemas
 
 
 class ElectionBase(PsifosSchema):
@@ -254,7 +208,9 @@ class ElectionIn(ElectionBase):
     """
     Schema for creating an election.
     """
+
     pass
+
 
 class ElectionOut(ElectionBase):
     """

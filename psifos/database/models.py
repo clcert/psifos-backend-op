@@ -262,8 +262,6 @@ class CastVote(PsifosModel, Base):
     hash_cast_ip = Column(String(500), nullable=True)
     
     cast_at = Column(DateTime, default=func.now(), nullable=True)
-    verified_at = Column(DateTime, nullable=True)
-    invalidated_at = Column(DateTime, nullable=True)
 
     @classmethod
     def get_by_voter_id(cls, voter_id):
