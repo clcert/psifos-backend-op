@@ -231,6 +231,8 @@ def send_voters(election: Election) -> Response:
     Require a valid token to access >>> token_required
     """
 
+    # check Helios async version.
+
     file_input = request.files["file"]
     file_str = file_input.read().decode("utf-8")
     strip_lines = [line.strip() for line in file_str.split("\n")]

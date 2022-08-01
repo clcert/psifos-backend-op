@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime
 import functools
 import json
+from psifos.database import crud
 from psifos.psifos_object.result import ElectionResult
 
 import psifos.utils as utils
@@ -350,13 +351,14 @@ class Trustee(PsifosModel, Base):
         return query[0] if len(query) > 0 else None
 
     @classmethod
-    def get_next_trustee_id(cls, election_id):
-        query = Trustee.filter_by(election_id=election_id)
-        return 1 if len(query) == 0 else max(query, key=(lambda t: t.trustee_id)).trustee_id + 1
+    def get_next_trustee_id(cls, election_id: int):
+        trustees = crud.get_trustees_by_election_id(election_id=election_id)
+        return 1 if len(trustees) == 0 else max(trustees, key=(lambda t: t.trustee_id)).trustee_id + 1
 
     @classmethod
-    def get_global_trustee_step(cls, election_id):
-        trustee_steps = [t.current_step for t in Trustee.filter_by(election_id=election_id)]
+    def get_global_trustee_step(cls, election_id: int):
+        trustees = crud.get_trustees_by_election_id(election_id=election_id)
+        trustee_steps = [t.current_step for t in trustees]
         return 0 if len(trustee_steps) == 0 else min(trustee_steps)
 
     @classmethod

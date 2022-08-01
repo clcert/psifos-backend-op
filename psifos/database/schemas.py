@@ -232,8 +232,6 @@ class ElectionOut(ElectionBase):
 
     voters: list[VoterOut] = []
     trustees: list[TrusteeOut] = []
-    sharedpoints: list[SharedPointOut] = []
-    audited_ballots: list[AuditedBallotOut] = []
 
     class Config:
         orm_mode = True
