@@ -105,7 +105,7 @@ class Election(PsifosModel, Base):
             "voters_by_weight_init": voters_by_weight_init
         }
 
-        crud.set_election_start_data(db=db, election=self, **start_data)
+        crud.update_election(db=db, election_id=self.id, fields=start_data)
 
     def end(self, db: Session, voters: list[Voter]):
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
@@ -117,7 +117,7 @@ class Election(PsifosModel, Base):
             "voters_by_weight_end": voters_by_weight_end
         }
 
-        crud.set_election_end_data(db=db, election=self, **end_data)
+        crud.update_election(db=db, election_id=self.id, fields=end_data)
 
     def compute_tally(self, db: Session, encrypted_votes: list[EncryptedVote], weights: list[int]):
         # First we instantiate the TallyManager class.
@@ -138,7 +138,7 @@ class Election(PsifosModel, Base):
             "encrypted_tally_hash": hash_b64(TallyManager.serialize(enc_tally))
         }
 
-        crud.set_election_compute_tally_data(db=db, election=self, **compute_tally_data)
+        crud.update_election(db=db, election=self, fields=compute_tally_data)
 
     def combine_decryptions(self, db: Session, trustees: list[Trustee]):
         """
@@ -160,7 +160,7 @@ class Election(PsifosModel, Base):
             "election_status": "decryptions_combined"
         }
 
-        crud.set_election_combine_decrytions_data(db=db, election=self, **combine_decryptions_data)
+        crud.update_election(db=db, election_id=self.id, fields=combine_decryptions_data)
 
     def current_num_casted_votes(self):
         voters = crud.get_voters_by_election_id(election_id=self.id)

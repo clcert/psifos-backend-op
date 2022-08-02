@@ -34,7 +34,7 @@ def create_election(db: Session, election: schemas.ElectionIn, admin_id: int, uu
     return db_election
 
 
-def update_election(db: Session, election_id: int, election: schemas.ElectionIn):
+def edit_election(db: Session, election_id: int, election: schemas.ElectionIn):
     db_election = db.query(models.Election).filter(models.Election.id == election_id).update(election.dict())
     db.add(db_election)
     db.commit()
@@ -42,68 +42,12 @@ def update_election(db: Session, election_id: int, election: schemas.ElectionIn)
     return db_election
 
 
-def set_start_data(
-    db: Session,
-    election: models.Election,
-    voting_started_at: datetime.datetime,
-    election_status: str,
-    public_key: PublicKey,
-    voters_by_weight_init: str,
-):
-
-    election.voting_started_at = voting_started_at
-    election.election_status = election_status
-    election.public_key = public_key
-    election.voters_by_weight_init = voters_by_weight_init
-    db.add(election)
+def update_election(db: Session, election_id: int, fields: dict):
+    db_election = db.query(models.Election).filter(models.Election.id == election_id).update(fields)
+    db.add(db_election)
     db.commit()
-    db.refresh(election)
-
-
-def set_election_end_data(
-    db: Session,
-    election: models.Election,
-    voting_ended_at: datetime.datetime,
-    election_status: str,
-    voters_by_weight_end: str,
-):
-
-    election.voting_ended_at = voting_ended_at
-    election.election_status = election_status
-    election.voters_by_weight_end = voters_by_weight_end
-    db.add(election)
-    db.commit()
-    db.refresh(election)
-
-
-def set_election_compute_tally_data(
-    db: Session,
-    election: models.Election,
-    election_status: str,
-    encrypted_tally: TallyManager,
-    encrypted_tally_hash: str,
-):
-
-    election.election_status = election_status
-    election.encrypted_tally = encrypted_tally
-    election.encrypted_tally_hash = encrypted_tally_hash
-    db.add(election)
-    db.commit()
-    db.refresh(election)
-
-
-def set_election_combine_decrytions_data(
-    db: Session,
-    election: models.Election,
-    election_status: str,
-    result: ElectionResult,
-):
-
-    election.election_status = election_status
-    election.result = result
-    db.add(election)
-    db.commit()
-    db.refresh(election)
+    db.refresh(db_election)
+    return db_election
 
 
 # ----- Voter CRUD Utils -----
@@ -115,6 +59,7 @@ def get_voter_by_login_id_and_election_id(db: Session, login_id: int, election_i
         .filter(models.Voter.login_id == login_id, models.Voter.election_id == election_id)
         .first()
     )
+
 
 def get_voters_by_election(db: Session, election_id: int):
     return db.query(models.Voter).filter(models.Voter.election_id == election_id).all()
