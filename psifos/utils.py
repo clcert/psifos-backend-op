@@ -9,6 +9,7 @@ from psifos.crypto.sharedpoint import Point
 
 from psifos.database.models import Voter
 from psifos.psifos_auth.utils import get_user
+from functools import reduce
 
 # -- JSON manipulation --
 
@@ -33,6 +34,19 @@ def from_json(value):
 # -- SharedPoint manipulation --
 def format_points(points):
     return [Point.serialize(x.point, to_json=False) for x in points]
+
+# -- Election utils --
+
+def generate_election_pk(trustees):
+    a_combined_pk = trustees[0].coefficients.instances[0].coefficient
+    for t in trustees[1:]:
+        a_combined_pk = combined_pk * t.coefficients.instances[0].coefficient
+
+    t_first_coefficients = [t.coefficients.instances[0].coefficient for t in trustees]
+
+    combined_pk = reduce((lambda x, y: x * y), t_first_coefficients)
+    return trustees[0].public_key.clone_with_new_y(combined_pk)
+
 
 # -- CastVote validation --
 

@@ -7,12 +7,13 @@ SQLAlchemy Models for Psifos.
 from __future__ import annotations
 
 import datetime
-import functools
 import json
 from psifos.database import crud
 from psifos.psifos_object.result import ElectionResult
+from psifos.routes import combine_decryptions
 
 import psifos.utils as utils
+from sqlalchemy.orm import Session
 from psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
 from psifos.crypto.elgamal import ElGamal, PublicKey
 from psifos.crypto.sharedpoint import Certificate, ListOfCoefficients, ListOfSignatures, Point
@@ -93,36 +94,32 @@ class Election(PsifosModel, Base):
         )
         return ElGamal.serialize(params) if serialize else params
 
-    def start(self, trustees, voters):
-        self.voting_started_at = datetime.datetime.utcnow()
-        self.election_status = "started"
-
-        a_combined_pk = trustees[0].coefficients.instances[0].coefficient
-        for t in trustees[1:]:
-            a_combined_pk = combined_pk * t.coefficients.instances[0].coefficient
-
-        t_first_coefficients = [t.coefficients.instances[0].coefficient for t in trustees]
-
-        combined_pk = functools.reduce((lambda x, y: x * y), t_first_coefficients)
-        self.public_key = trustees[0].public_key.clone_with_new_y(combined_pk)
-
+    def start(self, db: Session, trustees: list[Trustee], voters: list[Voter]):
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
-        self.voters_by_weight_init = json.dumps({str(w): normalized_weights.count(w) for w in normalized_weights})
+        voters_by_weight_init = json.dumps({str(w): normalized_weights.count(w) for w in normalized_weights})
 
-        PsifosModel.add(self)
-        PsifosModel.commit()
+        start_data = {
+            "voting_started_at": datetime.datetime.utcnow(),
+            "election_status": "started",
+            "public_key": utils.generate_election_pk(trustees),
+            "voters_by_weight_init": voters_by_weight_init
+        }
 
-    def end(self, voters):
-        self.voting_ended_at = datetime.datetime.utcnow()
-        self.election_status = "ended"
+        crud.set_election_start_data(db=db, election=self, **start_data)
 
+    def end(self, db: Session, voters: list[Voter]):
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
-        self.voters_by_weight_end = json.dumps({str(w): normalized_weights.count(w) for w in normalized_weights})
+        voters_by_weight_end = json.dumps({str(w): normalized_weights.count(w) for w in normalized_weights})
 
-        PsifosModel.add(self)
-        PsifosModel.commit()
+        end_data = {
+            "voting_ended_at": datetime.datetime.utcnow(),
+            "election_status": "ended",
+            "voters_by_weight_end": voters_by_weight_end
+        }
 
-    def compute_tally(self, encrypted_votes, weights):
+        crud.set_election_end_data(db=db, election=self, **end_data)
+
+    def compute_tally(self, db: Session, encrypted_votes: list[EncryptedVote], weights: list[int]):
         # First we instantiate the TallyManager class.
         question_list = Questions.serialize(self.questions, to_json=False)
         pk_dict = PublicKey.serialize(self.public_key, to_json=False)
@@ -135,14 +132,15 @@ class Election(PsifosModel, Base):
         # Then we compute the encrypted_tally
         enc_tally.compute(encrypted_votes, weights)
 
-        self.election_status = "tally_computed"
-        self.encrypted_tally = enc_tally
-        self.encrypted_tally_hash = hash_b64(TallyManager.serialize(enc_tally))
+        compute_tally_data = {
+            "election_status": "tally_computed",
+            "encrypted_tally": enc_tally,
+            "encrypted_tally_hash": hash_b64(TallyManager.serialize(enc_tally))
+        }
 
-        PsifosModel.add(self)
-        PsifosModel.commit()
+        crud.set_election_compute_tally_data(db=db, election=self, **compute_tally_data)
 
-    def combine_decryptions(self, trustees):
+    def combine_decryptions(self, db: Session, trustees: list[Trustee]):
         """
         combine all of the decryption results
         """
@@ -157,13 +155,15 @@ class Election(PsifosModel, Base):
             for q_num in range(total_questions)
         ]
 
-        self.result = self.encrypted_tally.decrypt(partial_decryptions, self.total_trustees // 2, self.max_weight)
-        self.election_status = "decryptions_combined"
-        PsifosModel.add(self)
-        PsifosModel.commit()
+        combine_decryptions_data = {
+            "result": self.encrypted_tally.decrypt(partial_decryptions, self.total_trustees // 2, self.max_weight),
+            "election_status": "decryptions_combined"
+        }
+
+        crud.set_election_combine_decrytions_data(db=db, election=self, **combine_decryptions_data)
 
     def current_num_casted_votes(self):
-        voters = Voter.get_by_election(election_id=self.id)
+        voters = crud.get_voters_by_election_id(election_id=self.id)
         return len([v for v in voters if v.cast_vote.valid_cast_votes >= 1])
 
     def voting_has_started(self):
@@ -254,10 +254,6 @@ class Trustee(PsifosModel, Base):
         trustees = crud.get_trustees_by_election_id(election_id=election_id)
         trustee_steps = [t.current_step for t in trustees]
         return 0 if len(trustee_steps) == 0 else min(trustee_steps)
-
-    @classmethod
-    def get_by_election(cls, election_id):
-        return cls.filter_by(election_id=election_id)
 
     def get_decryptions(self):
         if self.decryptions:
