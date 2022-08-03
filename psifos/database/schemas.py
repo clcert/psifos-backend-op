@@ -31,7 +31,7 @@ When we deal with SQLAlchemy we must note the following:
 """
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from psifos.crypto.elgamal import PublicKey
 from psifos.crypto.sharedpoint import Certificate, ListOfCoefficients, ListOfSignatures, Point
@@ -194,10 +194,10 @@ class ElectionBase(PsifosSchema):
     Basic election schema.
     """
 
-    short_name: str
-    name: str
+    short_name: str = Field(max_length=100)
+    name: str = Field(max_length=100)
     description: str | None
-    election_type: ElectionTypeEnum
+    election_type: ElectionTypeEnum = Field(max_length=100)
     max_weight: int
     obscure_voter_names: bool | None
     randomize_answer_order: bool | None

@@ -1,6 +1,6 @@
 import jwt
-from flask import make_response, request
-from flask.wrappers import Response
+from fastapi import HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from psifos import app, config
 from psifos.psifos_auth.auth_model import Auth, CASAuth
 from psifos.psifos_auth.models import User
@@ -10,8 +10,8 @@ auth_factory = Auth()
 protocol = config["AUTH"]["type_auth"]
 
 
-@app.route("/login", methods=["GET", "POST"])
-def login_user() -> Response:
+@app.post("/login", status_code = 201)
+def login_user(request: Request) -> Response:
     """
     Login a admin user
 
@@ -19,19 +19,19 @@ def login_user() -> Response:
 
     auth = request.authorization
     if not auth or not auth.username or not auth.password:
-        return make_response({"message": "Ocurrio un error, intente nuevamente"}, 401)
+        return HTTPException(status_code = 401, detail="an error occurred, please try again")
 
     user = User.get_by_name(name=auth.username)
 
     if not user:
-        return make_response({"message": "Usuario o contraseñas incorrectos"}, 401)
+        return HTTPException(status_code = 401, detail = "wrong username or passwords")
 
     if check_password_hash(user.password, auth.password):
         token = jwt.encode({"public_id": user.public_id}, app.config["SECRET_KEY"])
-        return make_response({"token": token}, 200)
+        return JSONResponse({"token": token})
 
     else:
-        return make_response({"message": "Usuario o contraseñas incorrectos"}, 401)
+        return HTTPException(status_code = 401, detail = "wrong username or passwords")
 
 
 @app.route("/vote/<election_uuid>", methods=["GET", "POST"])

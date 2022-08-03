@@ -148,9 +148,12 @@ def get_election_by_short_name(db: Session, short_name: str):
 def get_election_by_uuid(db: Session, uuid: str):
     return db.query(models.Election).filter(models.Election.uuid == uuid).first()
 
+def get_elections_by_user(db: Session, admin_id: int):
+    return db.query(models.Election).filter(models.Election.admin_id == admin_id).all()
+
 
 def get_num_casted_votes(db: Session, election_id: int):
-    voters = get_voters_by_election_id(election_id=election_id)
+    voters = get_voters_by_election_id(db=db, election_id=election_id)
     return len([v for v in voters if v.cast_vote.valid_cast_votes >= 1])
 
 

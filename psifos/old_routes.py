@@ -48,14 +48,6 @@ from sqlalchemy import func, null
 from sqlalchemy import case
 
 
-def get_db():
-    try:
-         db = SessionLocal()
-         yield db
-    finally:
-        db.close()
-
-
 # Admin routes
 @app.route("/create-election", methods=["POST"])
 @token_required

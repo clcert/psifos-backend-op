@@ -4,7 +4,7 @@ import uuid
 from psifos import config
 from werkzeug.security import generate_password_hash
 from functools import update_wrapper, wraps
-from flask import request, jsonify, session, make_response
+from fastapi import HTTPException, Request
 from psifos import app, db
 from requests_oauthlib import OAuth2Session
 from psifos.psifos_auth.models import User
@@ -19,22 +19,22 @@ def token_required(f):
     """
 
     @wraps(f)
-    def decorator(*args, **kwargs):
+    async def decorator(request: Request, *args, **kwargs):
         token = None
         if "x-access-tokens" in request.headers:
             token = request.headers["x-access-tokens"]
 
         if not token:
-            return jsonify({"message": "a valid token is missing"})
+            raise HTTPException(status_code=401, detail="a valid token is missing")
 
         try:
             data = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
             current_user = User.get_by_public_id(public_id=data["public_id"])
 
         except Exception as e:
-            return make_response(jsonify({"message": "token is invalid"}), 401)
+            raise HTTPException(status_code=401, detail="token is invalid")
 
-        return f(current_user, *args, **kwargs)
+        return await f(current_user, *args, **kwargs)
 
     return decorator
 
@@ -48,16 +48,16 @@ def election_route(**kwargs):
     admin_election = kwargs.get("admin_election", True)
 
     def election_route_decorator(f):
-        def election_route_wrapper(
+        async def election_route_wrapper(
             current_user=None, election_uuid=None, *args, **kwargs
         ):
             election = Election.get_by_uuid(uuid=election_uuid)
             if not election:
-                return jsonify({"message": "election not found"})
+                raise HTTPException(status_code=400, detail="election not found")
             if admin_election and election.admin_id != current_user.id:
-                return jsonify({"message": "election is not an admin election"})
+                raise HTTPException(status_code=401, detail="election is not an admin election")
 
-            return f(election, *args, **kwargs)
+            return await f(election, *args, **kwargs)
 
         return update_wrapper(election_route_wrapper, f)
 
@@ -66,15 +66,13 @@ def election_route(**kwargs):
 
 def auth_requires(f: callable) -> callable:
     @wraps(f)
-    def decorator(*args, **kwargs):
-        if "username" not in session and "oauth_token" not in session:
-            response = make_response({"message": "Usuario no autorizado"}, 401)
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            return response
+    async def decorator(request: Request, *args, **kwargs):
+        if "username" not in request.session and "oauth_token" not in request.session:
+            raise HTTPException(status_code = 401, detail = "unauthorized user")
 
         user_session = get_user()
 
-        return f(user_session, *args, **kwargs)
+        return await f(user_session, *args, **kwargs)
 
     return decorator
 
@@ -86,7 +84,7 @@ def voter_cas(**kwargs):
     """
 
     def voter_cas_decorator(f):
-        def voter_cas_wrapper(user_session=None, election_uuid=None, *args, **kwargs):
+        async def voter_cas_wrapper(user_session=None, election_uuid=None, *args, **kwargs):
 
             try:
                 election = Election.get_by_uuid(uuid=election_uuid,)
@@ -97,30 +95,12 @@ def voter_cas(**kwargs):
                 )
 
                 if not verify_voter(election, voter):
-                    response = create_response_cors(
-                        make_response(
-                            jsonify(
-                                {
-                                    "message": "No tiene permisos para acceder a esta elección"
-                                }
-                            ),
-                            401,
-                        )
-                    )
-                    return response
+                    raise HTTPException(status_code=401, detail="you do not have permissions to access this election")
 
             except:
-                response = create_response_cors(
-                    make_response(
-                        jsonify(
-                            {"message": "Ha ocurrido un error al verificar el votante"}
-                        ),
-                        401,
-                    )
-                )
-                return response
+                raise HTTPException(status_code = 401, detail = "an error occurred while verifying the voter")
 
-            return f(election, voter, *args, **kwargs)
+            return await f(election, voter, *args, **kwargs)
 
         return update_wrapper(voter_cas_wrapper, f)
 
@@ -134,7 +114,7 @@ def trustee_cas(**kwargs):
     """
 
     def trustee_cas_decorator(f):
-        def trustee_cas_wrapper(
+        async def trustee_cas_wrapper(
             user_session=None, election_uuid=None, trustee_uuid=None, *args, **kwargs
         ):
             try:
@@ -146,31 +126,12 @@ def trustee_cas(**kwargs):
                 )
 
                 if not verify_trustee(election, trustee):
-                    response = create_response_cors(
-                        make_response(
-                            jsonify(
-                                {
-                                    "message": "No tiene permisos para acceder a esta elección"
-                                }
-                            ),
-                            401,
-                        )
-                    )
-                    return response
-            except:
-                response = create_response_cors(
-                    make_response(
-                        jsonify(
-                            {
-                                "message": "Ha ocurrido un error al obtener los datos de la elección"
-                            }
-                        ),
-                        401,
-                    )
-                )
-                return response
+                    raise HTTPException(status_code = 401, detail = "you do not have permissions to access this election")
 
-            return f(election, trustee, *args, **kwargs)
+            except:
+                raise HTTPException(status_code = 401, detail = "an error has occurred while obtaining the election data")
+
+            return await f(election, trustee, *args, **kwargs)
 
         return update_wrapper(trustee_cas_wrapper, f)
 

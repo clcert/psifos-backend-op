@@ -23,7 +23,6 @@ from psifos.crypto.utils import hash_b64
 from psifos.database.enums import ElectionStatusEnum, ElectionTypeEnum
 from psifos.database.custom_fields import SerializableField
 from psifos.psifos_auth.models import User
-from psifos.psifos_model import PsifosModel
 from psifos.psifos_object.questions import Questions
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Enum, DateTime, func
@@ -32,7 +31,7 @@ from sqlalchemy.orm import relationship
 from . import Base
 
 
-class Election(PsifosModel, Base):
+class Election(Base):
     __tablename__ = "psifos_election"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -163,7 +162,7 @@ class Election(PsifosModel, Base):
         return True if self.voting_ended_at is not None else False
 
 
-class Voter(PsifosModel, Base):
+class Voter(Base):
     __tablename__ = "psifos_voter"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -178,7 +177,7 @@ class Voter(PsifosModel, Base):
     cast_vote = relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
 
 
-class CastVote(PsifosModel, Base):
+class CastVote(Base):
     __table_name__ = "psifos_cast_vote"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -197,7 +196,7 @@ class CastVote(PsifosModel, Base):
     cast_at = Column(DateTime, default=func.now(), nullable=True)
 
 
-class AuditedBallot(PsifosModel, Base):
+class AuditedBallot(Base):
     __table_name__ = "psifos_audited_ballot"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -208,7 +207,7 @@ class AuditedBallot(PsifosModel, Base):
     added_at = Column(DateTime, default=func.now())
 
 
-class Trustee(PsifosModel, Base):
+class Trustee(Base):
     __table_name__ = "psifos_trustee"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -240,7 +239,7 @@ class Trustee(PsifosModel, Base):
         return None
 
 
-class SharedPoint(PsifosModel, Base):
+class SharedPoint(Base):
     __table_name__ = "psifos_shared_point"
 
     id = Column(Integer, primary_key=True, index=True)
