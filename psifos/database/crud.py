@@ -15,40 +15,6 @@ from . import models, schemas
 from ..utils import format_points
 from psifos import utils
 
-# ----- Election CRUD Utils -----
-
-
-def get_election_by_short_name(db: Session, short_name: str):
-    return db.query(models.Election).filter(models.Election.short_name == short_name).first()
-
-
-def get_election_by_uuid(db: Session, uuid: str):
-    return db.query(models.Election).filter(models.Election.uuid == uuid).first()
-
-
-def create_election(db: Session, election: schemas.ElectionIn, admin_id: int, uuid: str):
-    db_election = models.Election(**election.dict(), admin_id=admin_id, uuid=uuid)
-    db.add(db_election)
-    db.commit()
-    db.refresh(db_election)
-    return db_election
-
-
-def edit_election(db: Session, election_id: int, election: schemas.ElectionIn):
-    db_election = db.query(models.Election).filter(models.Election.id == election_id).update(election.dict())
-    db.add(db_election)
-    db.commit()
-    db.refresh(db_election)
-    return db_election
-
-
-def update_election(db: Session, election_id: int, fields: dict):
-    db_election = db.query(models.Election).filter(models.Election.id == election_id).update(fields)
-    db.add(db_election)
-    db.commit()
-    db.refresh(db_election)
-    return db_election
-
 
 # ----- Voter CRUD Utils -----
 
@@ -61,7 +27,7 @@ def get_voter_by_login_id_and_election_id(db: Session, login_id: int, election_i
     )
 
 
-def get_voters_by_election(db: Session, election_id: int):
+def get_voters_by_election_id(db: Session, election_id: int):
     return db.query(models.Voter).filter(models.Voter.election_id == election_id).all()
 
 
@@ -138,6 +104,17 @@ def create_trustee(db: Session, trustee: schemas.TrusteeIn):
     return db_trustee
 
 
+def get_next_trustee_id(election_id: int):
+    trustees = get_trustees_by_election_id(election_id=election_id)
+    return 1 if len(trustees) == 0 else max(trustees, key=(lambda t: t.trustee_id)).trustee_id + 1
+
+
+def get_global_trustee_step(election_id: int):
+    trustees = get_trustees_by_election_id(election_id=election_id)
+    trustee_steps = [t.current_step for t in trustees]
+    return 0 if len(trustee_steps) == 0 else min(trustee_steps)
+
+
 # ----- SharedPoint CRUD Utils -----
 
 
@@ -159,3 +136,43 @@ def format_points_sent_by(db: Session, election_id: int, trustee_id: int):
     )
     points.sort(key=(lambda x: x.recipient))
     return utils.format_points(points)
+
+
+# ----- Election CRUD Utils -----
+
+
+def get_election_by_short_name(db: Session, short_name: str):
+    return db.query(models.Election).filter(models.Election.short_name == short_name).first()
+
+
+def get_election_by_uuid(db: Session, uuid: str):
+    return db.query(models.Election).filter(models.Election.uuid == uuid).first()
+
+
+def get_num_casted_votes(db: Session, election_id: int):
+    voters = get_voters_by_election_id(election_id=election_id)
+    return len([v for v in voters if v.cast_vote.valid_cast_votes >= 1])
+
+
+def create_election(db: Session, election: schemas.ElectionIn, admin_id: int, uuid: str):
+    db_election = models.Election(**election.dict(), admin_id=admin_id, uuid=uuid)
+    db.add(db_election)
+    db.commit()
+    db.refresh(db_election)
+    return db_election
+
+
+def edit_election(db: Session, election_id: int, election: schemas.ElectionIn):
+    db_election = db.query(models.Election).filter(models.Election.id == election_id).update(election.dict())
+    db.add(db_election)
+    db.commit()
+    db.refresh(db_election)
+    return db_election
+
+
+def update_election(db: Session, election_id: int, fields: dict):
+    db_election = db.query(models.Election).filter(models.Election.id == election_id).update(fields)
+    db.add(db_election)
+    db.commit()
+    db.refresh(db_election)
+    return db_election

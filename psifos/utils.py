@@ -7,8 +7,6 @@ Utilities for Psifos.
 import json
 from psifos.crypto.sharedpoint import Point
 
-from psifos.database.models import Voter
-from psifos.psifos_auth.utils import get_user
 from functools import reduce
 
 # -- JSON manipulation --

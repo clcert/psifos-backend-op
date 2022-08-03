@@ -50,6 +50,7 @@ class PsifosSchema(BaseModel):
     """
 
     class Config:
+        arbitrary_types_allowed = True
         json_encoders = {
             SerializableObject: lambda s_obj: SerializableObject.serialize(s_obj),
             SerializableList: lambda s_list: SerializableList.serialize(s_list),
