@@ -199,10 +199,10 @@ class ElectionBase(PsifosSchema):
     description: str | None
     election_type: ElectionTypeEnum
     max_weight: int
-    obscure_voter_names: bool
-    randomize_answer_order: bool
-    private_p: bool
-    normalization: bool
+    obscure_voter_names: bool | None
+    randomize_answer_order: bool | None
+    private_p: bool | None
+    normalization: bool | None
 
 
 class ElectionIn(ElectionBase):
