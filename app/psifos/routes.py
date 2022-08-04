@@ -28,7 +28,7 @@ def create_election(election_in: schemas.ElectionIn, current_user: models.User =
 
 
 @api_router.get("/get-election/{election_uuid}", response_model=schemas.ElectionOut, status_code=200)
-def get_election(election_uuid: str, current_user: models.User = Depends(verify_token),  db: Session = Depends(get_db)):
+def get_election(election_uuid: str, current_user: models.User = Depends(verify_token), db: Session = Depends(get_db)):
     """
     Route for get a election by uuid
     """
@@ -37,7 +37,7 @@ def get_election(election_uuid: str, current_user: models.User = Depends(verify_
 
 
 @api_router.get("/get-election-stats/{election_uuid}", status_code=200)
-def get_election_stats(election_uuid, current_user: models.Users = Depends(verify_token), db: Session = Depends(get_db)):
+def get_election_stats(election_uuid, current_user: models.User = Depends(verify_token), db: Session = Depends(get_db)):
     """
     Route for get the stats of an election by uuid
     """

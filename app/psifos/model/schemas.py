@@ -34,17 +34,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.database.serialization import SerializableList, SerializableObject
-
 from app.psifos.model.enums import ElectionTypeEnum, ElectionStatusEnum
-
-from app.psifos.crypto.elgamal import PublicKey
-from app.psifos.crypto.sharedpoint import Certificate, ListOfCoefficients, ListOfSignatures
-from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
-from app.psifos.crypto.tally.tally import TallyManager
-
-from app.psifos.psifos_object.questions import Questions
-from app.psifos.psifos_object.result import ElectionResult
-
 
 
 class PsifosSchema(BaseModel):
@@ -97,12 +87,12 @@ class TrusteeOut(TrusteeBase):
     trustee_id: int
     uuid: str
     current_step: int
-    public_key: PublicKey | None
+    public_key: str | None
     public_key_hash: str | None
-    decryptions: TrusteeDecryptions | None
-    certificate: Certificate | None
-    coefficients: ListOfCoefficients | None
-    acknowledgements: ListOfSignatures | None
+    decryptions: str | None
+    certificate: str | None
+    coefficients: str | None
+    acknowledgements: str | None
 
     class Config:
         orm_mode = True
@@ -224,13 +214,13 @@ class ElectionOut(ElectionBase):
     id: int
     uuid: str
     election_status: ElectionStatusEnum
-    public_key: PublicKey | None
-    questions: Questions | None
+    public_key: str | None
+    questions: str | None
     total_voters: int
     total_trustees: int
-    encrypted_tally: TallyManager | None
+    encrypted_tally: str | None
     encrypted_tally_hash: str | None
-    result: ElectionResult | None
+    result: str | None
     voters_by_weight_init: str | None
     voters_by_weight_end: str | None
 

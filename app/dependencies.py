@@ -18,7 +18,7 @@ def get_db():
         db.close()
 
 
-def verify_token(request: Request, db: Session = Depends(get_db)):
+def verify_token(request: Request):
     """
     User dependency: allows a single User per request.
     """
