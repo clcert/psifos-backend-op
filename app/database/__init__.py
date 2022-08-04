@@ -2,13 +2,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from app import config
+from app.config import env
 
 # Database conn credentials
-db_user = config['local']['user']
-db_pass = config['local']['password']
-db_host = config['local']['host']
-db_name = config['local']['database']
+db_user = env['local']['user']
+db_pass = env['local']['password']
+db_host = env['local']['host']
+db_name = env['local']['database']
 
 SQLALCHEMY_DATABASE_URL = "postgresql://{0}:{1}@{2}/{3}".format(db_user, db_pass, db_host, db_name)
 

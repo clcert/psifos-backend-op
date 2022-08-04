@@ -1,40 +1,42 @@
-import jwt
+import logging
 import uuid
+import jwt
 
 from app import config
+from app.config import settings
+from app.dependencies import get_db
+from app.psifos.model.models import Election, Trustee, Voter
+from app.psifos_auth.model import crud, schemas
+
+from fastapi import Depends, HTTPException, Request
+from sqlalchemy.orm import Session
 from werkzeug.security import generate_password_hash
 from functools import update_wrapper, wraps
-from fastapi import HTTPException, Request
 from requests_oauthlib import OAuth2Session
-from app.psifos_auth.model.models import User
-from app.psifos.model.models import Election, Trustee, Voter
 
 
-def token_required(f):
+def token_required(func):
     """
     Decorator to check if the user is logged in
 
     """
 
-    @wraps(f)
-    async def decorator(request: Request, *args, **kwargs):
-        token = None
-        if "x-access-tokens" in request.headers:
-            token = request.headers["x-access-tokens"]
-
+    @wraps(func)
+    async def wrapper(request: Request, *args, **kwargs):
+        token = request.headers.get("x-access-tokens", None)
         if not token:
             raise HTTPException(status_code=401, detail="a valid token is missing")
 
         try:
-            data = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
-            current_user = User.get_by_public_id(public_id=data["public_id"])
+            data = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            current_user = crud.get_user_by_public_id(public_id=data["public_id"])
 
-        except Exception as e:
+        except:
             raise HTTPException(status_code=401, detail="token is invalid")
 
-        return await f(current_user, *args, **kwargs)
+        return await func(current_user, *args, **kwargs)
 
-    return decorator
+    return wrapper
 
 
 def election_route(**kwargs):
@@ -136,7 +138,7 @@ def trustee_cas(**kwargs):
     return trustee_cas_decorator
 
 
-def create_user(username: str, password: str) -> str:
+def create_user(username: str, password: str, db: Session = Depends(get_db)) -> str:
     """
     Create a new user
     :param username: username of the user
@@ -146,19 +148,16 @@ def create_user(username: str, password: str) -> str:
     """
 
     hashed_password = generate_password_hash(password, method="sha256")
-
-    new_user = User(
+    user = schemas.User(
         public_id=str(uuid.uuid4()),
-        user_type="password",
-        user_id="admin",
-        name=username,
-        password=hashed_password,
+        username=username,
+        password=hashed_password
     )
-    db.session.add(new_user)
-    db.session.commit()
-
-    return "Usuario creado"
-
+    crud.create_user(
+        db=db,
+        user=user
+    )
+    logging.log(msg="User created successfully!", level=logging.INFO)
 
 def verify_voter(election, voter):
     """
@@ -209,18 +208,6 @@ def verify_trustee(election, trustee):
         return False
 
     return True
-
-
-def create_response_cors(response):
-    """
-    Create a response with CORS headers
-
-    :param response: response to be returned
-    """
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
-    response.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,DELETE,OPTIONS"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return response
 
 
 def get_user():

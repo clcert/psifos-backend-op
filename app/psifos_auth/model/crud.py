@@ -6,3 +6,10 @@ def get_user_by_public_id(db: Session, public_id: str):
 
 def get_user_by_name(db: Session, name: str):
     return db.query(models.User).filter(models.User.name == name).first()
+
+def create_user(db: Session, user: schemas.UserIn):
+    db_user = models.User(**user.dict())
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user

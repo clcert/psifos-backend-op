@@ -17,9 +17,6 @@ class User(Base):
     name = Column(String(200), nullable=True)
     password = Column(String(200))
 
-    # administrator
-    admin_p = Column(Boolean, default=False)
-
     # One-to-many relationship
     elections = relationship("Election", backref="auth_user")
 
