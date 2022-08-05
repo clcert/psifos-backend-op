@@ -3,35 +3,37 @@ from werkzeug.security import check_password_hash
 from fastapi import HTTPException, Request, Response, APIRouter, Depends
 
 from app.dependencies import get_db
-from app import config
-from app.main import app
+from app.config import env, settings
 
 from app.psifos_auth.auth import Auth, CASAuth
 from app.psifos_auth.model import crud
 
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+
 auth_factory = Auth()
-protocol = config["AUTH"]["type_auth"]
+protocol = env["AUTH"]["type_auth"]
 
 auth_router = APIRouter()
 
+security = HTTPBasic()
+
 @auth_router.post("/login", status_code = 201)
-def login_user(request: Request, db = Depends(get_db)):
+def login_user(request: Request, credentials: HTTPBasicCredentials = Depends(security), db = Depends(get_db)):
     """
     Login a admin user
 
     """
 
-    auth = request.authorization
-    if not auth or not auth.username or not auth.password:
+    if not credentials or not credentials.username or not credentials.password:
         raise HTTPException(status_code = 401, detail="an error occurred, please try again")
 
-    user = crud.get_user_by_name(db=db, name=auth.username)
+    user = crud.get_user_by_name(db=db, name=credentials.username)
 
     if not user:
         raise HTTPException(status_code = 401, detail = "wrong username or passwords")
 
-    if check_password_hash(user.password, auth.password):
-        token = jwt.encode({"public_id": user.public_id}, config["SECRET_KEY"])
+    if check_password_hash(user.password, credentials.password):
+        token = jwt.encode({"public_id": user.public_id}, settings.SECRET_KEY)
         return {
             "token": token
         }
@@ -50,7 +52,7 @@ def login_voter(election_uuid: str):
     return auth.login_voter(election_uuid)
 
 
-@auth_router.route("/vote/<election_uuid>/logout", status_code=200)
+@auth_router.get("/vote/{election_uuid}/logout", status_code=200)
 def logout_voter(election_uuid: str):
     """
     Logout a user
@@ -74,7 +76,7 @@ def login_trustee(election_uuid: str):
 
 
 
-@auth_router.route("/{election_uuid}/trustee/logout", status_code=200)
+@auth_router.get("/{election_uuid}/trustee/logout", status_code=200)
 def logout_trustee(election_uuid: str):
     """
     Logout a trustee
