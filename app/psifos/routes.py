@@ -18,7 +18,7 @@ api_router = APIRouter()
 @api_router.post("/create-election", status_code=201)
 def create_election(election_in: schemas.ElectionIn, current_user: models.User = Depends(verify_token), db: Session = Depends(get_db)):
 
-    election_exists = crud.get_election_by_short_name(short_name=election_in.short_name) is not None
+    election_exists = crud.get_election_by_short_name(short_name=election_in.short_name, db=db) is not None
     if election_exists:
         raise HTTPException(status_code=404, detail="The election already exists.")
 
@@ -33,7 +33,7 @@ def get_election(election_uuid: str, current_user: models.User = Depends(verify_
     Route for get a election by uuid
     """
 
-    return get_auth_election(uuid=election_uuid, current_user=current_user, db=db)
+    return get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
 
 
 @api_router.get("/get-election-stats/{election_uuid}", status_code=200)
@@ -41,7 +41,7 @@ def get_election_stats(election_uuid, current_user: models.User = Depends(verify
     """
     Route for get the stats of an election by uuid
     """
-    election = get_auth_election(uuid=election_uuid, current_user=current_user, db=db)
+    election = get_auth_election(election_uuid  =election_uuid, current_user=current_user, db=db)
     return {
         "num_casted_votes": crud.get_num_casted_votes(
             db=db,
@@ -75,6 +75,6 @@ def edit_election(election_uuid, electionIn: schemas.ElectionIn, current_user: m
     if election_exist:
         raise HTTPException(status_code=404, detail="The election already exists.")
 
-    election = get_auth_election(uuid=election_uuid, current_user=current_user, db=db)
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
     crud.edit_election(db=db, election_id=election.id, election=electionIn)
     return {"message": "Election edited successfully!"}
