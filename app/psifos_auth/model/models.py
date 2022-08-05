@@ -14,7 +14,7 @@ class User(Base):
     user_type = Column(String(50))
     user_id = Column(String(100))
 
-    name = Column(String(200), nullable=True)
+    username = Column(String(200), nullable=True)
     password = Column(String(200))
 
     # One-to-many relationship

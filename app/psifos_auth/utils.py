@@ -4,6 +4,7 @@ import jwt
 
 from app import config
 from app.config import settings
+from app.database import SessionLocal
 from app.dependencies import get_db
 from app.psifos.model import models, crud
 
@@ -161,17 +162,10 @@ def create_user(username: str, password: str, db: Session = Depends(get_db)) -> 
 
 
     """
-
+    db = SessionLocal()
     hashed_password = generate_password_hash(password, method="sha256")
-    user = schemas.User(
-        public_id=str(uuid.uuid4()),
-        username=username,
-        password=hashed_password
-    )
-    crud.create_user(
-        db=db,
-        user=user
-    )
+    user = auth_schemas.UserIn(username=username, password=hashed_password, public_id=str(uuid.uuid4()))
+    auth_crud.create_user(db=db, user=user)
     logging.log(msg="User created successfully!", level=logging.INFO)
 
 def verify_voter(election, voter):
