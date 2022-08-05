@@ -18,7 +18,7 @@ def get_db():
         db.close()
 
 
-def verify_token(request: Request):
+def verify_token(request: Request, db: Session = Depends(get_db)):
     """
     User dependency: allows a single User per request.
     """
@@ -29,7 +29,7 @@ def verify_token(request: Request):
 
     try:
         data = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-        return crud.get_user_by_public_id(public_id=data["public_id"])
+        return crud.get_user_by_public_id(public_id=data["public_id"], db=db)
 
     except:
         raise HTTPException(status_code=401, detail="token is invalid")
