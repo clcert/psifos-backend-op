@@ -1,11 +1,12 @@
-from urllib import response
 from cas import CASClient
 from app.config import env
-from flask import request, make_response, redirect, session, url_for, jsonify
+from flask import request, redirect, session
 from app.psifos.model.models import Election, Trustee
 from app.psifos_auth.utils import get_user
 from requests_oauthlib import OAuth2Session
 
+from fastapi import Request, HTTPException
+from starlette.responses import RedirectResponse
 
 class Auth:
 
@@ -53,53 +54,65 @@ class CASAuth:
 
         self.cas_client.service_url = redirect_url
         cas_login_url = self.cas_client.get_login_url()
-        return redirect(cas_login_url)
+        return RedirectResponse(url=cas_login_url)
 
-    def login_voter(self, election_uuid: str):
+    def login_voter(self, election_uuid: str, request: Request, session: str):
         """
         Login a voter
         """
-        cookie = request.cookies.get("session")
-        if "username" in session:
 
-            response = redirect(
-                env["URL"]["front"] + "/cabina/" + election_uuid, code=302
+        # Get user from session cookie
+        user = request.session.get("user", None)
+        if user:
+
+            response = RedirectResponse(
+                url=env["URL"]["front"] + "/cabina/" + election_uuid
             )
-            response.set_cookie("session", cookie)
+            response.set_cookie("session", session)
             return response
 
-        ticket = request.args.get("ticket")
+        # Get ticket from query string url
+        ticket = request.query_params.get("ticket", None)
+
+        # If no ticket, redirect to CAS server to get one (login)
         if not ticket:
             return self.redirect_cas(env["URL"]["back"] + "/vote/" + election_uuid)
 
+        # Verify ticket with CAS server
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
-        if not user:
-            return make_response({"message": "ERROR"}, 401)
 
-        session["username"] = user
-        response = redirect(
-            env["URL"]["front"] + "/cabina/" + election_uuid, code=302
+        # If no user, return error
+        if not user:
+            raise HTTPException(status_code=401, detail="ERROR")
+
+        # If user, set session and redirect to election page
+        request.session["user"] = user
+        response = RedirectResponse(
+            url=env["URL"]["front"] + "/cabina/" + election_uuid
         )
         return response
 
-    def logout_voter(self, election_uuid: str):
+    def logout_voter(self, election_uuid: str, request: Request):
 
+        # Get logoout url from CAS server
         cas_logout_url = self.cas_client.get_logout_url(
             env["URL"]["front"] + "/cabina/" + election_uuid + "?logout=true"
         )
 
-        response = redirect(cas_logout_url, code=302)
-        response.set_cookie("session", expires=0)
+        # Clear cookie and redirect to election page
+        response = RedirectResponse(url=cas_logout_url)
+        request.session.clear()
         return response
 
-    def login_trustee(self, election_uuid: str):
+    def login_trustee(self, election_uuid: str, session: str):
 
-        cookie = request.cookies.get("session")
+        # Get user from session cookie
+        user = request.session.get("user", None)
 
-        if "username" in session:
+        if user:
             election = Election.get_by_uuid(uuid=election_uuid)
             trustee = Trustee.get_by_login_id_and_election(
-                trustee_login_id=session["username"],
+                trustee_login_id=user,
                 election_id=election.id,
             )
             if not trustee:
@@ -109,8 +122,8 @@ class CASAuth:
                 )
             else:
 
-                response = redirect(
-                    env["URL"]["front"]
+                response = RedirectResponse(
+                    url=env["URL"]["front"]
                     + "/"
                     + election_uuid
                     + "/trustee/"
@@ -118,10 +131,10 @@ class CASAuth:
                     + "/home",
                     code=302,
                 )
-            response.set_cookie("session", cookie)
+            response.set_cookie("session", session)
             return response
 
-        ticket = request.args.get("ticket")
+        ticket = request.query_params.get("ticket", None)
         if not ticket:
             return self.redirect_cas(
                 env["URL"]["back"] + "/" + election_uuid + "/trustee" + "/login",
@@ -129,29 +142,28 @@ class CASAuth:
 
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
         if not user:
-            return make_response({"message": "ERROR"}, 401)
+            raise HTTPException(status_code=401, detail="ERROR")
         else:
-            session["username"] = user
+            request.session["user"] = user
             election = Election.get_by_uuid(uuid=election_uuid)
             trustee = Trustee.get_by_login_id_and_election(
                 trustee_login_id=session["username"],
                 election_id=election.id,
             )
             if not trustee:
-                response = redirect(
-                    env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
-                    code=302,
+                response = RedirectResponse(
+                    url=env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home"
                 )
             else:
 
-                response = redirect(
+                response = RedirectResponse(
                     env["URL"]["front"]
                     + "/"
                     + election_uuid
                     + "/trustee/"
                     + trustee.uuid
                     + "/home",
-                    code=302,
+                   
                 )
             return response
 
@@ -166,8 +178,8 @@ class CASAuth:
             + "?logout=true"
         )
 
-        response = redirect(cas_logout_url, code=302)
-        response.set_cookie("session", expires=0)
+        response = RedirectResponse(url=cas_logout_url)
+        request.session.clear()
         return response
 
 

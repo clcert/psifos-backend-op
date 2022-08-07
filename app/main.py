@@ -8,10 +8,13 @@ from .psifos.routes import api_router
 from .psifos_auth.routes import auth_router
 
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
 Base.metadata.create_all(engine)
 
 app = FastAPI()
+
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # CORS
 app.add_middleware(
