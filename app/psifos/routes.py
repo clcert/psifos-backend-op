@@ -1,14 +1,15 @@
+from typing import Dict
 import uuid
 
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy.orm import Session
 
 from app.psifos.model import crud, schemas, models
-from app.dependencies import get_db, verify_token
+from app.dependencies import get_db
+from app.psifos.psifos_object.questions import Questions
+from app.psifos_auth.auth_bearer import AuthAdmin
 
-from app.psifos_auth.model import models as auth_models
 from app.psifos_auth.utils import get_auth_election
-
 
 api_router = APIRouter()
 
@@ -16,7 +17,7 @@ api_router = APIRouter()
 
 
 @api_router.post("/create-election", status_code=201)
-def create_election(election_in: schemas.ElectionIn, current_user: models.User = Depends(verify_token), db: Session = Depends(get_db)):
+def create_election(election_in: schemas.ElectionIn, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
 
     election_exists = crud.get_election_by_short_name(short_name=election_in.short_name, db=db) is not None
     if election_exists:
@@ -28,7 +29,7 @@ def create_election(election_in: schemas.ElectionIn, current_user: models.User =
 
 
 @api_router.get("/get-election/{election_uuid}", response_model=schemas.ElectionOut, status_code=200)
-def get_election(election_uuid: str, current_user: models.User = Depends(verify_token), db: Session = Depends(get_db)):
+def get_election(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for get a election by uuid
     """
@@ -37,7 +38,7 @@ def get_election(election_uuid: str, current_user: models.User = Depends(verify_
 
 
 @api_router.get("/get-election-stats/{election_uuid}", status_code=200)
-def get_election_stats(election_uuid, current_user: models.User = Depends(verify_token), db: Session = Depends(get_db)):
+def get_election_stats(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for get the stats of an election by uuid
     """
@@ -52,7 +53,7 @@ def get_election_stats(election_uuid, current_user: models.User = Depends(verify
 
 
 @api_router.get("/get-elections", response_model=list[schemas.ElectionOut], status_code=200)
-def get_elections(current_user: models.User = Depends(verify_token), db: Session = Depends(get_db)):
+def get_elections(current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for get all elections
     """
@@ -66,7 +67,7 @@ def get_elections(current_user: models.User = Depends(verify_token), db: Session
 
 
 @api_router.post("/edit-election/{election_uuid}", status_code=200)
-def edit_election(election_uuid, electionIn: schemas.ElectionIn, current_user: models.User = Depends(verify_token), db: Session = Depends(get_db)):
+def edit_election(election_uuid: str, electionIn: schemas.ElectionIn, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for edit a election
     """
