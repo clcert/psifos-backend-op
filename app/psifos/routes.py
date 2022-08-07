@@ -79,3 +79,27 @@ def edit_election(election_uuid: str, electionIn: schemas.ElectionIn, current_us
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
     crud.edit_election(db=db, election_id=election.id, election=electionIn)
     return {"message": "Election edited successfully!"}
+
+
+@api_router.post("/create-questions/{election_uuid}", status_code=200)
+def create_questions(election_uuid: str, data_questions: Dict, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+    """
+    Route for create questions
+    Require a valid token to access >>> token_required
+    """
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    questions = Questions(*data_questions["question"])
+    crud.edit_questions(db=db, db_election=election, questions=questions)
+    return {"message": "Preguntas creadas con exito!"}
+
+@api_router.get("/get-questions/{election_uuid}", status_code=200)
+def get_questions(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+    """
+    Route for get questions
+    Require a valid token to access >>> token_required
+    """
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    if not election.questions:
+        HTTPException(status_code=400, detail="The election doesn't have questions")
+
+    return Questions.serialize(election.questions)

@@ -175,3 +175,10 @@ def update_election(db: Session, election_id: int, fields: dict):
     db.commit()
     db.refresh(db_election)
     return db_election
+
+def edit_questions(db: Session, db_election: models.Election, questions: list):
+    db_election.questions = questions
+    db.add(db_election)
+    db.commit()
+    db.refresh(db_election)
+    return db_election

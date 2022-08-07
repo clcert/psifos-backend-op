@@ -215,7 +215,7 @@ class ElectionOut(ElectionBase):
     uuid: str
     election_status: ElectionStatusEnum
     public_key: str | None
-    questions: str | None
+    questions: object | None
     total_voters: int
     total_trustees: int
     encrypted_tally: str | None
