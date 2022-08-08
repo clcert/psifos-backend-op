@@ -1,6 +1,8 @@
-from psifos import db
-from psifos.psifos_auth.utils import create_user
+from app.database import Base, engine 
+from app.psifos_auth.utils import create_user
 
-db.drop_all()
-db.create_all()
+
+Base.metadata.drop_all(bind=engine)
+Base.metadata.create_all(bind=engine)
+
 create_user("admin", "12345")
