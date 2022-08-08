@@ -8,7 +8,6 @@ from app.psifos.model import crud, schemas, models
 from app.dependencies import get_db
 from app.psifos.psifos_object.questions import Questions
 from app.psifos_auth.auth_bearer import AuthAdmin
-
 from app.psifos_auth.utils import get_auth_election
 
 api_router = APIRouter()
@@ -42,7 +41,7 @@ def get_election_stats(election_uuid: str, current_user: models.User = Depends(A
     """
     Route for get the stats of an election by uuid
     """
-    election = get_auth_election(election_uuid  =election_uuid, current_user=current_user, db=db)
+    election = get_auth_election(election_uuid = election_uuid, current_user=current_user, db=db)
     return {
         "num_casted_votes": crud.get_num_casted_votes(
             db=db,
@@ -103,3 +102,5 @@ def get_questions(election_uuid: str, current_user: models.User = Depends(AuthAd
         HTTPException(status_code=400, detail="The election doesn't have questions")
 
     return Questions.serialize(election.questions)
+
+    

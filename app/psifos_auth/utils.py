@@ -19,9 +19,7 @@ from werkzeug.security import generate_password_hash
 from functools import update_wrapper, wraps
 from requests_oauthlib import OAuth2Session
 
-
 def get_auth_election(election_uuid: str, current_user: auth_models.User, db: Session):
-
     election = crud.get_election_by_uuid(db=db, uuid=election_uuid)
     if not election:
         raise HTTPException(status_code=400, detail="election not found")
@@ -30,56 +28,71 @@ def get_auth_election(election_uuid: str, current_user: auth_models.User, db: Se
     
     return election
 
-
-def token_required(func):
+def create_user(username: str, password: str, db: Session = Depends(get_db)) -> str:
     """
-    Decorator to check if the user is logged in
-
+    Create a new user
+    :param username: username of the user
+    :param password: password of the user
     """
+    hashed_password = generate_password_hash(password, method="sha256")
+    user = auth_schemas.UserIn(username=username, password=hashed_password, public_id=str(uuid.uuid4()))
+    auth_crud.create_user(db=db, user=user)
+    logging.log(msg="User created successfully!", level=logging.INFO)
 
-    @wraps(func)
-    async def wrapper(request: Request, *args, **kwargs):
-        token = request.headers.get("x-access-tokens", None)
-        if not token:
-            raise HTTPException(status_code=401, detail="a valid token is missing")
-
-        try:
-            data = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-            current_user = crud.get_user_by_public_id(public_id=data["public_id"])
-
-        except:
-            raise HTTPException(status_code=401, detail="token is invalid")
-
-        return await func(current_user, *args, **kwargs)
-
-    return wrapper
-
-
-def election_route(**kwargs):
+def verify_voter(election, voter):
     """
-    Decorator to check if the election is an admin election
+    Verify if the voter is registered in the election
+
+    if the voter name finish with '@uchile.cl' it is verified
+    that the user is found without the '@uchile.cl'
+
+    :param voter_login_id: name of the voter
+    :param election_uuid: uuid of the election
 
     """
 
-    admin_election = kwargs.get("admin_election", True)
+    if not election:
+        return False
 
-    def election_route_decorator(f):
-        async def election_route_wrapper(
-            current_user=None, election_uuid=None, *args, **kwargs
-        ):
-            election = Election.get_by_uuid(uuid=election_uuid)
-            if not election:
-                raise HTTPException(status_code=400, detail="election not found")
-            if admin_election and election.admin_id != current_user.id:
-                raise HTTPException(status_code=401, detail="election is not an admin election")
+    voter_login_id = voter.voter_login_id
+    if not voter:
+        if voter_login_id[-10:] == "@uchile.cl":
+            voter = crud.get_voter_by_login_id_and_election_id(
+                login_id=voter_login_id[:-10],
+                election_id=election.id,
+            )
+            if not voter:
+                return False
+        return False
 
-            return await f(election, *args, **kwargs)
-
-        return update_wrapper(election_route_wrapper, f)
-
-    return election_route_decorator
+    return True
 
 
+def verify_trustee(election, trustee):
+    """
+    Verify if the trustee is registered in the election
+    """
+
+    if not election:
+        return False
+
+    trustee_login_id = trustee.trustee_login_id
+    if not trustee:
+        if trustee_login_id[-10:] == "@uchile.cl":
+            trustee = crud.get_trustee_by_login_id_and_election_id(
+                login_id=trustee_login_id[:-10],
+                election_id=election.id,
+            )
+            if not trustee:
+                return False
+        return False
+
+    return True
+
+
+
+
+# (***)
 def auth_requires(f: callable) -> callable:
     @wraps(f)
     async def decorator(request: Request, *args, **kwargs):
@@ -92,7 +105,7 @@ def auth_requires(f: callable) -> callable:
 
     return decorator
 
-
+# (***)
 def voter_cas(**kwargs):
     """
     Decorator to check if the voter is registered in the election
@@ -122,7 +135,7 @@ def voter_cas(**kwargs):
 
     return voter_cas_decorator
 
-
+# (***)
 def trustee_cas(**kwargs):
     """
     Decorator to check if the trustee is registered in the election
@@ -153,72 +166,7 @@ def trustee_cas(**kwargs):
 
     return trustee_cas_decorator
 
-
-def create_user(username: str, password: str, db: Session = Depends(get_db)) -> str:
-    """
-    Create a new user
-    :param username: username of the user
-    :param password: password of the user
-
-
-    """
-    db = SessionLocal()
-    hashed_password = generate_password_hash(password, method="sha256")
-    user = auth_schemas.UserIn(username=username, password=hashed_password, public_id=str(uuid.uuid4()))
-    auth_crud.create_user(db=db, user=user)
-    logging.log(msg="User created successfully!", level=logging.INFO)
-
-def verify_voter(election, voter):
-    """
-    Verify if the voter is registered in the election
-
-    if the voter name finish with '@uchile.cl' it is verified
-    that the user is found without the '@uchile.cl'
-
-    :param voter_login_id: name of the voter
-    :param election_uuid: uuid of the election
-
-    """
-
-    if not election:
-        return False
-
-    voter_login_id = voter.voter_login_id
-    if not voter:
-        if voter_login_id[-10:] == "@uchile.cl":
-            voter = Voter.get_by_login_id_and_election(
-                voter_login_id=voter_login_id[:-10],
-                election_id=election.id,
-            )
-            if not voter:
-                return False
-        return False
-
-    return True
-
-
-def verify_trustee(election, trustee):
-    """
-    Verify if the trustee is registered in the election
-    """
-
-    if not election:
-        return False
-
-    trustee_login_id = trustee.trustee_login_id
-    if not trustee:
-        if trustee_login_id[-10:] == "@uchile.cl":
-            trustee = Trustee.get_by_login_id_and_election(
-                trustee_login_id=trustee_login_id[:-10],
-                election_id=election.id,
-            )
-            if not trustee:
-                return False
-        return False
-
-    return True
-
-
+# (***)
 def get_user():
     """
     Get the user from the request
