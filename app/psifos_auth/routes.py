@@ -5,7 +5,7 @@ from fastapi import HTTPException, Request, APIRouter, Depends, Cookie
 from app.dependencies import get_db
 from app.config import env, settings
 
-from app.psifos_auth.auth import Auth
+from app.psifos_auth.auth_service_log import Auth
 from app.psifos_auth.model import crud
 
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
