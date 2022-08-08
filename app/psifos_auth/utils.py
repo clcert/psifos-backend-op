@@ -13,7 +13,7 @@ from app.psifos_auth.model import crud as auth_crud
 from app.psifos_auth.model import schemas as auth_schemas
 
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, Cookie
 from sqlalchemy.orm import Session
 from werkzeug.security import generate_password_hash
 from functools import update_wrapper, wraps
@@ -39,132 +39,149 @@ def create_user(username: str, password: str, db: Session = Depends(get_db)) -> 
     auth_crud.create_user(db=db, user=user)
     logging.log(msg="User created successfully!", level=logging.INFO)
 
-def verify_voter(election, voter):
+# def verify_voter(election, voter):
+#     """
+#     Verify if the voter is registered in the election
+
+#     if the voter name finish with '@uchile.cl' it is verified
+#     that the user is found without the '@uchile.cl'
+
+#     :param voter_login_id: name of the voter
+#     :param election_uuid: uuid of the election
+
+#     """
+
+#     if not election:
+#         return False
+
+#     voter_login_id = voter.voter_login_id
+#     if not voter:
+#         if voter_login_id[-10:] == "@uchile.cl":
+#             voter = crud.get_voter_by_login_id_and_election_id(
+#                 login_id=voter_login_id[:-10],
+#                 election_id=election.id,
+#             )
+#             if not voter:
+#                 return False
+#         return False
+
+#     return True
+
+
+# def verify_trustee(election, trustee):
+#     """
+#     Verify if the trustee is registered in the election
+#     """
+
+#     if not election:
+#         return False
+
+#     trustee_login_id = trustee.trustee_login_id
+#     if not trustee:
+#         if trustee_login_id[-10:] == "@uchile.cl":
+#             trustee = crud.get_trustee_by_login_id_and_election_id(
+#                 login_id=trustee_login_id[:-10],
+#                 election_id=election.id,
+#             )
+#             if not trustee:
+#                 return False
+#         return False
+
+#     return True
+
+def get_user_without_domain(user_name: str):
     """
-    Verify if the voter is registered in the election
-
-    if the voter name finish with '@uchile.cl' it is verified
-    that the user is found without the '@uchile.cl'
-
-    :param voter_login_id: name of the voter
-    :param election_uuid: uuid of the election
-
+    Get the user without the domain
     """
 
-    if not election:
-        return False
+    if user_name[-10:] == "@uchile.cl":
+        return user_name[:-10]
 
-    voter_login_id = voter.voter_login_id
-    if not voter:
-        if voter_login_id[-10:] == "@uchile.cl":
-            voter = crud.get_voter_by_login_id_and_election_id(
-                login_id=voter_login_id[:-10],
-                election_id=election.id,
-            )
-            if not voter:
-                return False
-        return False
-
-    return True
+    return user_name
 
 
-def verify_trustee(election, trustee):
-    """
-    Verify if the trustee is registered in the election
-    """
+def get_check_user(request: Request):
 
-    if not election:
-        return False
+    user = request.session.get("user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="unauthorized voter")
 
-    trustee_login_id = trustee.trustee_login_id
-    if not trustee:
-        if trustee_login_id[-10:] == "@uchile.cl":
-            trustee = crud.get_trustee_by_login_id_and_election_id(
-                login_id=trustee_login_id[:-10],
-                election_id=election.id,
-            )
-            if not trustee:
-                return False
-        return False
-
-    return True
-
-
+    return get_user_without_domain(user)
 
 
 # (***)
-def auth_requires(f: callable) -> callable:
-    @wraps(f)
-    async def decorator(request: Request, *args, **kwargs):
-        if "username" not in request.session and "oauth_token" not in request.session:
-            raise HTTPException(status_code = 401, detail = "unauthorized user")
+# def auth_requires(f: callable) -> callable:
+#     @wraps(f)
+#     async def decorator(request: Request, *args, **kwargs):
+#         if "username" not in request.session and "oauth_token" not in request.session:
+#             raise HTTPException(status_code = 401, detail = "unauthorized user")
 
-        user_session = get_user()
+#         user_session = get_user()
 
-        return await f(user_session, *args, **kwargs)
+#         return await f(user_session, *args, **kwargs)
 
-    return decorator
-
-# (***)
-def voter_cas(**kwargs):
-    """
-    Decorator to check if the voter is registered in the election
-
-    """
-
-    def voter_cas_decorator(f):
-        async def voter_cas_wrapper(user_session=None, election_uuid=None, *args, **kwargs):
-
-            try:
-                election = Election.get_by_uuid(uuid=election_uuid,)
-
-                voter = Voter.get_by_login_id_and_election(
-                    voter_login_id=user_session,
-                    election_id=election.id,
-                )
-
-                if not verify_voter(election, voter):
-                    raise HTTPException(status_code=401, detail="you do not have permissions to access this election")
-
-            except:
-                raise HTTPException(status_code = 401, detail = "an error occurred while verifying the voter")
-
-            return await f(election, voter, *args, **kwargs)
-
-        return update_wrapper(voter_cas_wrapper, f)
-
-    return voter_cas_decorator
+#     return decorator
 
 # (***)
-def trustee_cas(**kwargs):
-    """
-    Decorator to check if the trustee is registered in the election
+# def voter_cas(**kwargs):
+#     """
+#     Decorator to check if the voter is registered in the election
 
-    """
+#     """
 
-    def trustee_cas_decorator(f):
-        async def trustee_cas_wrapper(
-            user_session=None, election_uuid=None, trustee_uuid=None, *args, **kwargs
-        ):
-            try:
-                election = Election.get_by_uuid(uuid=election_uuid)
+#     def voter_cas_decorator(f):
+#         async def voter_cas_wrapper(user_session=None, election_uuid=None, *args, **kwargs):
 
-                trustee = Trustee.get_by_login_id_and_election(
-                    trustee_login_id=user_session,
-                    election_id=election.id,
-                )
+#             try:
+#                 election = Election.get_by_uuid(uuid=election_uuid,)
 
-                if not verify_trustee(election, trustee):
-                    raise HTTPException(status_code = 401, detail = "you do not have permissions to access this election")
+#                 voter = Voter.get_by_login_id_and_election(
+#                     voter_login_id=user_session,
+#                     election_id=election.id,
+#                 )
 
-            except:
-                raise HTTPException(status_code = 401, detail = "an error has occurred while obtaining the election data")
+#                 if not verify_voter(election, voter):
+#                     raise HTTPException(status_code=401, detail="you do not have permissions to access this election")
 
-            return await f(election, trustee, *args, **kwargs)
+#             except:
+#                 raise HTTPException(status_code = 401, detail = "an error occurred while verifying the voter")
 
-        return update_wrapper(trustee_cas_wrapper, f)
+#             return await f(election, voter, *args, **kwargs)
 
-    return trustee_cas_decorator
+#         return update_wrapper(voter_cas_wrapper, f)
+
+#     return voter_cas_decorator
+
+# # (***)
+# def trustee_cas(**kwargs):
+#     """
+#     Decorator to check if the trustee is registered in the election
+
+#     """
+
+#     def trustee_cas_decorator(f):
+#         async def trustee_cas_wrapper(
+#             user_session=None, election_uuid=None, trustee_uuid=None, *args, **kwargs
+#         ):
+#             try:
+#                 election = Election.get_by_uuid(uuid=election_uuid)
+
+#                 trustee = Trustee.get_by_login_id_and_election(
+#                     trustee_login_id=user_session,
+#                     election_id=election.id,
+#                 )
+
+#                 if not verify_trustee(election, trustee):
+#                     raise HTTPException(status_code = 401, detail = "you do not have permissions to access this election")
+
+#             except:
+#                 raise HTTPException(status_code = 401, detail = "an error has occurred while obtaining the election data")
+
+#             return await f(election, trustee, *args, **kwargs)
+
+#         return update_wrapper(trustee_cas_wrapper, f)
+
+#     return trustee_cas_decorator
 
 # (***)
 def get_user():
