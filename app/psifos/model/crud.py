@@ -8,6 +8,7 @@ CRUD utils for Psifos
 from sqlalchemy.orm import Session
 
 from app.psifos import utils
+from app.psifos.crypto.sharedpoint import Point
 from app.psifos.model import models, schemas
 
 
@@ -29,12 +30,19 @@ def get_voters_by_election_id(db: Session, election_id: int):
 
 def create_voter(db: Session, voter: schemas.VoterIn):
     db_voter = models.Voter(**voter.dict())
+    db_cast_vote = models.CastVote(voter_id=db_voter.id)
     db.add(db_voter)
+    db.add(db_cast_vote)
     db.commit()
     db.refresh(db_voter)
-    return db_voter
+    db.refresh(db_cast_vote)
+    return db_voter, db_cast_vote
 
+def delete_election_voters(db: Session, election_id: int):
+    db.query(models.Voter).filter(models.Voter.election_id == election_id).delete()
+    db.commit()
 
+    
 # ----- CastVote CRUD Utils -----
 
 
@@ -91,15 +99,6 @@ def get_by_login_id_and_election_id(db: Session, login_id: str, election_id: int
 def get_trustees_by_election_id(db: Session, election_id: int):
     return db.query(models.Trustee).filter(models.Trustee.election_id == election_id).all()
 
-
-def create_trustee(db: Session, trustee: schemas.TrusteeIn):
-    db_trustee = models.Trustee(**trustee.dict())
-    db.add(db_trustee)
-    db.commit()
-    db.refresh(db_trustee)
-    return db_trustee
-
-
 def get_next_trustee_id(election_id: int):
     trustees = get_trustees_by_election_id(election_id=election_id)
     return 1 if len(trustees) == 0 else max(trustees, key=(lambda t: t.trustee_id)).trustee_id + 1
@@ -110,8 +109,32 @@ def get_global_trustee_step(election_id: int):
     trustee_steps = [t.current_step for t in trustees]
     return 0 if len(trustee_steps) == 0 else min(trustee_steps)
 
+def create_trustee(db: Session, trustee: schemas.TrusteeIn):
+    db_trustee = models.Trustee(**trustee.dict())
+    db.add(db_trustee)
+    db.commit()
+    db.refresh(db_trustee)
+    return db_trustee
+
+def update_trustee(db: Session, trustee_id: int, fields: dict):
+    db_trustee = db.query(models.Trustee).filter(models.Trustee.id == trustee_id).update(fields)
+    db.add(db_trustee)
+    db.commit()
+    db.refresh(db_trustee)
+    return db_trustee
 
 # ----- SharedPoint CRUD Utils -----
+
+def create_shared_points(db: Session, election_id: int, sender: int, points: list[Point]):
+    for i in range(len(points)):
+        db_shared_point = models.SharedPoint(
+            election_id=election_id,
+            sender=sender,
+            recipient=i+1,
+            point=points[i]
+        )
+        db.add(db_shared_point)
+    db.commit()
 
 
 def get_shared_points_by_sender(db: Session, sender: int):
@@ -124,6 +147,10 @@ def format_points_sent_to(db: Session, election_id: int, trustee_id: int):
     )
     points.sort(key=(lambda x: x.sender))
     return utils.format_points(points)
+
+def delete_shared_points_by_sender(db: Session, sender: int):
+    db.query(models.SharedPoint).filter(models.SharedPoint.sender == sender).delete()
+    db.commit()
 
 
 def format_points_sent_by(db: Session, election_id: int, trustee_id: int):

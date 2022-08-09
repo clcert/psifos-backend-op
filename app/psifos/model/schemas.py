@@ -50,9 +50,6 @@ class PsifosSchema(BaseModel):
         }
 
 
-# ------------------ response-related schemas ------------------
-# (TODO)
-
 
 # ------------------ model-related schemas ------------------
 
@@ -229,3 +226,23 @@ class ElectionOut(ElectionBase):
 
     class Config:
         orm_mode = True
+
+
+# ------------------ response-related schemas ------------------
+class PublicKeyData(PsifosSchema):
+    public_key_json: str
+class KeyGenStep1(PsifosSchema):
+    coefficients: str
+    points: str
+
+class KeyGenStep2(PsifosSchema):
+    acknowledgements: str
+class KeyGenStep3(PsifosSchema):
+    verification_key: str
+
+class DecryptionIn(PsifosSchema):
+    decryptions: str
+
+class TrusteeHome(PsifosSchema):
+    trustee: TrusteeOut
+    election: ElectionOut
