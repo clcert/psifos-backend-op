@@ -1,6 +1,5 @@
 from cas import CASClient
 from app.config import env
-from flask import request, redirect, session
 from app.psifos.model.models import Election, Trustee
 from app.psifos_auth.utils import get_user
 from requests_oauthlib import OAuth2Session
@@ -56,7 +55,7 @@ class CASAuth:
         cas_login_url = self.cas_client.get_login_url()
         return RedirectResponse(url=cas_login_url)
 
-    def login_voter(self, election_uuid: str, request: Request, session: str):
+    def login_voter(self, election_uuid: str, request: Request = None, session: str = None):
         """
         Login a voter
         """
@@ -104,7 +103,7 @@ class CASAuth:
         request.session.clear()
         return response
 
-    def login_trustee(self, election_uuid: str, session: str):
+    def login_trustee(self, election_uuid: str, request: Request, session: str):
 
         # Get user from session cookie
         user = request.session.get("user", None)
@@ -116,9 +115,8 @@ class CASAuth:
                 election_id=election.id,
             )
             if not trustee:
-                response = redirect(
-                    env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home",
-                    code=302,
+                response = RedirectResponse(
+                    env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home"
                 )
             else:
 
@@ -167,7 +165,7 @@ class CASAuth:
                 )
             return response
 
-    def logout_trustee(self, election_uuid: str):
+    def logout_trustee(self, election_uuid: str, request: Request):
 
         cas_logout_url = self.cas_client.get_logout_url(
             env["URL"]["front"]
@@ -198,7 +196,7 @@ class OAuth2Auth:
         self.trustee_uuid = ""
         self.type_logout = ""
 
-    def login_voter(self, election_uuid: str):
+    def login_voter(self, election_uuid: str, request: Request = None):
 
         self.election_uuid = election_uuid
         self.type_logout = "voter"
@@ -211,21 +209,21 @@ class OAuth2Auth:
         authorization_url, state = client.authorization_url(
             env["OAUTH"]["authorize_url"]
         )
-        session["oauth_state"] = state
-        return redirect(authorization_url)
+        request.session["oauth_state"] = state
+        return RedirectResponse(url=authorization_url)
 
-    def logout_voter(self, election_uuid: str):
+    def logout_voter(self, election_uuid: str, request: Request):
 
         client = OAuth2Session(
             self.client_id,
-            token=session["oauth_token"],
+            token=request.session["oauth_token"],
         )
-
-        return redirect(
+        request.session.clear()
+        return RedirectResponse(
             "https://cas.labs.clcert.cl/oauth/revoke_token?token=NW0ynxy0paUfPZ1YfvWU6wr7SFJZlm&client_id=Vro0Bd2MoRKEg4Lxn9mc8bySKlMAlbgObf2UeXuY&client_secret=pWegIkGmtVIdfqIsBo3lwuKiAygusL1NbpzT7nzyN6ArfVfEhwglpkD753VzfslAlXQ3vEMYJysUKjxsdsmPlELBnkfA560MhX9lwMyKW3ZKgUNebRQHF5NIu91U2qK6"
         )
 
-    def login_trustee(self, election_uuid: str):
+    def login_trustee(self, election_uuid: str, request: Request = None):
 
         self.election_uuid = election_uuid
         self.type_logout = "trustee"
@@ -238,30 +236,29 @@ class OAuth2Auth:
         authorization_url, state = client.authorization_url(
             env["OAUTH"]["authorize_url"]
         )
-        session["oauth_state"] = state
+        request.session["oauth_state"] = state
 
-        return redirect(authorization_url)
+        return RedirectResponse(authorization_url)
 
     def logout_trustee(self):
         pass
 
-    def authorized(self):
-
+    def authorized(self, request: Request):
         login = OAuth2Session(
             self.client_id,
-            state=session["oauth_state"],
+            state=request.session["oauth_state"],
             redirect_uri=env["URL"]["back"] + "/authorized",
         )
         resp = login.fetch_token(
             env["OAUTH"]["token_url"],
             client_secret=self.client_secret,
-            authorization_response=request.url,
+            authorization_response=str(request.url),
         )
-        session["oauth_token"] = resp
+        request.session["oauth_token"] = resp
 
         if self.type_logout == "voter":
-            response = redirect(
-                env["URL"]["front"] + "/cabina/" + self.election_uuid, code=302
+            response = RedirectResponse(
+                env["URL"]["front"] + "/cabina/" + self.election_uuid
             )
 
         elif self.type_logout == "trustee":
@@ -277,23 +274,23 @@ class OAuth2Auth:
             self.trustee_uuid = trustee.uuid if trustee else None
 
             if not self.trustee_uuid:
-                response = redirect(
+                response = RedirectResponse(
                     env["URL"]["front"]
                     + "/"
                     + self.election_uuid
                     + "/trustee"
                     + "/home",
-                    code=302,
+                 
                 )
             else:
-                response = redirect(
+                response = RedirectResponse(
                     env["URL"]["front"]
                     + "/"
                     + self.election_uuid
                     + "/trustee/"
                     + self.trustee_uuid
                     + "/home",
-                    code=302,
+                    
                 )
 
         return response

@@ -75,7 +75,11 @@ class AuthOauthCheck(AuthServiceCheck):
 
     def get_login_id(self, request: Request):
 
-        pass
+        user = request.session.get("user", None)
+        if not user or 'oauth_state' not in request.session:
+            raise HTTPException(status_code=401, detail="unauthorized voter")
+
+        return self.get_user_without_domain(user)
         
 
 

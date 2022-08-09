@@ -49,7 +49,7 @@ def login_voter(election_uuid: str, request: Request, session: str | None = Cook
     """
 
     auth = auth_factory.get_auth(protocol)
-    return auth.login_voter(election_uuid, request, session)
+    return auth.login_voter(election_uuid, request=request, session=session)
 
 
 @auth_router.get("/vote/{election_uuid}/logout", status_code=200)
@@ -89,7 +89,7 @@ def logout_trustee(election_uuid: str):
 
 
 @auth_router.get("/authorized", status_code=200)
-def authorized():
+def authorized(request: Request):
 
     auth = auth_factory.get_auth(protocol)
-    return auth.authorized()
+    return auth.authorized(request)
