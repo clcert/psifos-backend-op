@@ -1,8 +1,6 @@
 import base64
 import datetime
 import os
-from unicodedata import name
-from urllib import response
 import uuid
 import csv
 
@@ -19,6 +17,7 @@ from app.psifos.crypto import utils as crypto_utils
 from app.psifos import utils as psifos_utils
 from app.psifos_auth.auth_bearer import AuthAdmin
 from app.psifos_auth.utils import get_auth_election, get_auth_trustee_and_election, get_auth_voter_and_election
+from app.psifos_auth.auth_service_check import get_login_id
 
 api_router = APIRouter()
 
