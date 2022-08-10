@@ -1,13 +1,15 @@
 import base64
+import datetime
 import os
 from unicodedata import name
 from urllib import response
 import uuid
 import csv
 
-from fastapi import Depends, HTTPException, APIRouter, UploadFile
+from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request
 from sqlalchemy.orm import Session
 from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
+from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 
 from app.psifos.model import crud, schemas, models
 from app.dependencies import get_db
@@ -16,7 +18,7 @@ from app.psifos.crypto import elgamal, sharedpoint
 from app.psifos.crypto import utils as crypto_utils
 from app.psifos import utils as psifos_utils
 from app.psifos_auth.auth_bearer import AuthAdmin
-from app.psifos_auth.utils import get_auth_election, get_auth_trustee_and_election
+from app.psifos_auth.utils import get_auth_election, get_auth_trustee_and_election, get_auth_voter_and_election
 
 api_router = APIRouter()
 
@@ -78,16 +80,16 @@ def get_elections(current_user: models.User = Depends(AuthAdmin()), db: Session 
 
 
 @api_router.post("/edit-election/{election_uuid}", status_code=200)
-def edit_election(election_uuid: str, electionIn: schemas.ElectionIn, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+def edit_election(election_uuid: str, election_in: schemas.ElectionIn, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Admin's route for editing an election
     """
-    election_exist = crud.get_election_by_short_name(short_name=electionIn.short_name) is not None
+    election_exist = crud.get_election_by_short_name(short_name=election_in.short_name) is not None
     if election_exist:
         raise HTTPException(status_code=404, detail="The election already exists.")
 
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
-    crud.edit_election(db=db, election_id=election.id, election=electionIn)
+    crud.edit_election(db=db, election_id=election.id, election=election_in)
     return {"message": "Election edited successfully!"}
 
 
@@ -101,7 +103,7 @@ def create_questions(election_uuid: str, data_questions: dict, current_user: mod
     crud.edit_questions(db=db, db_election=election, questions=questions)
     return {"message": "Preguntas creadas con exito!"}
 
-@api_router.get("/get-questions/{election_uuid}", status_code=200)
+@api_router.get("/{election_uuid}/questions", status_code=200)
 def get_questions(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Admin's route for getting all the questions of a specific election
@@ -155,199 +157,148 @@ def delete_voters(election_uuid: str, current_user: models.User = Depends(AuthAd
     crud.delete_election_voters(db=db, election_id=election.id)
 
 
-@api_router.get("/{election_uuid}/resume")
-def resume(current_user: User, election_uuid: str, db: Session = Depends(get_db)):
+@api_router.get("/{election_uuid}/resume", status_code=200)
+def resume(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for get a resume election
-    Require a valid token to access >>> token_required
     """
-    try:
-        election = Election.get_by_uuid(uuid=election_uuid)
-        voters_election = Voter.filter_by(election_id=election.id)
-        if election.admin_id == current_user.get_id():
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    return {
+        "weights_init": election.voters_by_weight_init,
+        "weights_end": election.voters_by_weight_end
+    }
 
-            return make_response(
-                jsonify({"weights_init": election.voters_by_weight_init, 
-                         "weights_end": election.voters_by_weight_end
-                         }), 200
-            )
-        else:
-            return make_response(
-                jsonify({"message": "No tiene permisos ver esta elección"}), 401
-            )
-
-    except Exception as e:
-        print(e)
-        return make_response(jsonify({"message": "Error al acceder al resumen de la elección"}), 400)
-
-
-@api_router.post("/{election_uuid}/start-election", methods=["POST"])
-def start_election(election_uuid: str, db: Session = Depends(get_db)):
+@api_router.post("/{election_uuid}/start-election", status_code=200)
+def start_election(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for starting an election, once it happens the election
     gets "frozen" which means it shouldn't be modified from now on.
-    Require a valid token to access >>> token_required
     """
-    try:
-        trustees = Trustee.get_by_election(election_id=election.id)
-        voters = Voter.get_by_election(election_id=election.id)
-        election.start(trustees=trustees, voters=voters)
-        return make_response(jsonify({"message": "Eleccion iniciada con exito!"}), 200)
-    
-    except:
-        return make_response(jsonify({"message": "Error al iniciar la eleccion!"}), 400)
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    crud.update_election(db=db, election_id=election.id, fields=election.start())
+    return {
+        "message": "The election was succesfully started" 
+    }
 
 
-@api_router.post("/{election_uuid}/end-election", methods=["POST"])
-def end_election(election_uuid: str, db: Session = Depends(get_db)):
+@api_router.post("/{election_uuid}/end-election", status_code=200)
+def end_election(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for ending an election, once it happens no voter
     should be able to cast a vote.
-    Require a valid token to access >>> token_required
     """
-    try:
-        voters = Voter.get_by_election(election_id=election.id)
-        not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
-        election.end(voters=not_null_voters)
-        return make_response(jsonify({"message": "Eleccion terminada con exito!"}), 200)
-    
-    except:
-        return make_response(jsonify({"message": "Error al terminar la eleccion!"}), 400)
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    crud.update_election(db=db, election_id=election.id, fields=election.end())
+    return {
+        "message": "The election was succesfully ended"
+    }
 
 
-@api_router.post("/{election_uuid}/compute-tally", methods=["POST"])
-def compute_tally(election_uuid: str, db: Session = Depends(get_db)):
+@api_router.post("/{election_uuid}/compute-tally", status_code=200)
+def compute_tally(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for freezing an election
-    Require a valid token to access >>> token_required
     """
-    try:
-        voters = Voter.get_by_election(election_id=election.id)
-        not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    voters = crud.get_voters_by_election_id(db=db, election_id=election.id)
+    not_null_voters = [v.cast_vote.vote for v in voters if v.cast_vote.valid_cast_votes >= 1]
+    
+    encrypted_votes = [v.cast_vote.vote for v in not_null_voters]
+    weights = [v.voter_weight for v in not_null_voters]
+    
+    crud.update_election(db=db, election_id=election.id, fields=election.compute_tally(encrypted_votes, weights))
+    return {
+        "message": "The encrypted tally was succesfully computed"
+    }
 
-        encrypted_votes = [v.cast_vote.vote for v in not_null_voters]
-        weights = [v.voter_weight for v in not_null_voters]
-        election.compute_tally(encrypted_votes, weights)
-        return make_response(jsonify({"message": "Se computado el tally de la eleccion con exito!"}), 200)
-    except:
-        return make_response(jsonify({"message": "Error al computar el tally de la eleccion"}), 400)
-
-@api_router.post("/{election_uuid}/combine-decryptions", methods=["POST"])
-def combine_decryptions(election_uuid: str, db: Session = Depends(get_db)):
+@api_router.post("/{election_uuid}/combine-decryptions", status_code=200)
+def combine_decryptions(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for freezing an election
-    Require a valid token to access >>> token_required
     """
-    
-    trustees = Trustee.get_by_election(election.id)
-    election.combine_decryptions(trustees)
-    return make_response(jsonify({"message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"}), 200)
-    # except:
-    #     return make_response(jsonify({"message": "Error al combinar las desencriptaciones parciales"}), 400)
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    crud.update_election(db=db, election_id=election.id, fields=election.combine_decryptions())
+    return {
+        "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
+    }
 
 
-@api_router.get("/{election_uuid}/get-trustees", methods=["GET"])
-@token_required
-def get_trustees(current_user: User, election_uuid: str, db: Session = Depends(get_db)):
+@api_router.get("/{election_uuid}/get-trustees", status_code=200, response_model=list[schemas.TrusteeOut])
+def get_trustees(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for get trustees
-    Require a valid token to access >>> token_required
     """
-    try:
-        election = Election.get_by_uuid(uuid=election_uuid)
-        if election.admin_id == current_user.get_id():
-            trustees = Trustee.filter_by(election_id=election.id)
-            result = [Trustee.to_dict(schema=trustee_schema, obj=e) for e in trustees]
-            response = make_response(jsonify(result), 200)
-            return response
-        else:
-            return make_response(
-                jsonify({"message": "No tiene permisos para obtener los trustees"}), 401
-            )
-    except:
-        return make_response(jsonify({"message": "Error al obtener los trustees"}), 400)
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    return crud.get_trustees_by_election_id(db=db, election_id=election.id)
 
-@api_router.post("/{election_uuid}/create-trustee", methods=["POST"])
-def create_trustee(current_user: User, election_uuid: str, db: Session = Depends(get_db)):
+@api_router.post("/{election_uuid}/create-trustee", status_code=200)
+def create_trustee(election_uuid: str, trustee_in: schemas.TrusteeIn, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for create trustee
     Require a valid token to access >>> token_required
     """
-    try:
-        data = request.get_json()
-        election = Election.get_by_uuid(uuid=election_uuid)
-        if election.admin_id == current_user.get_id():
-            Trustee.update_or_create(
-                election_id=election.id,
-                uuid=str(uuid.uuid1()),
-                name=data["name"],
-                trustee_id=Trustee.get_next_trustee_id(election.id),
-                trustee_login_id=data["trustee_login_id"],
-                email=data["email"],
-            )
-            election.total_trustees += 1
-            PsifosModel.commit()
-            return make_response(jsonify({"message": "Creado con exito!"}), 200)
-        else:
-            return make_response(
-                jsonify({"message": "No tiene permisos para crear un trustee"}), 401
-            )
-    except:
-        return make_response(jsonify({"message": "Error al crear el trustee"}), 400)
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    crud.create_trustee(
+        db=db,
+        election_id=election.id,
+        uuid=str(uuid.uuid1()),
+        trustee_id=crud.get_next_trustee_id(db=db, election_id=election.id),
+        trustee=trustee_in
+    )
+    crud.update_election(
+        db=db,
+        election_id=election.id,
+        fields={"total_trustees": election.total_trustees + 1}
+    )
+    return {"message": "The trustee was successfully created"}
 
 
-@api_router.post("/{election_uuid}/delete-trustee", methods=["POST"])
-def delete_trustee(current_user: User, election_uuid: str, db: Session = Depends(get_db)):
+@api_router.post("/{election_uuid}/delete-trustee/{trustee_uuid}", status_code=200)
+def delete_trustee(election_uuid: str, trustee_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for delete trustee
-    Require a valid token to access >>> token_required
     """
-    try:
-        data = request.get_json()
-        election = Election.get_by_uuid(uuid=election_uuid)
-        if election.admin_id == current_user.get_id():
-            trustee = Trustee.get_by_uuid(uuid=data["uuid"])
-            PsifosModel.delete(trustee)
-            return make_response(jsonify({"message": "Eliminado con exito!"}), 200)
-        else:
-            return make_response(
-                jsonify({"message": "No tiene permisos para eliminar un trustee"}), 401
-            )
-    except:
-        return make_response(jsonify({"message": "Error al eliminar el trustee"}), 400)
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    crud.delete_trustee(db=db, election_id=election.id, uuid=uuid)
+    return {"message": "The trustee was successfully deleted"}
 
 
 # ----- Voter Routes ----- 
 
 @api_router.post("/{election_uuid}/cast-vote", status_code=200)
-def cast_vote(election_uuid: str, voter: Voter, db: Session = Depends(get_db)):
+def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteIn, voter_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
     """
     Route for casting a vote
-    Require a valid token to access >>> token_required
     """
-   
-    allowed, msg = psifos_utils.do_cast_vote_checks(request, election, voter)
-    if not allowed:
-        return make_response(jsonify({"message": f"{msg}"}), 400)
+
+    voter, election = get_auth_voter_and_election(db=db, election_uuid=election_uuid, login_id=voter_login_id)
+    
+    # >>> Los checks de Helios podemos hacerlos con dependencias de FastAPI <<<
+    # allowed, msg = psifos_utils.do_cast_vote_checks(request, election, voter)
+    # if not allowed:
+    #    return make_response(jsonify({"message": f"{msg}"}), 400)
 
     
-    data = psifos_utils.from_json(request.get_json())
-    enc_vote_data = psifos_utils.from_json(data["encrypted_vote"])
+    enc_vote_data = psifos_utils.from_json(cast_vote.encrypted_vote)
     encrypted_vote = EncryptedVote(**enc_vote_data)
 
-    # FIXME: -- verify asynchronously --
+    # FIXME: -- verify asynchronously -- >>>
     if not encrypted_vote.verify(election):
-        voter.cast_vote.invalid_cast_votes += 1
-        voter.cast_vote.invalidated_at = datetime.now()
-        return make_response(jsonify({"message": "El voto enviado no es valido"}), 400)
+        crud.update_cast_vote(
+            db=db,
+            voter_id=voter.id, 
+            fields={
+                "invalid_cast_votes": voter.cast_vote.invalid_cast_votes + 1,
+                "invalidated_at": datetime.now()
+            }
+        )
+        raise HTTPException(status_code=400, detail="El voto enviado no es valido")
     else:
-        voter.cast_vote.verified_at = datetime.now()
+        crud.update_cast_vote(db=db, voter_id=voter.id, fields={"verified_at": datetime.now()})
+    # <<< --
 
-    PsifosModel.add(voter)
-    PsifosModel.commit()
-
-    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)) #)
-    cast_ip = request.headers.getlist("X-Forwarded-For")[0] if ("X-Forwarded-For" in request.headers) else request.remote_addr
+    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
+    cast_ip = request.client.host
     ip_fingerprint = crypto_utils.hash_b64(cast_ip)
 
     cv_params = {
@@ -357,34 +308,16 @@ def cast_vote(election_uuid: str, voter: Voter, db: Session = Depends(get_db)):
         "cast_at": datetime.now(),
         "cast_ip": cast_ip,
         "ip_fingerprint": ip_fingerprint,
+        "valid_cast_votes": cast_vote.valid_cast_votes + 1
     }
 
-    cast_vote = CastVote.update_or_create(**cv_params)
-    cast_vote.valid_cast_votes += 1
-    PsifosModel.commit()
-    return make_response(jsonify({"message": "Voto registrado con exito.", "vote_hash": vote_fingerprint}), 200)
+    cast_vote = crud.update_cast_vote(db=db, voter_id=voter.id, fields=cv_params)
+    return {
+        "message": "Encrypted vote recieved successfully",
+        "vote_hash": vote_fingerprint
+    }
 
         
-
-
-
-
-
-
-
-
-
-
-@api_router.get("/{election_uuid}/questions", status_code=200)
-def get_questions_voters(election_uuid: str, voter: Voter, db: Session = Depends(get_db)):
-    """
-    Route for get questions
-    Require a cookie valid in session >>> CAS
-    """
-
-    result = Election.to_dict(schema=election_schema, obj=election)
-    return create_response_cors(make_response(result, 200))
-
 
 # ----- Trustee Routes -----
 
@@ -686,7 +619,7 @@ def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_dat
         dec_num = election.decryptions_uploaded + 1
         election = crud.update_election(db=db, election_id=election.id, fields={"decryptions_uploaded": dec_num})
         
-        if election.decryptions_uploaded == len(election.trustees):
+        if election.decryptions_uploaded == election.total_trustees:
             crud.update_election(db=db, election_id=election.id, fields={"election_status": "decryptions_uploaded"})
         
         return {"message": "Trustee's stage 3 completed successfully"}
@@ -713,3 +646,28 @@ def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_log
         "certificates": psifos_utils.to_json(certificates),
         "points": psifos_utils.to_json(points),
     }
+
+
+# >>> Revisar
+@api_router.get("/{election_uuid}/questions", status_code=200, response_model=schemas.ElectionOut)
+def get_questions_voters(election_uuid: str,  voter_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+    """
+    Route for get questions
+    """
+
+    _, election = get_auth_voter_and_election(db=db, election_uuid=election_uuid, login_id=voter_login_id)
+
+    return election
+
+@api_router.get("/{election_uuid}/questions", status_code=200)
+def get_questions(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+    """
+    Admin's route for getting all the questions of a specific election
+    """
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    if not election.questions:
+        HTTPException(status_code=400, detail="The election doesn't have questions")
+
+    return Questions.serialize(election.questions)
+
+# <<<

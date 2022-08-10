@@ -64,8 +64,8 @@ def create_cast_vote(db: Session, voter_id: int):
     return db_cast_vote
 
 
-def update_cast_vote(db: Session, voter_id: int, cast_vote: schemas.CastVoteIn):
-    db_cast_vote = db.query(models.CastVote).filter(models.CastVote.voter_id == voter_id).update(cast_vote.dict())
+def update_cast_vote(db: Session, voter_id: int, fields: dict):
+    db_cast_vote = db.query(models.CastVote).filter(models.CastVote.voter_id == voter_id).update(fields)
     db.add(db_cast_vote)
     db.commit()
     db.refresh(db_cast_vote)
@@ -109,8 +109,13 @@ def get_global_trustee_step(election_id: int):
     trustee_steps = [t.current_step for t in trustees]
     return 0 if len(trustee_steps) == 0 else min(trustee_steps)
 
-def create_trustee(db: Session, trustee: schemas.TrusteeIn):
-    db_trustee = models.Trustee(**trustee.dict())
+def create_trustee(db: Session, election_id: int, uuid: str, trustee_id: int, trustee: schemas.TrusteeIn):
+    db_trustee = models.Trustee(
+        election_id=election_id,
+        uuid=uuid,
+        trustee_id=trustee_id,
+        **trustee.dict()
+    )
     db.add(db_trustee)
     db.commit()
     db.refresh(db_trustee)
@@ -122,6 +127,13 @@ def update_trustee(db: Session, trustee_id: int, fields: dict):
     db.commit()
     db.refresh(db_trustee)
     return db_trustee
+
+def delete_trustee(db: Session, election_id: int, uuid: str):
+    query_trustee = db.query(models.Trustee).filter(models.Trustee.uuid == uuid)
+    if query_trustee.first().election_id == election_id:
+        query_trustee.delete()
+        db.commit()
+
 
 # ----- SharedPoint CRUD Utils -----
 

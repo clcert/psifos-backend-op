@@ -103,15 +103,7 @@ class CastVoteBase(PsifosSchema):
     Basic castvote schema.
     """
 
-    voter_id: int
-    vote_hash: str | None
-    vote_tinyhash: str | None
-    valid_cast_votes: int
-    invalid_cast_votes: int
-    cast_ip: str | None
-    hash_cast_ip: str
-    cast_at: datetime | None
-
+    encrypted_vote: str
 
 class CastVoteIn(CastVoteBase):
     """
@@ -234,7 +226,6 @@ class PublicKeyData(PsifosSchema):
 class KeyGenStep1(PsifosSchema):
     coefficients: str
     points: str
-
 class KeyGenStep2(PsifosSchema):
     acknowledgements: str
 class KeyGenStep3(PsifosSchema):

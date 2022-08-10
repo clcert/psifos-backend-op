@@ -92,18 +92,19 @@ class Election(Base):
         )
         return ElGamal.serialize(params) if serialize else params
 
-    def start(self, db: Session, trustees: list[Trustee], voters: list[Voter]):
-        normalized_weights = [v.voter_weight / self.max_weight for v in voters]
+    def start(self):
+        normalized_weights = [v.voter_weight / self.max_weight for v in self.voters]
         voters_by_weight_init = json.dumps({str(w): normalized_weights.count(w) for w in normalized_weights})
 
         start_data = {
             "voting_started_at": datetime.datetime.utcnow(),
             "election_status": "started",
-            "public_key": utils.generate_election_pk(trustees),
+            "public_key": utils.generate_election_pk(self.trustees),
             "voters_by_weight_init": voters_by_weight_init,
         }
 
-    def end(self, db: Session, voters: list[Voter]):
+    def end(self):
+        voters = [v for v in self.voters if v.cast_vote.valid_cast_votes >= 1]
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
         voters_by_weight_end = json.dumps({str(w): normalized_weights.count(w) for w in normalized_weights})
 
@@ -113,7 +114,7 @@ class Election(Base):
             "voters_by_weight_end": voters_by_weight_end,
         }
 
-    def compute_tally(self, db: Session, encrypted_votes: list[EncryptedVote], weights: list[int]):
+    def compute_tally(self, encrypted_votes: list[EncryptedVote], weights: list[int]):
         # First we instantiate the TallyManager class.
         question_list = Questions.serialize(self.questions, to_json=False)
         pk_dict = PublicKey.serialize(self.public_key, to_json=False)
@@ -132,7 +133,7 @@ class Election(Base):
             "encrypted_tally_hash": hash_b64(TallyManager.serialize(enc_tally)),
         }
 
-    def combine_decryptions(self, db: Session, trustees: list[Trustee]):
+    def combine_decryptions(self):
         """
         combine all of the decryption results
         """
@@ -141,7 +142,7 @@ class Election(Base):
         partial_decryptions = [
             [
                 (t.trustee_id, t.get_decryptions()[q_num].get_decryption_factors())
-                for t in trustees
+                for t in self.trustees
                 if t.decryptions is not None
             ]
             for q_num in range(total_questions)
