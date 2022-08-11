@@ -122,7 +122,9 @@ def create_trustee(db: Session, election_id: int, uuid: str, trustee_id: int, tr
     return db_trustee
 
 def update_trustee(db: Session, trustee_id: int, fields: dict):
-    db_trustee = db.query(models.Trustee).filter(models.Trustee.id == trustee_id).update(fields)
+    query_set = db.query(models.Trustee).filter(models.Trustee.id == trustee_id)
+    query_set.update(fields)
+    db_trustee = query_set.first()
     db.add(db_trustee)
     db.commit()
     db.refresh(db_trustee)
@@ -156,7 +158,7 @@ def get_shared_points_by_sender(db: Session, sender: int):
 def format_points_sent_to(db: Session, election_id: int, trustee_id: int):
     points = db.query(models.SharedPoint).filter(
         models.SharedPoint.election_id == election_id, models.SharedPoint.recipient == trustee_id
-    )
+    ).all()
     points.sort(key=(lambda x: x.sender))
     return utils.format_points(points)
 

@@ -409,7 +409,7 @@ def post_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_data: sch
     Step 1 of the keygenerator trustee
     """
     trustee, election = get_auth_trustee_and_election(db=db, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
-    global_trustee_step = crud.get_global_trustee_step(election_id=election.id)
+    global_trustee_step = crud.get_global_trustee_step(db=db, election_id=election.id)
     if global_trustee_step != 1:
         raise HTTPException(status_code=400, detail="The election's global trustee step is not 1")
 
@@ -421,7 +421,7 @@ def post_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_data: sch
     points = [sharedpoint.Point(**params) for params in points_data]
 
     # TODO: perform server-side checks here!
-    crud.crud.delete_shared_points_by_sender(db=db, sender=trustee.trustee_id)
+    crud.delete_shared_points_by_sender(db=db, sender=trustee.trustee_id)
     crud.create_shared_points(db=db, election_id=election.id, sender=trustee.trustee_id, points=points)
     
     crud.update_trustee(db=db, trustee_id=trustee.id, fields={"coefficients": coefficients, "current_step": 2})
@@ -435,7 +435,7 @@ def get_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_login_id: 
     Step 1 of the keygenerator trustee
     """
     _, election = get_auth_trustee_and_election(db=db, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
-    global_trustee_step = crud.get_global_trustee_step(election_id=election.id)
+    global_trustee_step = crud.get_global_trustee_step(db=db, election_id=election.id)
     if global_trustee_step != 1:
         raise HTTPException(status_code=400, detail="The election's global trustee step is not 1")
 
@@ -463,7 +463,7 @@ def post_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_data: sch
     Step 2 of the keygenerator trustee
     """
     trustee, election = get_auth_trustee_and_election(db=db, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
-    global_trustee_step = crud.get_global_trustee_step(election_id=election.id)
+    global_trustee_step = crud.get_global_trustee_step(db=db, election_id=election.id)
     if global_trustee_step != 2:
         raise HTTPException(status_code=400, detail="The election's global trustee step is not 2")
 
@@ -471,7 +471,7 @@ def post_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_data: sch
     acks = sharedpoint.ListOfSignatures(*acks_data)
 
     # TODO: perform server-side checks here!
-    crud.update_trustee(db=db, trustee_id=trustee.id, fields={"acknowledgement": acks, "current_step": 3})
+    crud.update_trustee(db=db, trustee_id=trustee.id, fields={"acknowledgements": acks, "current_step": 3})
 
     return {"message": "Keygenerator step 2 completed successfully"}
     
@@ -482,13 +482,13 @@ def get_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_login_id: 
     Step 2 of the keygenerator trustee
     """
     trustee, election = get_auth_trustee_and_election(db=db, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
-    global_trustee_step = crud.get_global_trustee_step(election_id=election.id)
+    global_trustee_step = crud.get_global_trustee_step(db=db, election_id=election.id)
     if global_trustee_step != 2:
         raise HTTPException(status_code=400, detail="The election's global trustee step is not 2")
 
-    try:
+    try:    
         params = election.get_eg_params()
-        trustees = crud.get_trustees_by_election_id(election_id=election.id)
+        trustees = crud.get_trustees_by_election_id(db=db, election_id=election.id)
         coefficients = [
             sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False)
             for t in trustees
@@ -502,6 +502,7 @@ def get_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_login_id: 
         assert None not in certificates
 
         points = crud.format_points_sent_to(
+            db=db,
             election_id=election.id,
             trustee_id=trustee.trustee_id,
         )
