@@ -24,12 +24,12 @@ def get_auth_election(election_uuid: str, current_user: auth_models.User, db: Se
 
     return election
 
-def get_auth_voter_and_election(election_uuid: str, login_id: str, db: Session):
+def get_auth_voter_and_election(election_uuid: str, voter_login_id: str, db: Session):
     election = crud.get_election_by_uuid(db=db, uuid=election_uuid)
-    voter = crud.get_voter_by_login_id_and_election_id(db=db, login_id=login_id, election_id=election.id)
+    voter = crud.get_voter_by_login_id_and_election_id(db=db, voter_login_id=voter_login_id, election_id=election.id)
     if not voter:
         raise HTTPException(status_code=400, detail="voter not found")
-    if voter.voter_login_id != login_id:
+    if voter.voter_login_id != voter_login_id:
         raise HTTPException(status_code=401, detail="You are not allowed to access this voter")
     
     return voter, election
