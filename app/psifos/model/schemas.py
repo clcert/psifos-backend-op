@@ -87,9 +87,9 @@ class TrusteeOut(TrusteeBase):
     public_key: str | None
     public_key_hash: str | None
     decryptions: str | None
-    certificate: str | None
-    coefficients: str | None
-    acknowledgements: str | None
+    certificate: str | None = None
+    coefficients: str | None = None
+    acknowledgements: str | None = None
 
     class Config:
         orm_mode = True
