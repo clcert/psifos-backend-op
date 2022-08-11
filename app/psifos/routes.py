@@ -126,6 +126,7 @@ async def upload_voters(election_uuid: str, file: UploadFile, current_user: mode
         # TODO: make it async
         for voter in voters:
             crud.create_voter(db=db, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter)
+            
         
         crud.update_election(db=db, election_id=election.id, fields={"total_voters": total_voters + election.total_voters})
         return {

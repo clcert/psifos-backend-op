@@ -103,7 +103,7 @@ class CastVoteBase(PsifosSchema):
     Basic castvote schema.
     """
 
-    encrypted_vote: str
+    encrypted_vote: str | None
 
 class CastVoteIn(CastVoteBase):
     """
@@ -124,7 +124,7 @@ class CastVoteOut(CastVoteBase):
     valid_cast_votes: int
     invalid_cast_votes: int
     cast_ip: str | None
-    hash_cast_ip: str
+    hash_cast_ip: str | None
     cast_at: datetime | None
     verified_at: datetime | None
     invalidated_at: datetime | None
