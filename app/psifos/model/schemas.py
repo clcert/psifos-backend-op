@@ -34,6 +34,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.database.serialization import SerializableList, SerializableObject
+from app.psifos.crypto.sharedpoint import Certificate, Coefficient, ListOfCoefficients, ListOfSignatures
 from app.psifos.model.enums import ElectionTypeEnum, ElectionStatusEnum
 
 
@@ -75,6 +76,7 @@ class TrusteeIn(TrusteeBase):
     pass
 
 
+# model (sqla) ModelElection -> SchemaElection  
 class TrusteeOut(TrusteeBase):
     """
     Schema for reading/returning trustee data.
@@ -87,9 +89,9 @@ class TrusteeOut(TrusteeBase):
     public_key: str | None
     public_key_hash: str | None
     decryptions: str | None
-    certificate: str | None = None
-    coefficients: str | None = None
-    acknowledgements: str | None = None
+    certificate: Certificate | None
+    coefficients: Coefficient | None
+    acknowledgements: ListOfSignatures | None
 
     class Config:
         orm_mode = True
