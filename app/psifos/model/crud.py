@@ -16,10 +16,10 @@ from app.psifos.model import models, schemas
 # ----- Voter CRUD Utils -----
 
 
-def get_voter_by_login_id_and_election_id(db: Session, login_id: int, election_id: int):
+def get_voter_by_login_id_and_election_id(db: Session, voter_login_id: int, election_id: int):
     return (
         db.query(models.Voter)
-        .filter(models.Voter.login_id == login_id, models.Voter.election_id == election_id)
+        .filter(models.Voter.voter_login_id == voter_login_id, models.Voter.election_id == election_id)
         .first()
     )
 
@@ -68,7 +68,9 @@ def create_cast_vote(db: Session, voter_id: int):
 
 
 def update_cast_vote(db: Session, voter_id: int, fields: dict):
-    db_cast_vote = db.query(models.CastVote).filter(models.CastVote.voter_id == voter_id).update(fields)
+    query_set = db.query(models.CastVote).filter(models.CastVote.voter_id == voter_id)
+    query_set.update(fields)
+    db_cast_vote = query_set.first()
     db.add(db_cast_vote)
     db.commit()
     db.refresh(db_cast_vote)

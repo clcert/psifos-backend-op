@@ -20,6 +20,8 @@ from app.psifos_auth.auth_bearer import AuthAdmin
 from app.psifos_auth.utils import get_auth_election, get_auth_trustee_and_election, get_auth_voter_and_election
 from app.psifos_auth.auth_service_check import AuthUser
 
+from starlette_context import context
+
 api_router = APIRouter()
 
 # ----- Election Admin Routes -----
@@ -199,7 +201,7 @@ def compute_tally(election_uuid: str, current_user: models.User = Depends(AuthAd
     """
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
     voters = crud.get_voters_by_election_id(db=db, election_id=election.id)
-    not_null_voters = [v.cast_vote.vote for v in voters if v.cast_vote.valid_cast_votes >= 1]
+    not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
     
     encrypted_votes = [v.cast_vote.vote for v in not_null_voters]
     weights = [v.voter_weight for v in not_null_voters]
@@ -269,7 +271,7 @@ def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteI
     Route for casting a vote
     """
 
-    voter, election = get_auth_voter_and_election(db=db, election_uuid=election_uuid, login_id=voter_login_id)
+    voter, election = get_auth_voter_and_election(db=db, election_uuid=election_uuid, voter_login_id=voter_login_id)
     
     # >>> Los checks de Helios podemos hacerlos con dependencias de FastAPI <<<
     # allowed, msg = psifos_utils.do_cast_vote_checks(request, election, voter)
@@ -292,21 +294,21 @@ def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteI
         )
         raise HTTPException(status_code=400, detail="El voto enviado no es valido")
     else:
-        crud.update_cast_vote(db=db, voter_id=voter.id, fields={"verified_at": datetime.now()})
+        crud.update_cast_vote(db=db, voter_id=voter.id, fields={"cast_at": datetime.datetime.now()})
     # <<< --
 
     vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
-    cast_ip = request.client.host
+    cast_ip = context.data["X-Forwarded-For"]
     ip_fingerprint = crypto_utils.hash_b64(cast_ip)
 
     cv_params = {
         "voter_id": voter.id,
         "vote": encrypted_vote,
         "vote_hash": vote_fingerprint,
-        "cast_at": datetime.now(),
+        "cast_at": datetime.datetime.now(),
         "cast_ip": cast_ip,
-        "ip_fingerprint": ip_fingerprint,
-        "valid_cast_votes": cast_vote.valid_cast_votes + 1
+        "hash_cast_ip": ip_fingerprint,
+        "valid_cast_votes": voter.cast_vote.valid_cast_votes + 1
     }
 
     cast_vote = crud.update_cast_vote(db=db, voter_id=voter.id, fields=cv_params)
@@ -637,13 +639,16 @@ def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_log
     trustee, election = get_auth_trustee_and_election(db=db, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
 
     params = election.get_eg_params()
-    trustees = crud.get_trustees_by_election_id(election_id=election.id)
+    trustees = crud.get_trustees_by_election_id(db=db, election_id=election.id)
     certificates = [sharedpoint.Certificate.serialize(t.certificate, to_json=False) for t in trustees]
     points = crud.format_points_sent_to(
+        db=db,
         election_id=election.id,
         trustee_id=trustee.trustee_id,
     )
     return {
+        "election": schemas.ElectionOut.from_orm(election),
+        "trustee": schemas.TrusteeOut.from_orm(trustee),
         "params": params,
         "certificates": psifos_utils.to_json(certificates),
         "points": psifos_utils.to_json(points),
@@ -657,7 +662,7 @@ def get_questions_voters(election_uuid: str,  voter_login_id: str = Depends(Auth
     Route for get questions
     """
 
-    _, election = get_auth_voter_and_election(db=db, election_uuid=election_uuid, login_id=voter_login_id)
+    _, election = get_auth_voter_and_election(db=db, election_uuid=election_uuid, voter_login_id=voter_login_id)
 
     return election
 

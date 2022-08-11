@@ -85,12 +85,12 @@ class TrusteeOut(TrusteeBase):
     trustee_id: int
     uuid: str
     current_step: int
-    public_key: str | None
+    public_key: object | None
     public_key_hash: str | None
-    decryptions: str | None
-    certificate: str | None
-    coefficients: str | None
-    acknowledgements: str | None
+    decryptions: object | None
+    certificate: object | None
+    coefficients: object | None
+    acknowledgements: object | None
 
     class Config:
         orm_mode = True
@@ -110,7 +110,7 @@ class CastVoteIn(CastVoteBase):
     """
     Schema for creating an castvote.
     """
-
+    
     pass
 
 
@@ -204,13 +204,13 @@ class ElectionOut(ElectionBase):
     id: int
     uuid: str
     election_status: ElectionStatusEnum
-    public_key: str | None
+    public_key: object | None
     questions: object | None
     total_voters: int
     total_trustees: int
-    encrypted_tally: str | None
+    encrypted_tally: object | None
     encrypted_tally_hash: str | None
-    result: str | None
+    result: object | None
     voters_by_weight_init: str | None
     voters_by_weight_end: str | None
 
@@ -233,7 +233,7 @@ class KeyGenStep3Data(PsifosSchema):
     verification_key: str
 
 class DecryptionIn(PsifosSchema):
-    decryptions: str
+    decryptions: object
 
 class TrusteeHome(PsifosSchema):
     trustee: TrusteeOut

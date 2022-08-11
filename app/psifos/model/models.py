@@ -102,6 +102,7 @@ class Election(Base):
             "public_key": utils.generate_election_pk(self.trustees),
             "voters_by_weight_init": voters_by_weight_init,
         }
+        return start_data
 
     def end(self):
         voters = [v for v in self.voters if v.cast_vote.valid_cast_votes >= 1]

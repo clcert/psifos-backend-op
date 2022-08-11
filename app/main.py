@@ -10,6 +10,8 @@ from .psifos_auth.routes import auth_router
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+from starlette_context import middleware, plugins
+
 import os
 
 Base.metadata.create_all(engine)
@@ -27,6 +29,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+app.add_middleware(
+    middleware.ContextMiddleware,
+    plugins=(
+        plugins.ForwardedForPlugin(),
+    ),
 )
 
 # Routes
