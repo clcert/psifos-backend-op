@@ -30,12 +30,15 @@ def get_voters_by_election_id(db: Session, election_id: int):
 
 def create_voter(db: Session, election_id: str, uuid: str, voter: schemas.VoterIn):
     db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
-    db_cast_vote = models.CastVote(voter_id=db_voter.id)
     db.add(db_voter)
-    db.add(db_cast_vote)
     db.commit()
     db.refresh(db_voter)
+
+    db_cast_vote = models.CastVote(voter_id=db_voter.id)
+    db.add(db_cast_vote)
+    db.commit()
     db.refresh(db_cast_vote)
+    
     return db_voter, db_cast_vote
 
 def delete_election_voters(db: Session, election_id: int):
