@@ -99,8 +99,8 @@ def get_by_login_id_and_election_id(db: Session, login_id: str, election_id: int
 def get_trustees_by_election_id(db: Session, election_id: int):
     return db.query(models.Trustee).filter(models.Trustee.election_id == election_id).all()
 
-def get_next_trustee_id(election_id: int):
-    trustees = get_trustees_by_election_id(election_id=election_id)
+def get_next_trustee_id(db: Session, election_id: int):
+    trustees = get_trustees_by_election_id(db=db, election_id=election_id)
     return 1 if len(trustees) == 0 else max(trustees, key=(lambda t: t.trustee_id)).trustee_id + 1
 
 
