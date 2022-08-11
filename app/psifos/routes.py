@@ -358,6 +358,7 @@ def get_step(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depe
     """
     _, election = get_auth_trustee_and_election(db=db, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
     trustee_step = crud.get_global_trustee_step(
+        db=db,
         election_id=election.id
     )
 

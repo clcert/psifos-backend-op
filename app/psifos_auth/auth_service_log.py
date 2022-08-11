@@ -1,6 +1,8 @@
 from cas import CASClient
 from app.config import env
+from ..database import SessionLocal
 from app.psifos.model.models import Election, Trustee
+from app.psifos.model import crud
 from app.psifos_auth.utils import get_user
 from requests_oauthlib import OAuth2Session
 
@@ -109,10 +111,12 @@ class CASAuth:
         user = request.session.get("user", None)
 
         if user:
-            election = Election.get_by_uuid(uuid=election_uuid)
-            trustee = Trustee.get_by_login_id_and_election(
+            db = SessionLocal()
+            election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
+            trustee = crud.get_by_login_id_and_election_id(
                 trustee_login_id=user,
                 election_id=election.id,
+                db=db
             )
             if not trustee:
                 response = RedirectResponse(
@@ -126,8 +130,7 @@ class CASAuth:
                     + election_uuid
                     + "/trustee/"
                     + trustee.uuid
-                    + "/home",
-                    code=302,
+                    + "/home"
                 )
             response.set_cookie("session", session)
             return response

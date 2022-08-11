@@ -88,10 +88,10 @@ def get_trustee_by_uuid(db: Session, uuid: str):
     )
 
 
-def get_by_login_id_and_election_id(db: Session, login_id: str, election_id: int):
+def get_by_login_id_and_election_id(db: Session, trustee_login_id: str, election_id: int):
     return (
         db.query(models.Trustee)
-        .filter(models.Trustee.login_id == login_id, models.Trustee.election_id == election_id)
+        .filter(models.Trustee.trustee_login_id == trustee_login_id, models.Trustee.election_id == election_id)
         .first()
     )
 
@@ -104,8 +104,8 @@ def get_next_trustee_id(db: Session, election_id: int):
     return 1 if len(trustees) == 0 else max(trustees, key=(lambda t: t.trustee_id)).trustee_id + 1
 
 
-def get_global_trustee_step(election_id: int):
-    trustees = get_trustees_by_election_id(election_id=election_id)
+def get_global_trustee_step(db: Session, election_id: int):
+    trustees = get_trustees_by_election_id(db=db, election_id=election_id)
     trustee_steps = [t.current_step for t in trustees]
     return 0 if len(trustee_steps) == 0 else min(trustee_steps)
 

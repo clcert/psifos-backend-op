@@ -66,13 +66,13 @@ def logout_voter(election_uuid: str, request: Request):
 
 
 @auth_router.get("/{election_uuid}/trustee/login", status_code=200)
-def login_trustee(election_uuid: str):
+def login_trustee(election_uuid: str, request: Request, session: str | None = Cookie(default=None)):
     """
     Make the connection and verification with the CAS service
     """
     
     auth = auth_factory.get_auth(protocol)
-    return auth.login_trustee(election_uuid)
+    return auth.login_trustee(election_uuid, request=request, session=session)
 
 
 
