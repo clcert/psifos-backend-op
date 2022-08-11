@@ -7,9 +7,6 @@ from app.config import settings
 from fastapi import Depends, HTTPException
 
 
-import jwt
-
-
 def get_db():
     """
     Database dependency: allows a single Session per request.

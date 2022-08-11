@@ -1,5 +1,6 @@
 import base64
 import datetime
+from io import StringIO
 import os
 import uuid
 import csv
@@ -78,18 +79,21 @@ def get_elections(current_user: models.User = Depends(AuthAdmin()), db: Session 
     ]
 
 
-@api_router.post("/edit-election/{election_uuid}", status_code=200)
+@api_router.post("/edit-election/{election_uuid}", status_code=201)
 def edit_election(election_uuid: str, election_in: schemas.ElectionIn, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Admin's route for editing an election
     """
-    election_exist = crud.get_election_by_short_name(short_name=election_in.short_name) is not None
+    election_exist = crud.get_election_by_short_name(db=db, short_name=election_in.short_name) is not None
     if election_exist:
         raise HTTPException(status_code=404, detail="The election already exists.")
 
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
     crud.edit_election(db=db, election_id=election.id, election=election_in)
-    return {"message": "Election edited successfully!"}
+    return {
+        "message": "Election edited successfully!",
+        "uuid": election.uuid
+    }
 
 
 @api_router.post("/create-questions/{election_uuid}", status_code=200)
@@ -103,28 +107,34 @@ def create_questions(election_uuid: str, data_questions: dict, current_user: mod
     return {"message": "Preguntas creadas con exito!"}
 
 @api_router.post("/{election_uuid}/upload-voters", status_code=200)
-def upload_voters(election_uuid: str, voter_file: UploadFile, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+async def upload_voters(election_uuid: str, file: UploadFile, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Admin's route for uploading the voters of an election
     """
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
-    try:
-        csv_reader = csv.reader(voter_file.file, delimiter=',')
+    #try:
+    if True:
+        contents = file.file.read()
+        buffer = StringIO(contents.decode('utf-8'))
+        csv_reader = csv.reader(buffer, delimiter=',')
         voters: list[schemas.VoterIn] = [
-            schemas.VoterIn(voter_login_id=login_id, voter_weight=weight, voter_name=name)
-            for login_id, weight, name in csv_reader
+            schemas.VoterIn(voter_login_id=login_id, voter_name=name, voter_weight=weight, )
+            for login_id, name, weight in csv_reader
         ]
         total_voters = len(voters)
 
         # TODO: make it async
         for voter in voters:
-            crud.create_voter(db=db, voter=voter)
+            crud.create_voter(db=db, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter)
         
-        crud.update_election(db=db, election_id=election.id, fields={"total_voters":total_voters})
+        crud.update_election(db=db, election_id=election.id, fields={"total_voters": total_voters + election.total_voters})
+        return {
+            "message": "The voters were successfully uploaded"
+        }
+        
+    #except:
+    #    raise HTTPException(status_code=400, detail="Failed to upload the voters")
     
-    except:
-        raise HTTPException(status_code=400, detail="Failed to upload the voters")
-
 
 @api_router.get("/{election_uuid}/get-voters", response_model=list[schemas.VoterOut], status_code=200)
 def get_voters(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
@@ -656,5 +666,4 @@ def get_questions(election_uuid: str, current_user: models.User = Depends(AuthAd
         HTTPException(status_code=400, detail="The election doesn't have questions")
 
     return Questions.serialize(election.questions)
-
 # <<<

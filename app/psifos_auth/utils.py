@@ -1,21 +1,17 @@
 import logging
 import uuid
-import jwt
 
 from app import config
-from app.config import settings
 from app.database import SessionLocal
-from app.dependencies import get_db
-from app.psifos.model import models, crud
+from app.psifos.model import crud
 
 from app.psifos_auth.model import models as auth_models
 from app.psifos_auth.model import crud as auth_crud
 from app.psifos_auth.model import schemas as auth_schemas
 
-from fastapi import Depends, HTTPException, Request, Cookie
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from werkzeug.security import generate_password_hash
-from functools import update_wrapper, wraps
 from requests_oauthlib import OAuth2Session
 
 
@@ -55,7 +51,7 @@ def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, login_id
 
 
 
-def create_user(username: str, password: str, db: Session = Depends(get_db)) -> str:
+def create_user(username: str, password: str) -> str:
     """
     Create a new user
     :param username: username of the user
@@ -63,7 +59,8 @@ def create_user(username: str, password: str, db: Session = Depends(get_db)) -> 
     """
     hashed_password = generate_password_hash(password, method="sha256")
     user = auth_schemas.UserIn(username=username, password=hashed_password, public_id=str(uuid.uuid4()))
-    auth_crud.create_user(db=db, user=user)
+    with SessionLocal() as db:
+        auth_crud.create_user(db=db, user=user)
     logging.log(msg="User created successfully!", level=logging.INFO)
 
 

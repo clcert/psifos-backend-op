@@ -28,8 +28,8 @@ def get_voters_by_election_id(db: Session, election_id: int):
     return db.query(models.Voter).filter(models.Voter.election_id == election_id).all()
 
 
-def create_voter(db: Session, voter: schemas.VoterIn):
-    db_voter = models.Voter(**voter.dict())
+def create_voter(db: Session, election_id: str, uuid: str, voter: schemas.VoterIn):
+    db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
     db_cast_vote = models.CastVote(voter_id=db_voter.id)
     db.add(db_voter)
     db.add(db_cast_vote)
@@ -201,7 +201,9 @@ def create_election(db: Session, election: schemas.ElectionIn, admin_id: int, uu
 
 
 def edit_election(db: Session, election_id: int, election: schemas.ElectionIn):
-    db_election = db.query(models.Election).filter(models.Election.id == election_id).update(election.dict())
+    query_set = db.query(models.Election).filter(models.Election.id == election_id)
+    query_set.update(election.dict())
+    db_election = query_set.first()
     db.add(db_election)
     db.commit()
     db.refresh(db_election)
@@ -209,7 +211,9 @@ def edit_election(db: Session, election_id: int, election: schemas.ElectionIn):
 
 
 def update_election(db: Session, election_id: int, fields: dict):
-    db_election = db.query(models.Election).filter(models.Election.id == election_id).update(fields)
+    query_set = db.query(models.Election).filter(models.Election.id == election_id)
+    query_set.update(fields)
+    db_election = query_set.first()
     db.add(db_election)
     db.commit()
     db.refresh(db_election)
