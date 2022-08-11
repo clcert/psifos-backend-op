@@ -34,7 +34,6 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.database.serialization import SerializableList, SerializableObject
-from app.psifos.crypto.sharedpoint import Certificate, Coefficient, ListOfCoefficients, ListOfSignatures
 from app.psifos.model.enums import ElectionTypeEnum, ElectionStatusEnum
 
 
@@ -89,9 +88,9 @@ class TrusteeOut(TrusteeBase):
     public_key: str | None
     public_key_hash: str | None
     decryptions: str | None
-    certificate: Certificate | None
-    coefficients: Coefficient | None
-    acknowledgements: ListOfSignatures | None
+    certificate: str | None
+    coefficients: str | None
+    acknowledgements: str | None
 
     class Config:
         orm_mode = True
