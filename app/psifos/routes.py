@@ -337,7 +337,7 @@ def get_trustee_home(election_uuid: str, trustee_uuid: str, trustee_login_id: st
     """
     trustee, election = get_auth_trustee_and_election(db=db, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
 
-    return schemas.TrusteeHome(trustee=trustee, election=election)
+    return schemas.TrusteeHome(trustee=schemas.TrusteeOut.from_orm(trustee), election=schemas.ElectionOut.from_orm(election))
 
 
 @api_router.get("/{election_uuid}/get-randomness", status_code=200)
@@ -525,7 +525,7 @@ def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_data: sch
     Step 3 of the keygenerator trustee
     """
     trustee, election = get_auth_trustee_and_election(db=db, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
-    global_trustee_step = crud.get_global_trustee_step(election_id=election.id)
+    global_trustee_step = crud.get_global_trustee_step(db=db, election_id=election.id)
     if global_trustee_step != 3:
         raise HTTPException(status_code=400, detail="The election's global trustee step is not 3")
 
@@ -545,13 +545,13 @@ def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_login_id:
     Step 3 of the keygenerator trustee
     """
     trustee, election = get_auth_trustee_and_election(db=db, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
-    global_trustee_step = crud.get_global_trustee_step(election_id=election.id)
+    global_trustee_step = crud.get_global_trustee_step(db=db, election_id=election.id)
     if global_trustee_step != 3:
         raise HTTPException(status_code=400, detail="The election's global trustee step is not 3")
 
     try:
         params = election.get_eg_params()
-        trustees = crud.get_trustees_by_election_id(election_id=election.id)
+        trustees = crud.get_trustees_by_election_id(db=db, election_id=election.id)
 
         coefficients = [
             sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False)
@@ -574,11 +574,13 @@ def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_login_id:
         assert None not in certificates
 
         points = crud.format_points_sent_to(
+            db=db,
             election_id=election.id,
             trustee_id=trustee.trustee_id,
         )
 
         points_sent = crud.format_points_sent_by(
+            db=db,
             election_id=election.id,
             trustee_id=trustee.trustee_id,
         )

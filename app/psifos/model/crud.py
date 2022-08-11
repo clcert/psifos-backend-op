@@ -173,7 +173,7 @@ def delete_shared_points_by_sender(db: Session, sender: int):
 def format_points_sent_by(db: Session, election_id: int, trustee_id: int):
     points = db.query(models.SharedPoint).filter(
         models.SharedPoint.election_id == election_id, models.SharedPoint.sender == trustee_id
-    )
+    ).all()
     points.sort(key=(lambda x: x.recipient))
     return utils.format_points(points)
 
