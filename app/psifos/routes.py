@@ -17,7 +17,7 @@ from app.psifos.crypto import utils as crypto_utils
 from app.psifos import utils as psifos_utils
 from app.psifos_auth.auth_bearer import AuthAdmin
 from app.psifos_auth.utils import get_auth_election, get_auth_trustee_and_election, get_auth_voter_and_election
-from app.psifos_auth.auth_service_check import get_login_id
+from app.psifos_auth.auth_service_check import AuthUser
 
 api_router = APIRouter()
 
@@ -102,20 +102,8 @@ def create_questions(election_uuid: str, data_questions: dict, current_user: mod
     crud.edit_questions(db=db, db_election=election, questions=questions)
     return {"message": "Preguntas creadas con exito!"}
 
-@api_router.get("/{election_uuid}/questions", status_code=200)
-def get_questions(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
-    """
-    Admin's route for getting all the questions of a specific election
-    """
-    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
-    if not election.questions:
-        HTTPException(status_code=400, detail="The election doesn't have questions")
-
-    return Questions.serialize(election.questions)
-
-
 @api_router.post("/{election_uuid}/upload-voters", status_code=200)
-def upload_voters(election_uuid: str, voter_file: UploadFile(), current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+def upload_voters(election_uuid: str, voter_file: UploadFile, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Admin's route for uploading the voters of an election
     """
@@ -265,7 +253,7 @@ def delete_trustee(election_uuid: str, trustee_uuid: str, current_user: models.U
 # ----- Voter Routes ----- 
 
 @api_router.post("/{election_uuid}/cast-vote", status_code=200)
-def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteIn, voter_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteIn, voter_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Route for casting a vote
     """
@@ -332,7 +320,7 @@ def get_trustee(trustee_uuid, db: Session = Depends(get_db)):
 
 
 @api_router.get("/{election_uuid}/trustee/{trustee_uuid}/home", status_code=200, response_model=schemas.TrusteeHome)
-def get_trustee_home(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def get_trustee_home(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Trustee's route for getting his home
     """
@@ -342,7 +330,7 @@ def get_trustee_home(election_uuid: str, trustee_uuid: str, trustee_login_id: st
 
 
 @api_router.get("/{election_uuid}/get-randomness", status_code=200)
-def get_randomness(election_uuid: str, _ : str = Depends(get_login_id)):
+def get_randomness(election_uuid: str, _ : str = Depends(AuthUser())):
     """
     Get some randomness to sprinkle into the sjcl entropy pool
     """
@@ -354,7 +342,7 @@ def get_randomness(election_uuid: str, _ : str = Depends(get_login_id)):
 
 
 @api_router.get("/{election_uuid}/trustee/{trustee_uuid}/get-step", status_code=200)
-def get_step(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def get_step(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Get the step of the trustee
     """
@@ -383,7 +371,7 @@ def election_get_eg_params(election_uuid: str, db: Session = Depends(get_db)):
 
 
 @api_router.post("/{election_uuid}/trustee/{trustee_uuid}/upload-pk", status_code=200)
-def trustee_upload_pk(election_uuid: str, trustee_uuid: str, trustee_data: schemas.PublicKeyData, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def trustee_upload_pk(election_uuid: str, trustee_uuid: str, trustee_data: schemas.PublicKeyData, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Upload public key of trustee
     """
@@ -405,7 +393,7 @@ def trustee_upload_pk(election_uuid: str, trustee_uuid: str, trustee_data: schem
 
 
 @api_router.post("/{election_uuid}/trustee/{trustee_uuid}/step-1", status_code=200)
-def post_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep1Data, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def post_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep1Data, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Step 1 of the keygenerator trustee
     """
@@ -431,7 +419,7 @@ def post_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_data: sch
 
 
 @api_router.get("/{election_uuid}/trustee/{trustee_uuid}/step-1", status_code=200)
-def get_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def get_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Step 1 of the keygenerator trustee
     """
@@ -459,7 +447,7 @@ def get_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_login_id: 
 
 
 @api_router.post("/{election_uuid}/trustee/{trustee_uuid}/step-2", status_code=200)
-def post_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep2Data, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def post_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep2Data, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Step 2 of the keygenerator trustee
     """
@@ -478,7 +466,7 @@ def post_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_data: sch
     
 
 @api_router.get("/{election_uuid}/trustee/{trustee_uuid}/step-2", status_code=200)
-def get_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def get_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Step 2 of the keygenerator trustee
     """
@@ -519,7 +507,7 @@ def get_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_login_id: 
 
 
 @api_router.post("/{election_uuid}/trustee/{trustee_uuid}/step-3", status_code=200)
-def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep3Data, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep3Data, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Step 3 of the keygenerator trustee
     """
@@ -539,7 +527,7 @@ def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_data: sch
         
 
 @api_router.get("/{election_uuid}/trustee/{trustee_uuid}/step-3", status_code=200)
-def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Step 3 of the keygenerator trustee
     """
@@ -596,7 +584,7 @@ def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_login_id:
 
 
 @api_router.get("/{election_uuid}/trustee/{trustee_uuid}/check-sk", status_code=200)
-def trustee_check_sk(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def trustee_check_sk(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Trustee Stage 2
     """
@@ -604,7 +592,7 @@ def trustee_check_sk(election_uuid: str, trustee_uuid: str, trustee_login_id: st
     return sharedpoint.Certificate.serialize(trustee.certificate, to_json=False)
 
 @api_router.post("/{election_uuid}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200)
-def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_data: schemas.DecryptionIn, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_data: schemas.DecryptionIn, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Trustee Stage 3
     """
@@ -627,7 +615,7 @@ def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_dat
         raise HTTPException(status_code=400, detail="An error was found during the verification of the proofs")
 
 @api_router.get("/{election_uuid}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200)
-def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Trustee Stage 3
     """
@@ -649,7 +637,7 @@ def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_log
 
 # >>> Revisar
 @api_router.get("/{election_uuid}/questions", status_code=200, response_model=schemas.ElectionOut)
-def get_questions_voters(election_uuid: str,  voter_login_id: str = Depends(get_login_id), db: Session = Depends(get_db)):
+def get_questions_voters(election_uuid: str,  voter_login_id: str = Depends(AuthUser()), db: Session = Depends(get_db)):
     """
     Route for get questions
     """

@@ -223,12 +223,12 @@ class ElectionOut(ElectionBase):
 # ------------------ response-related schemas ------------------
 class PublicKeyData(PsifosSchema):
     public_key_json: str
-class KeyGenStep1(PsifosSchema):
+class KeyGenStep1Data(PsifosSchema):
     coefficients: str
     points: str
-class KeyGenStep2(PsifosSchema):
+class KeyGenStep2Data(PsifosSchema):
     acknowledgements: str
-class KeyGenStep3(PsifosSchema):
+class KeyGenStep3Data(PsifosSchema):
     verification_key: str
 
 class DecryptionIn(PsifosSchema):
