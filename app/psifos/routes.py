@@ -259,7 +259,12 @@ def delete_trustee(election_uuid: str, trustee_uuid: str, current_user: models.U
     Route for delete trustee
     """
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
-    crud.delete_trustee(db=db, election_id=election.id, uuid=uuid)
+    crud.delete_trustee(db=db, election_id=election.id, uuid=trustee_uuid)
+    crud.update_election(
+        db=db,
+        election_id=election.id,
+        fields={"total_trustees": election.total_trustees - 1}
+    )
     return {"message": "The trustee was successfully deleted"}
 
 
