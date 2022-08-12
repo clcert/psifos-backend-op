@@ -77,12 +77,12 @@ def login_trustee(election_uuid: str, request: Request, session: str | None = Co
 
 
 @auth_router.get("/{election_uuid}/trustee/logout", status_code=200)
-def logout_trustee(election_uuid: str):
+def logout_trustee(election_uuid: str, request: Request):
     """
     Logout a trustee
     """
     auth = auth_factory.get_auth(protocol)
-    return auth.logout_trustee(election_uuid)
+    return auth.logout_trustee(election_uuid, request)
 
 
 # OAuth2

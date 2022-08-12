@@ -110,63 +110,64 @@ class CASAuth:
         # Get user from session cookie
         user = request.session.get("user", None)
 
-        if user:
-            db = SessionLocal()
-            election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
-            trustee = crud.get_by_login_id_and_election_id(
-                trustee_login_id=user,
-                election_id=election.id,
-                db=db
-            )
-            if not trustee:
-                response = RedirectResponse(
-                    env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home"
+        with SessionLocal() as db:
+            if user:
+                election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
+                trustee = crud.get_by_login_id_and_election_id(
+                    trustee_login_id=user,
+                    election_id=election.id,
+                    db=db
                 )
+                if not trustee:
+                    response = RedirectResponse(
+                        env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home"
+                    )
+                else:
+
+                    response = RedirectResponse(
+                        url=env["URL"]["front"]
+                        + "/"
+                        + election_uuid
+                        + "/trustee/"
+                        + trustee.uuid
+                        + "/home"
+                    )
+                response.set_cookie("session", session)
+                return response
+
+            ticket = request.query_params.get("ticket", None)
+            if not ticket:
+                return self.redirect_cas(
+                    env["URL"]["back"] + "/" + election_uuid + "/trustee" + "/login",
+                )
+
+            user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
+            if not user:
+                raise HTTPException(status_code=401, detail="ERROR")
             else:
-
-                response = RedirectResponse(
-                    url=env["URL"]["front"]
-                    + "/"
-                    + election_uuid
-                    + "/trustee/"
-                    + trustee.uuid
-                    + "/home"
+                request.session["user"] = user
+                election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
+                trustee = crud.get_by_login_id_and_election_id(
+                    db=db,
+                    trustee_login_id=request.session["user"],
+                    election_id=election.id,
                 )
-            response.set_cookie("session", session)
-            return response
+                if not trustee:
+                    response = RedirectResponse(
+                        url=env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home"
+                    )
+                else:
 
-        ticket = request.query_params.get("ticket", None)
-        if not ticket:
-            return self.redirect_cas(
-                env["URL"]["back"] + "/" + election_uuid + "/trustee" + "/login",
-            )
-
-        user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
-        if not user:
-            raise HTTPException(status_code=401, detail="ERROR")
-        else:
-            request.session["user"] = user
-            election = Election.get_by_uuid(uuid=election_uuid)
-            trustee = Trustee.get_by_login_id_and_election(
-                trustee_login_id=session["username"],
-                election_id=election.id,
-            )
-            if not trustee:
-                response = RedirectResponse(
-                    url=env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home"
-                )
-            else:
-
-                response = RedirectResponse(
-                    env["URL"]["front"]
-                    + "/"
-                    + election_uuid
-                    + "/trustee/"
-                    + trustee.uuid
-                    + "/home",
-                   
-                )
-            return response
+                    response = RedirectResponse(
+                        env["URL"]["front"]
+                        + "/"
+                        + election_uuid
+                        + "/trustee/"
+                        + trustee.uuid
+                        + "/home",
+                    
+                    )
+                return response
 
     def logout_trustee(self, election_uuid: str, request: Request):
 
