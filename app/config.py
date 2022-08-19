@@ -2,10 +2,18 @@ import configparser
 from datetime import timedelta
 from pydantic import BaseSettings
 
+import os
+
 # Retrieve enviroment variables from .env file
 env = configparser.ConfigParser()
 env.read(".env")
 
+env["local"]["user"] = os.environ.get("USER", env["local"]["user"])
+env["local"]["password"] = os.environ.get("PASSWORD", env["local"]["password"])
+env["local"]["database"] = os.environ.get("NAME_DATABASE", env["local"]["database"])
+
+env["URL"]["front"] = os.environ.get("APP_FRONTEND_HOST", env["URL"]["front"])
+env["URL"]["back"] = os.environ.get("APP_BACKEND_HOST", env["URL"]["back"])
 
 class Settings(BaseSettings):
     CORS_HEADERS: str = "Content-Type"
