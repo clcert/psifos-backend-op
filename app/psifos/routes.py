@@ -87,10 +87,11 @@ def edit_election(election_uuid: str, election_in: schemas.ElectionIn, current_u
     Admin's route for editing an election
     """
     election_exist = crud.get_election_by_short_name(db=db, short_name=election_in.short_name) is not None
-    if election_exist:
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+
+    if election_exist and election.short_name != election_in.short_name:
         raise HTTPException(status_code=404, detail="The election already exists.")
 
-    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
     crud.edit_election(db=db, election_id=election.id, election=election_in)
     return {
         "message": "Election edited successfully!",
