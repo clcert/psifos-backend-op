@@ -10,7 +10,7 @@ env.read(".env")
 
 env["local"]["user"] = os.environ.get("USER", env["local"]["user"])
 env["local"]["password"] = os.environ.get("PASSWORD", env["local"]["password"])
-env["loca"]["host"] = os.environ.get("HOST", env["local"]["host"])
+env["local"]["host"] = os.environ.get("HOST", env["local"]["host"])
 env["local"]["database"] = os.environ.get("NAME_DATABASE", env["local"]["database"])
 
 env["URL"]["front"] = os.environ.get("APP_FRONTEND_HOST", env["URL"]["front"])
