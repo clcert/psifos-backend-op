@@ -10,7 +10,7 @@ db_pass = env['local']['password']
 db_host = env['local']['host']
 db_name = env['local']['database']
 
-SQLALCHEMY_DATABASE_URL = "postgresql://{0}:{1}@{2}/{3}".format(db_user, db_pass, db_host, db_name)
+SQLALCHEMY_DATABASE_URL = "mysql://{0}:{1}@{2}/{3}".format(db_user, db_pass, db_host, db_name)
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
