@@ -16,6 +16,8 @@ env["local"]["database"] = os.environ.get("NAME_DATABASE", env["local"]["databas
 env["URL"]["front"] = os.environ.get("APP_FRONTEND_HOST", env["URL"]["front"])
 env["URL"]["back"] = os.environ.get("APP_BACKEND_HOST", env["URL"]["back"])
 
+env["AUTH"]["type_auth"] = os.environ.get("TYPE_AUTH", env["AUTH"]["type_auth"])
+
 class Settings(BaseSettings):
     CORS_HEADERS: str = "Content-Type"
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = True
