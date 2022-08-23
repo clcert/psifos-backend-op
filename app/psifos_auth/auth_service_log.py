@@ -227,7 +227,7 @@ class OAuth2Auth:
             "https://cas.labs.clcert.cl/oauth/revoke_token?token=NW0ynxy0paUfPZ1YfvWU6wr7SFJZlm&client_id=Vro0Bd2MoRKEg4Lxn9mc8bySKlMAlbgObf2UeXuY&client_secret=pWegIkGmtVIdfqIsBo3lwuKiAygusL1NbpzT7nzyN6ArfVfEhwglpkD753VzfslAlXQ3vEMYJysUKjxsdsmPlELBnkfA560MhX9lwMyKW3ZKgUNebRQHF5NIu91U2qK6"
         )
 
-    def login_trustee(self, election_uuid: str, request: Request = None):
+    def login_trustee(self, election_uuid: str, request: Request, session: str):
 
         self.election_uuid = election_uuid
         self.type_logout = "trustee"
@@ -244,8 +244,12 @@ class OAuth2Auth:
 
         return RedirectResponse(authorization_url)
 
-    def logout_trustee(self):
-        pass
+    def logout_trustee(self, election_uuid: str, request: Request):
+        
+        request.session.clear()
+        return RedirectResponse(
+            "https://cas.labs.clcert.cl/oauth/revoke_token?token=NW0ynxy0paUfPZ1YfvWU6wr7SFJZlm&client_id=Vro0Bd2MoRKEg4Lxn9mc8bySKlMAlbgObf2UeXuY&client_secret=pWegIkGmtVIdfqIsBo3lwuKiAygusL1NbpzT7nzyN6ArfVfEhwglpkD753VzfslAlXQ3vEMYJysUKjxsdsmPlELBnkfA560MhX9lwMyKW3ZKgUNebRQHF5NIu91U2qK6"
+        )
 
     def authorized(self, request: Request):
         login = OAuth2Session(
@@ -267,34 +271,35 @@ class OAuth2Auth:
 
         elif self.type_logout == "trustee":
 
-            election = Election.get_by_uuid(
-                uuid=self.election_uuid
-            )
-            trustee = Trustee.get_by_login_id_and_election(
-                trustee_login_id=get_user(),
-                election_id=election.id,
-            )
+            with SessionLocal() as db:
 
-            self.trustee_uuid = trustee.uuid if trustee else None
-
-            if not self.trustee_uuid:
-                response = RedirectResponse(
-                    env["URL"]["front"]
-                    + "/"
-                    + self.election_uuid
-                    + "/trustee"
-                    + "/home",
-                 
+                user = request.session.get("user", None)
+                election = crud.get_election_by_uuid(uuid=self.election_uuid, db=db)
+                trustee = crud.get_by_login_id_and_election_id(
+                    trustee_login_id=user,
+                    election_id=election.id,
+                    db=db
                 )
-            else:
-                response = RedirectResponse(
-                    env["URL"]["front"]
-                    + "/"
-                    + self.election_uuid
-                    + "/trustee/"
-                    + self.trustee_uuid
-                    + "/home",
+                self.trustee_uuid = trustee.uuid if trustee else None
+
+                if not self.trustee_uuid:
+                    response = RedirectResponse(
+                        env["URL"]["front"]
+                        + "/"
+                        + self.election_uuid
+                        + "/trustee"
+                        + "/home",
                     
-                )
+                    )
+                else:
+                    response = RedirectResponse(
+                        env["URL"]["front"]
+                        + "/"
+                        + self.election_uuid
+                        + "/trustee/"
+                        + self.trustee_uuid
+                        + "/home",
+                        
+                    )
 
-        return response
+            return response
