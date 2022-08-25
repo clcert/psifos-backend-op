@@ -1,7 +1,6 @@
 import logging
 import uuid
 
-from app import config
 from app.database import SessionLocal
 from app.psifos.model import crud
 
@@ -64,24 +63,3 @@ def create_user(username: str, password: str) -> str:
     logging.log(msg="User created successfully!", level=logging.INFO)
 
 
-# (***)
-def get_user():
-    """
-    Get the user from the request
-
-    """
-
-    if config["AUTH"]["type_auth"] == "cas":
-        if "username" not in session:
-            return None
-
-        return session["username"]
-
-    elif config["AUTH"]["type_auth"] == "oauth":
-
-        if "oauth_token" not in session:
-            return None
-
-        login = OAuth2Session(config["OAUTH"]["client_id"], token=session["oauth_token"])
-        user = login.get(config["OAUTH"]["user_info_url"]).json()
-        return user["fields"]["username"]

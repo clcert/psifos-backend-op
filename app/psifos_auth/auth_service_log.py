@@ -3,7 +3,6 @@ from app.config import env
 from ..database import SessionLocal
 from app.psifos.model.models import Election, Trustee
 from app.psifos.model import crud
-from app.psifos_auth.utils import get_user
 from requests_oauthlib import OAuth2Session
 
 from fastapi import Request, HTTPException
@@ -273,7 +272,11 @@ class OAuth2Auth:
 
             with SessionLocal() as db:
 
-                user = request.session.get("user", None)
+                login = OAuth2Session(env["OAUTH"]["client_id"], token=request.session["oauth_token"])
+                user = login.get(env["OAUTH"]["user_info_url"]).json()
+                user = user["fields"]["username"]
+                request.session["user"] = user
+
                 election = crud.get_election_by_uuid(uuid=self.election_uuid, db=db)
                 trustee = crud.get_by_login_id_and_election_id(
                     trustee_login_id=user,
