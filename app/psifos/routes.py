@@ -304,7 +304,7 @@ def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteI
     # <<< --
 
     vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
-    cast_ip = context.data["X-Forwarded-For"]
+    cast_ip = request.client.host
     ip_fingerprint = crypto_utils.hash_b64(cast_ip)
 
     cv_params = {
