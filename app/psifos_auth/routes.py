@@ -43,7 +43,7 @@ def login_user(request: Request, credentials: HTTPBasicCredentials = Depends(sec
 
 
 @auth_router.get("/vote/{election_uuid}", status_code=200)
-def login_voter(election_uuid: str, request: Request, session: str | None = Cookie(default=None), db = Depends(get_db)):
+def login_voter(election_uuid: str, request: Request, session: str | None = Cookie(default=None)):
     """
     Make the connection and verification with the CAS service
     """
@@ -89,7 +89,7 @@ def logout_trustee(election_uuid: str, request: Request):
 
 
 @auth_router.get("/authorized", status_code=200)
-def authorized(request: Request):
+def authorized(request: Request, session: str | None = Cookie(default=None)):
 
     auth = auth_factory.get_auth(protocol)
-    return auth.authorized(request)
+    return auth.authorized(request, session=session)

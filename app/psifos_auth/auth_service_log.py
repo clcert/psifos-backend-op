@@ -199,7 +199,7 @@ class OAuth2Auth:
         self.trustee_uuid = ""
         self.type_logout = ""
 
-    def login_voter(self, election_uuid: str, request: Request = None):
+    def login_voter(self, election_uuid: str, request: Request = None, session: str = None):
 
         self.election_uuid = election_uuid
         self.type_logout = "voter"
@@ -213,7 +213,7 @@ class OAuth2Auth:
             env["OAUTH"]["authorize_url"]
         )
         request.session["oauth_state"] = state
-        return RedirectResponse(url=authorization_url)
+        return RedirectResponse(authorization_url)
 
     def logout_voter(self, election_uuid: str, request: Request):
 
@@ -250,7 +250,7 @@ class OAuth2Auth:
             "https://cas.labs.clcert.cl/oauth/revoke_token?token=NW0ynxy0paUfPZ1YfvWU6wr7SFJZlm&client_id=Vro0Bd2MoRKEg4Lxn9mc8bySKlMAlbgObf2UeXuY&client_secret=pWegIkGmtVIdfqIsBo3lwuKiAygusL1NbpzT7nzyN6ArfVfEhwglpkD753VzfslAlXQ3vEMYJysUKjxsdsmPlELBnkfA560MhX9lwMyKW3ZKgUNebRQHF5NIu91U2qK6"
         )
 
-    def authorized(self, request: Request):
+    def authorized(self, request: Request, session: str = None):
         login = OAuth2Session(
             self.client_id,
             state=request.session["oauth_state"],
@@ -261,7 +261,11 @@ class OAuth2Auth:
             client_secret=self.client_secret,
             authorization_response=str(request.url),
         )
-        request.session["oauth_token"] = resp
+
+        login = OAuth2Session(env["OAUTH"]["client_id"], token=request.session["oauth_token"])
+        user = login.get(env["OAUTH"]["user_info_url"]).json()
+        user = user["fields"]["username"]
+        request.session["user"] = user
 
         if self.type_logout == "voter":
             response = RedirectResponse(
@@ -271,11 +275,6 @@ class OAuth2Auth:
         elif self.type_logout == "trustee":
 
             with SessionLocal() as db:
-
-                login = OAuth2Session(env["OAUTH"]["client_id"], token=request.session["oauth_token"])
-                user = login.get(env["OAUTH"]["user_info_url"]).json()
-                user = user["fields"]["username"]
-                request.session["user"] = user
 
                 election = crud.get_election_by_uuid(uuid=self.election_uuid, db=db)
                 trustee = crud.get_by_login_id_and_election_id(
@@ -305,4 +304,4 @@ class OAuth2Auth:
                         
                     )
 
-            return response
+        return response
