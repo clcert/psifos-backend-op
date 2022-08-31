@@ -15,6 +15,9 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Enum,
 from app.psifos import utils
 from app.psifos.psifos_object.result import ElectionResult
 from app.psifos.psifos_object.questions import Questions
+from app.psifos.model import crud
+
+import app.psifos.crypto.utils as crypto_utils
 
 from app.psifos.crypto.elgamal import ElGamal, PublicKey
 from app.psifos.crypto.sharedpoint import Certificate, ListOfCoefficients, ListOfSignatures, Point
@@ -193,6 +196,36 @@ class CastVote(Base):
     hash_cast_ip = Column(String(500), nullable=True)
 
     cast_at = Column(DateTime, default=func.now(), nullable=True)
+
+    @staticmethod
+    def process(encrypted_vote: EncryptedVote, election: Election, voter: Voter, cast_ip: str, db: Session):
+        vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
+        if not encrypted_vote.verify(election):
+            status = False
+            crud.update_cast_vote(
+                db=db,
+                voter_id=voter.id, 
+                fields={
+                    "invalid_cast_votes": voter.cast_vote.invalid_cast_votes + 1,
+                    "invalidated_at": datetime.now()
+                }
+            )
+        else:
+            status = True        
+            cast_at = datetime.datetime.now()
+            ip_fingerprint = crypto_utils.hash_b64(cast_ip)
+            cv_params = {
+                "voter_id": voter.id,
+                "vote": encrypted_vote,
+                "vote_hash": vote_fingerprint,
+                "cast_at": cast_at,
+                "cast_ip": cast_ip,
+                "hash_cast_ip": ip_fingerprint,
+                "valid_cast_votes": voter.cast_vote.valid_cast_votes + 1
+            }
+            crud.update_cast_vote(db=db, voter_id=voter.id, fields=cv_params)
+        
+        return status, vote_fingerprint
 
 
 class AuditedBallot(Base):

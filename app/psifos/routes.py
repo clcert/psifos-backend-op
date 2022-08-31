@@ -208,6 +208,9 @@ def compute_tally(election_uuid: str, current_user: models.User = Depends(AuthAd
     
     encrypted_votes = [v.cast_vote.vote for v in not_null_voters]
     weights = [v.voter_weight for v in not_null_voters]
+
+
+    tasks.compute_tally.delay(election, encrypted_votes, weights)
     
     crud.update_election(db=db, election_id=election.id, fields=election.compute_tally(encrypted_votes, weights))
     return {
@@ -220,7 +223,9 @@ def combine_decryptions(election_uuid: str, current_user: models.User = Depends(
     Route for freezing an election
     """
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
-    crud.update_election(db=db, election_id=election.id, fields=election.combine_decryptions())
+
+    tasks.combine_decryptions.delay(election, db)
+    
     return {
         "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
     }
@@ -286,43 +291,17 @@ def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteI
     # if not allowed:
     #    return make_response(jsonify({"message": f"{msg}"}), 400)
 
-    
     enc_vote_data = psifos_utils.from_json(cast_vote.encrypted_vote)
     encrypted_vote = EncryptedVote(**enc_vote_data)
-
-    # FIXME: -- verify asynchronously -- >>>
-    if not encrypted_vote.verify(election):
-        crud.update_cast_vote(
-            db=db,
-            voter_id=voter.id, 
-            fields={
-                "invalid_cast_votes": voter.cast_vote.invalid_cast_votes + 1,
-                "invalidated_at": datetime.now()
-            }
-        )
-        raise HTTPException(status_code=400, detail="El voto enviado no es valido")
-    else:
-        crud.update_cast_vote(db=db, voter_id=voter.id, fields={"cast_at": datetime.datetime.now()})
-    # <<< --
-
-    vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
     cast_ip = request.client.host
-    ip_fingerprint = crypto_utils.hash_b64(cast_ip)
 
-    cv_params = {
-        "voter_id": voter.id,
-        "vote": encrypted_vote,
-        "vote_hash": vote_fingerprint,
-        "cast_at": datetime.datetime.now(),
-        "cast_ip": cast_ip,
-        "hash_cast_ip": ip_fingerprint,
-        "valid_cast_votes": voter.cast_vote.valid_cast_votes + 1
-    }
+    task = tasks.process_cast_vote.delay(encrypted_vote, election, voter, cast_ip, db)
+    status, vote_fingerprint = task.get()
 
-    cast_vote = crud.update_cast_vote(db=db, voter_id=voter.id, fields=cv_params)
     return {
-        "message": "Encrypted vote recieved successfully",
-        "vote_hash": vote_fingerprint
+        "message": "Encrypted vote recieved successfully" if status else "Invalid encrypted vote",
+        "vote_hash": vote_fingerprint,
+        "status": status
     }
 
         
