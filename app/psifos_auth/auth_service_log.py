@@ -261,6 +261,7 @@ class OAuth2Auth:
             client_secret=self.client_secret,
             authorization_response=str(request.url),
         )
+        request.session["oauth_token"] = resp
 
         login = OAuth2Session(env["OAUTH"]["client_id"], token=request.session["oauth_token"])
         user = login.get(env["OAUTH"]["user_info_url"]).json()
