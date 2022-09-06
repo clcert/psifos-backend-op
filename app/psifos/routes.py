@@ -1,5 +1,6 @@
 import base64
 import datetime
+from email import message
 import os
 import uuid
 import csv
@@ -117,29 +118,16 @@ async def upload_voters(election_uuid: str, file: UploadFile, current_user: mode
     Admin's route for uploading the voters of an election
     """
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
-    #try:
-    if True:
-        contents = file.file.read()
-        buffer = StringIO(contents.decode('utf-8'))
-        csv_reader = csv.reader(buffer, delimiter=',')
-        voters: list[schemas.VoterIn] = [
-            schemas.VoterIn(voter_login_id=login_id, voter_name=name, voter_weight=weight, )
-            for login_id, name, weight in csv_reader
-        ]
-        total_voters = len(voters)
 
-        # TODO: make it async
-        for voter in voters:
-            crud.create_voter(db=db, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter)
-            
-        
-        crud.update_election(db=db, election_id=election.id, fields={"total_voters": total_voters + election.total_voters})
+    task = tasks.upload_voters(election=election, voter_file=file)
+    status, voter_counter, total_voters = task.get()
+
+    if status:
         return {
-            "message": "The voters were successfully uploaded"
+            "message": f"[{voter_counter}/{total_voters}] voters were successfully uploaded"
         }
-        
-    #except:
-    #    raise HTTPException(status_code=400, detail="Failed to upload the voters")
+    else: 
+        raise HTTPException(status_code=400, detail="Failed to upload the voters")
     
 
 @api_router.get("/{election_uuid}/get-voters", response_model=list[schemas.VoterOut], status_code=200)
@@ -204,15 +192,13 @@ def compute_tally(election_uuid: str, current_user: models.User = Depends(AuthAd
     """
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
     voters = crud.get_voters_by_election_id(db=db, election_id=election.id)
-    not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
     
+    not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
     encrypted_votes = [v.cast_vote.vote for v in not_null_voters]
     weights = [v.voter_weight for v in not_null_voters]
 
-
     tasks.compute_tally.delay(election, encrypted_votes, weights)
-    
-    crud.update_election(db=db, election_id=election.id, fields=election.compute_tally(encrypted_votes, weights))
+
     return {
         "message": "The encrypted tally was succesfully computed"
     }
@@ -296,13 +282,19 @@ def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteI
     cast_ip = request.client.host
 
     task = tasks.process_cast_vote.delay(encrypted_vote, election, voter, cast_ip, db)
-    status, vote_fingerprint = task.get()
+    verified, vote_fingerprint = task.get()
 
-    return {
-        "message": "Encrypted vote recieved successfully" if status else "Invalid encrypted vote",
-        "vote_hash": vote_fingerprint,
-        "status": status
-    }
+    if verified:
+        return {
+            "message": "Encrypted vote recieved succesfully",
+            "verified": verified,
+            "vote_hash": vote_fingerprint
+        }
+    else:
+        return {
+            "message": "Invalid encrypted vote",
+            "verified": verified
+        }
 
         
 
