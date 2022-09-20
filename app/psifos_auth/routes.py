@@ -3,7 +3,7 @@ from werkzeug.security import check_password_hash
 from fastapi import HTTPException, Request, APIRouter, Depends, Cookie
 
 from app.dependencies import get_db
-from app.config import env, settings
+from app.config import SECRET_KEY, TYPE_AUTH
 
 from app.psifos_auth.auth_service_log import Auth
 from app.psifos_auth.model import crud
@@ -11,7 +11,7 @@ from app.psifos_auth.model import crud
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 auth_factory = Auth()
-protocol = env["AUTH"]["type_auth"]
+protocol = TYPE_AUTH
 
 auth_router = APIRouter()
 
@@ -33,7 +33,7 @@ def login_user(request: Request, credentials: HTTPBasicCredentials = Depends(sec
         raise HTTPException(status_code = 401, detail = "wrong username or passwords")
 
     if check_password_hash(user.password, credentials.password):
-        token = jwt.encode({"public_id": user.public_id}, settings.SECRET_KEY)
+        token = jwt.encode({"public_id": user.public_id}, SECRET_KEY)
         return {
             "token": token
         }

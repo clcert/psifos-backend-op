@@ -1,10 +1,4 @@
-from fastapi import Depends, Request, HTTPException
 from app.database import SessionLocal
-from sqlalchemy.orm import Session
-from app.psifos_auth.model import models, crud
-from app.config import settings
-
-from fastapi import Depends, HTTPException
 
 
 def get_db():

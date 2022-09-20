@@ -1,7 +1,7 @@
 from urllib import response
 from cas import CASClient
-from app.config import env
-from ..database import SessionLocal
+from app.database import SessionLocal
+from app.config import APP_BACKEND_URL, APP_FRONTEND_URL, CAS_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_AUTHORIZE_URL, OAUTH_TOKEN_URL, OAUTH_USER_INFO_URL
 from app.psifos.model.models import Election, Trustee
 from app.psifos.model import crud
 from requests_oauthlib import OAuth2Session
@@ -43,8 +43,8 @@ class CASAuth:
     def __init__(self) -> None:
         self.cas_client = CASClient(
             version=3,
-            service_url=env["URL"]["back"] + "/vote/",
-            server_url=env["CAS"]["cas_url"],
+            service_url=APP_BACKEND_URL + "/vote/",
+            server_url=CAS_URL,
         )
 
     def redirect_cas(self, redirect_url):
@@ -67,7 +67,7 @@ class CASAuth:
         if user:
 
             response = RedirectResponse(
-                url=env["URL"]["front"] + "/cabina/" + election_uuid
+                url=APP_FRONTEND_URL + "/cabina/" + election_uuid
             )
             response.set_cookie("session", session)
             return response
@@ -77,7 +77,7 @@ class CASAuth:
 
         # If no ticket, redirect to CAS server to get one (login)
         if not ticket:
-            return self.redirect_cas(env["URL"]["back"] + "/vote/" + election_uuid)
+            return self.redirect_cas(APP_BACKEND_URL + "/vote/" + election_uuid)
 
         # Verify ticket with CAS server
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
@@ -89,7 +89,7 @@ class CASAuth:
         # If user, set session and redirect to election page
         request.session["user"] = user
         response = RedirectResponse(
-            url=env["URL"]["front"] + "/cabina/" + election_uuid
+            url=APP_BACKEND_URL + "/cabina/" + election_uuid
         )
         return response
 
@@ -97,7 +97,7 @@ class CASAuth:
 
         # Get logoout url from CAS server
         cas_logout_url = self.cas_client.get_logout_url(
-            env["URL"]["front"] + "/cabina/" + election_uuid + "?logout=true"
+            APP_FRONTEND_URL + "/cabina/" + election_uuid + "?logout=true"
         )
 
         # Clear cookie and redirect to election page
@@ -120,17 +120,12 @@ class CASAuth:
                 )
                 if not trustee:
                     response = RedirectResponse(
-                        env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home"
+                        APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
                     )
                 else:
 
                     response = RedirectResponse(
-                        url=env["URL"]["front"]
-                        + "/"
-                        + election_uuid
-                        + "/trustee/"
-                        + trustee.uuid
-                        + "/home"
+                        url=APP_FRONTEND_URL + f"/{election_uuid}/trustee/{trustee.uuid}/home"
                     )
                 response.set_cookie("session", session)
                 return response
@@ -138,7 +133,7 @@ class CASAuth:
             ticket = request.query_params.get("ticket", None)
             if not ticket:
                 return self.redirect_cas(
-                    env["URL"]["back"] + "/" + election_uuid + "/trustee" + "/login",
+                    APP_BACKEND_URL + f"/{election_uuid}/trustee/login",
                 )
 
             user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
@@ -154,30 +149,19 @@ class CASAuth:
                 )
                 if not trustee:
                     response = RedirectResponse(
-                        url=env["URL"]["front"] + "/" + election_uuid + "/trustee" + "/home"
+                        url=APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
                     )
                 else:
 
                     response = RedirectResponse(
-                        env["URL"]["front"]
-                        + "/"
-                        + election_uuid
-                        + "/trustee/"
-                        + trustee.uuid
-                        + "/home",
-                    
+                        APP_FRONTEND_URL + f"/{election_uuid}/trustee/{trustee.uuid}/home",
                     )
                 return response
 
     def logout_trustee(self, election_uuid: str, request: Request):
 
         cas_logout_url = self.cas_client.get_logout_url(
-            env["URL"]["front"]
-            + "/"
-            + election_uuid
-            + "/trustee"
-            + "/home"
-            + "?logout=true"
+            APP_FRONTEND_URL + f"/{election_uuid}/trustee/home?logout=true"
         )
 
         response = RedirectResponse(url=cas_logout_url)
@@ -193,8 +177,8 @@ class OAuth2Auth:
 
         """
 
-        self.client_id = env["OAUTH"]["client_id"]
-        self.client_secret = env["OAUTH"]["client_secret"]
+        self.client_id = OAUTH_CLIENT_ID
+        self.client_secret = OAUTH_CLIENT_SECRET
         self.scope = "openid"
         self.election_uuid = ""
         self.trustee_uuid = ""
@@ -206,12 +190,12 @@ class OAuth2Auth:
         self.type_logout = "voter"
         client = OAuth2Session(
             client_id=self.client_id,
-            redirect_uri=env["URL"]["back"] + "/authorized",
+            redirect_uri=APP_BACKEND_URL + "/authorized",
             scope=self.scope,
         )
 
         authorization_url, state = client.authorization_url(
-            env["OAUTH"]["authorize_url"]
+            OAUTH_AUTHORIZE_URL
         )
         request.session["oauth_state"] = state
         return RedirectResponse(authorization_url)
@@ -236,12 +220,12 @@ class OAuth2Auth:
         self.type_logout = "trustee"
         client = OAuth2Session(
             client_id=self.client_id,
-            redirect_uri=env["URL"]["back"] + "/authorized",
+            redirect_uri=APP_BACKEND_URL + "/authorized",
             scope=self.scope,
         )
 
         authorization_url, state = client.authorization_url(
-            env["OAUTH"]["authorize_url"]
+            OAUTH_AUTHORIZE_URL
         )
         request.session["oauth_state"] = state
 
@@ -266,23 +250,23 @@ class OAuth2Auth:
         login = OAuth2Session(
             self.client_id,
             state=request.session["oauth_state"],
-            redirect_uri=env["URL"]["back"] + "/authorized",
+            redirect_uri=APP_BACKEND_URL + "/authorized",
         )
         resp = login.fetch_token(
-            env["OAUTH"]["token_url"],
+            OAUTH_TOKEN_URL,
             client_secret=self.client_secret,
             authorization_response=str(request.url),
         )
         request.session["oauth_token"] = resp
 
-        login = OAuth2Session(env["OAUTH"]["client_id"], token=request.session["oauth_token"])
-        user = login.get(env["OAUTH"]["user_info_url"]).json()
+        login = OAuth2Session(OAUTH_CLIENT_ID, token=request.session["oauth_token"])
+        user = login.get(OAUTH_USER_INFO_URL).json()
         user = user["fields"]["username"]
         request.session["user"] = user
 
         if self.type_logout == "voter":
             response = RedirectResponse(
-                env["URL"]["front"] + "/cabina/" + self.election_uuid
+                APP_FRONTEND_URL + "/cabina/" + self.election_uuid
             )
 
         elif self.type_logout == "trustee":
@@ -299,7 +283,7 @@ class OAuth2Auth:
 
                 if not self.trustee_uuid:
                     response = RedirectResponse(
-                        env["URL"]["front"]
+                        APP_FRONTEND_URL
                         + "/"
                         + self.election_uuid
                         + "/trustee"
@@ -308,7 +292,7 @@ class OAuth2Auth:
                     )
                 else:
                     response = RedirectResponse(
-                        env["URL"]["front"]
+                        APP_FRONTEND_URL
                         + "/"
                         + self.election_uuid
                         + "/trustee/"

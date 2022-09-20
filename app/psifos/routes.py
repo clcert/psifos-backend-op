@@ -113,13 +113,18 @@ def create_questions(election_uuid: str, data_questions: dict, current_user: mod
     return {"message": "Preguntas creadas con exito!"}
 
 @api_router.post("/{election_uuid}/upload-voters", status_code=200)
-async def upload_voters(election_uuid: str, file: UploadFile, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+def upload_voters(election_uuid: str, file: UploadFile, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Admin's route for uploading the voters of an election
     """
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
-
-    task = tasks.upload_voters(election=election, voter_file=file)
+    
+    voter_file_content = file.file.read().decode('utf-8')
+    task_params = {
+        "election_uuid": election.uuid,
+        "voter_file_content": voter_file_content,
+    }
+    task = tasks.upload_voters.delay(**task_params)
     status, voter_counter, total_voters = task.get()
 
     if status:
@@ -194,10 +199,16 @@ def compute_tally(election_uuid: str, current_user: models.User = Depends(AuthAd
     voters = crud.get_voters_by_election_id(db=db, election_id=election.id)
     
     not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
-    encrypted_votes = [v.cast_vote.vote for v in not_null_voters]
+    serialized_encrypted_votes = [EncryptedVote.serialize(v.cast_vote.vote) for v in not_null_voters]
     weights = [v.voter_weight for v in not_null_voters]
 
-    tasks.compute_tally.delay(election, encrypted_votes, weights)
+    task_params = {
+        "election_uuid": election.uuid,
+        "serialized_encrypted_votes": serialized_encrypted_votes,
+        "weights": weights,
+    }
+    
+    tasks.compute_tally.delay(**task_params)
 
     return {
         "message": "The encrypted tally was succesfully computed"
@@ -210,7 +221,10 @@ def combine_decryptions(election_uuid: str, current_user: models.User = Depends(
     """
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
 
-    tasks.combine_decryptions.delay(election, db)
+    task_params = {
+        "election_uuid": election.uuid,
+    }
+    combine_decryptions.delay(**task_params)
     
     return {
         "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
@@ -277,11 +291,17 @@ def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteI
     # if not allowed:
     #    return make_response(jsonify({"message": f"{msg}"}), 400)
 
-    enc_vote_data = psifos_utils.from_json(cast_vote.encrypted_vote)
-    encrypted_vote = EncryptedVote(**enc_vote_data)
+    serialized_encrypted_vote = cast_vote.encrypted_vote
     cast_ip = request.client.host
 
-    task = tasks.process_cast_vote.delay(encrypted_vote, election, voter, cast_ip, db)
+    task_params = {
+        "election_uuid": election.uuid,
+        "serialized_encrypted_vote": serialized_encrypted_vote,
+        "voter_id": voter.id,
+        "cast_ip":cast_ip,
+    }
+    
+    task = tasks.process_cast_vote.delay(**task_params)
     verified, vote_fingerprint = task.get()
 
     if verified:

@@ -1,7 +1,5 @@
 from fastapi import Request, HTTPException
-from app.config import env
-
-
+from app.config import TYPE_AUTH
 
 
 class AuthUser:
@@ -13,7 +11,7 @@ class AuthUser:
     def __init__(self) -> None:
         self.cas = AuthCasCheck()
         self.oauth = AuthOauthCheck()
-        self.type_auth = env["AUTH"]["type_auth"]
+        self.type_auth = TYPE_AUTH
 
     async def __call__(self, request: Request) -> object:
         """

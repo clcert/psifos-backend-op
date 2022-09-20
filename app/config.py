@@ -1,31 +1,35 @@
-import configparser
 from datetime import timedelta
-from pydantic import BaseSettings
 
 import os
 
 # Retrieve enviroment variables from .env file
-env = configparser.ConfigParser()
-env.read(".env")
 
-env["local"]["user"] = os.environ.get("USER", env["local"]["user"])
-env["local"]["password"] = os.environ.get("PASSWORD", env["local"]["password"])
-env["local"]["host"] = os.environ.get("HOST", env["local"]["host"])
-env["local"]["database"] = os.environ.get("NAME_DATABASE", env["local"]["database"])
+DATABASE_USER = os.environ.get("DATABASE_USER")
+DATABASE_PASS = os.environ.get("DATABASE_PASS")
+DATABASE_HOST = os.environ.get("DATABASE_HOST")
+DATABASE_NAME = os.environ.get("DATABASE_NAME")
 
-env["URL"]["front"] = os.environ.get("APP_FRONTEND_HOST", env["URL"]["front"])
-env["URL"]["back"] = os.environ.get("APP_BACKEND_HOST", env["URL"]["back"])
+SECRET_KEY: str = os.environ.get("SECRET_KEY")
 
-env["AUTH"]["type_auth"] = os.environ.get("TYPE_AUTH", env["AUTH"]["type_auth"])
+APP_FRONTEND_URL = os.environ.get("APP_FRONTEND_URL")
+APP_BACKEND_URL = os.environ.get("APP_BACKEND_URL")
 
-class Settings(BaseSettings):
-    CORS_HEADERS: str = "Content-Type"
-    SQLALCHEMY_TRACK_MODIFICATIONS: bool = True
-    SECRET_KEY: str = "Th1s1ss3cr3t"
-    JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(hours=1000)
-    ORIGINS: list = [
-        "*"
-    ]
+TYPE_AUTH = os.environ.get("TYPE_AUTH")
 
+CAS_URL = os.environ.get("CAS_URL")
 
-settings = Settings()
+OAUTH_TOKEN_URL = os.environ.get("OAUTH_TOKEN_URL")
+OAUTH_AUTHORIZE_URL = os.environ.get("OAUTH_AUTHORIZE_URL")
+OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID")
+OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET")
+OAUTH_USER_INFO_URL = os.environ.get("OAUTH_USER_INFO_URL")
+
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND")
+
+SQLALCHEMY_TRACK_MODIFICATIONS: bool = True
+CORS_HEADERS: str = "Content-Type"
+JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(hours=1000)
+ORIGINS: list = [
+    "*"
+]

@@ -10,67 +10,78 @@ gui: flower
 
 
 import uuid
-from fastapi import UploadFile
 from app.celery_worker import celery
 from sqlalchemy.orm import Session
-from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.model import crud, models, schemas
-
+from app.database import SessionLocal
 
 @celery.task(name="process_castvote")
-def process_cast_vote(
-    encrypted_vote: EncryptedVote, election: models.Election, voter: models.Voter, cast_ip: str, db: Session
-):
+def process_cast_vote(election_uuid: str, voter_id: int, serialized_encrypted_vote: str, cast_ip: str):
     """
     Verifies if a cast_vote is valid, if so then
     it stores it in the database.
     """
 
-    verified, fields = voter.cast_vote.process_cast_vote(encrypted_vote, election, voter, cast_ip)
-    cast_vote = crud.update_cast_vote(db=db, voter_id=voter.id, fields=fields)
+    with SessionLocal() as db:
+        election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
+        voter = crud.get_voter_by_voter_id(voter_id=voter_id, db=db)
+
+        verified, fields = voter.cast_vote.process_cast_vote(serialized_encrypted_vote, election, voter, cast_ip)
+        cast_vote = crud.update_cast_vote(db=db, voter_id=voter.id, fields=fields)
+    
     return verified, cast_vote.vote_fingerprint if verified else verified, None
 
 
-@celery.task(name="compute_tally")
-def compute_tally(election: models.Election, encrypted_votes: list[EncryptedVote], weights: list[int], db: Session):
+@celery.task(name="compute_tally", ignore_result=True)
+def compute_tally(election_uuid: str, serialized_encrypted_votes: list[str], weights: list[int]):
     """
     Computes the encrypted tally of an election.
     """
-    fields = election.compute_tally(encrypted_votes, weights)
-    crud.update_election(db=db, election_id=election.id, fields=fields)
+    with SessionLocal() as db:
+        election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
+        fields = election.compute_tally(serialized_encrypted_votes, weights)
+        crud.update_election(db=db, election_id=election.id, fields=fields)
 
 
-@celery.task(name="combine_decryptions")
-def combine_decryptions(election: models.Election, db: Session):
+@celery.task(name="combine_decryptions", ignore_result=True)
+def combine_decryptions(election_uuid: str):
     """
     Combines the partial decryptions of the trustees and releases
     the election results.
     """
-    fields = election.combine_decryptions()
-    crud.update_election(db=db, election_id=election.id, fields=fields)
+    with SessionLocal() as db:
+        election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
+        fields = election.combine_decryptions()
+        crud.update_election(db=db, election_id=election.id, fields=fields)
 
 
 @celery.task(name="upload_voters")
-def upload_voters(election: models.Election, voter_file: UploadFile, db: Session):
+def upload_voters(election_uuid: str, voter_file_content: str):
     """
     Handles the upload of a voter file.
     """
-    try:
-        voters = [schemas.VoterIn(v) for v in models.Voter.upload_voters(voter_file)]
-    except:
-        return False, 0, 0
+    with SessionLocal() as db:
+        election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
 
-    k = 0  # voter counter
-    n = len(voters)  # total voters
-    for voter in voters:
-        # check if voter already exists
-        if crud.get_voter_by_login_id_and_election_id(db=db, voter_login_id=voter.voter_login_id):
-            continue
+        try:
+            voters = [
+                schemas.VoterIn(**v) 
+                for v in models.Voter.upload_voters(voter_file_content)
+            ]
+        except Exception:
+            return False, 0, 0
 
-        # add the voter to the database
-        crud.create_voter(db=db, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter)
-        k += 1
+        k = 0  # voter counter
+        n = len(voters)  # total voters
+        for voter in voters:
+            # check if voter already exists
+            if crud.get_voter_by_login_id_and_election_id(db=db, voter_login_id=voter.voter_login_id, election_id=election.id):
+                continue
 
-    # update the total_voters field of election
-    crud.update_election(db=db, election_id=election.id, fields={"total_voters": election.total_voters + k})
+            # add the voter to the database
+            crud.create_voter(db=db, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter)
+            k += 1
+
+        # update the total_voters field of election
+        crud.update_election(db=db, election_id=election.id, fields={"total_voters": election.total_voters + k})
     return True, k, n

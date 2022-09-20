@@ -181,9 +181,8 @@ class Voter(Base):
     cast_vote = relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
 
     @staticmethod
-    def upload_voters(voter_file: UploadFile):
-        contents = voter_file.file.read()
-        buffer = StringIO(contents.decode('utf-8'))
+    def upload_voters(voter_file_content: str):
+        buffer = StringIO(voter_file_content)
         csv_reader = csv.reader(buffer, delimiter=',')
         voters: list[dict] = [
             {

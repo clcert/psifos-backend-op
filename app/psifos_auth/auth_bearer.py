@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.config import settings
+from app.config import SECRET_KEY
 from sqlalchemy.orm import Session
 from app.dependencies import get_db
 
@@ -10,7 +10,7 @@ import jwt
 
 def decodeJWT(token: str, db: Session) -> dict:
     try:
-        decoded_token = jwt.decode(token, settings.SECRET_KEY,algorithms=["HS256"])
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return crud.get_user_by_public_id(public_id=decoded_token["public_id"], db=db) if decoded_token else None
     except:
         raise HTTPException(status_code=401, detail="token is invalid")
