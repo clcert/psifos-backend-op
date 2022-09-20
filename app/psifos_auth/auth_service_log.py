@@ -1,3 +1,4 @@
+from urllib import response
 from cas import CASClient
 from app.config import env
 from ..database import SessionLocal
@@ -218,13 +219,16 @@ class OAuth2Auth:
     def logout_voter(self, election_uuid: str, request: Request):
 
         client = OAuth2Session(
-            self.client_id,
-            token=request.session["oauth_token"],
+            client_id=self.client_id,
+            redirect_uri=env["URL"]["back"] + "/authorized",
+            scope=self.scope,
+        )
+        authorization_url, state = client.authorization_url(
+            env["OAUTH"]["authorize_url"]
         )
         request.session.clear()
-        return RedirectResponse(
-            "https://cas.labs.clcert.cl/oauth/revoke_token?token=NW0ynxy0paUfPZ1YfvWU6wr7SFJZlm&client_id=Vro0Bd2MoRKEg4Lxn9mc8bySKlMAlbgObf2UeXuY&client_secret=pWegIkGmtVIdfqIsBo3lwuKiAygusL1NbpzT7nzyN6ArfVfEhwglpkD753VzfslAlXQ3vEMYJysUKjxsdsmPlELBnkfA560MhX9lwMyKW3ZKgUNebRQHF5NIu91U2qK6"
-        )
+        response = RedirectResponse(authorization_url)
+        
 
     def login_trustee(self, election_uuid: str, request: Request, session: str):
 
@@ -245,10 +249,18 @@ class OAuth2Auth:
 
     def logout_trustee(self, election_uuid: str, request: Request):
         
-        request.session.clear()
-        return RedirectResponse(
-            "https://cas.labs.clcert.cl/oauth/revoke_token?token=NW0ynxy0paUfPZ1YfvWU6wr7SFJZlm&client_id=Vro0Bd2MoRKEg4Lxn9mc8bySKlMAlbgObf2UeXuY&client_secret=pWegIkGmtVIdfqIsBo3lwuKiAygusL1NbpzT7nzyN6ArfVfEhwglpkD753VzfslAlXQ3vEMYJysUKjxsdsmPlELBnkfA560MhX9lwMyKW3ZKgUNebRQHF5NIu91U2qK6"
+        client = OAuth2Session(
+            client_id=self.client_id,
+            scope=self.scope,
         )
+        authorization_url, state = client.authorization_url(
+            env["OAUTH"]["authorize_url"]
+        )
+        request.session["oauth_state"] = state
+        request.session.clear()
+        response = RedirectResponse(authorization_url)
+        response.set_cookie("session", None)
+        return response
 
     def authorized(self, request: Request, session: str = None):
         login = OAuth2Session(
