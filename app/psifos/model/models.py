@@ -5,17 +5,19 @@ SQLAlchemy Models for Psifos.
 """
 
 from __future__ import annotations
+import csv
 
 import datetime
+from io import StringIO
 import json
 
+from fastapi import UploadFile
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Enum, DateTime, func
 
 from app.psifos import utils
 from app.psifos.psifos_object.result import ElectionResult
 from app.psifos.psifos_object.questions import Questions
-from app.psifos.model import crud
 
 import app.psifos.crypto.utils as crypto_utils
 
@@ -178,6 +180,21 @@ class Voter(Base):
     # One-to-one relationship
     cast_vote = relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
 
+    @staticmethod
+    def upload_voters(voter_file: UploadFile):
+        contents = voter_file.file.read()
+        buffer = StringIO(contents.decode('utf-8'))
+        csv_reader = csv.reader(buffer, delimiter=',')
+        voters: list[dict] = [
+            {
+                "voter_login_id": login_id,
+                "voter_name": name,
+                "voter_weight": weight
+            }
+            for login_id, name, weight in csv_reader
+        ]
+        return voters
+        
 
 class CastVote(Base):
     __tablename__ = "psifos_cast_vote"
@@ -197,35 +214,29 @@ class CastVote(Base):
 
     cast_at = Column(DateTime, default=func.now(), nullable=True)
 
-    @staticmethod
-    def process(encrypted_vote: EncryptedVote, election: Election, voter: Voter, cast_ip: str, db: Session):
-        vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
-        if not encrypted_vote.verify(election):
-            status = False
-            crud.update_cast_vote(
-                db=db,
-                voter_id=voter.id, 
-                fields={
-                    "invalid_cast_votes": voter.cast_vote.invalid_cast_votes + 1,
-                    "invalidated_at": datetime.now()
-                }
-            )
-        else:
-            status = True        
+    def process_cast_vote(self, encrypted_vote: EncryptedVote, election: Election, voter: Voter, cast_ip: str):
+        verified = encrypted_vote.verify(election)
+        if verified:
+            vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
             cast_at = datetime.datetime.now()
             ip_fingerprint = crypto_utils.hash_b64(cast_ip)
-            cv_params = {
+            valid_cast_votes = voter.cast_vote.valid_cast_votes + 1
+            fields = {
                 "voter_id": voter.id,
                 "vote": encrypted_vote,
                 "vote_hash": vote_fingerprint,
                 "cast_at": cast_at,
                 "cast_ip": cast_ip,
                 "hash_cast_ip": ip_fingerprint,
-                "valid_cast_votes": voter.cast_vote.valid_cast_votes + 1
+                "valid_cast_votes": valid_cast_votes
             }
-            crud.update_cast_vote(db=db, voter_id=voter.id, fields=cv_params)
-        
-        return status, vote_fingerprint
+        else:
+            fields = {
+                "invalid_cast_votes": voter.cast_vote.invalid_cast_votes + 1,
+                "invalidated_at": datetime.now()
+            }
+        return verified, fields
+
 
 
 class AuditedBallot(Base):
