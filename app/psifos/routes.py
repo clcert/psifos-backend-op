@@ -224,7 +224,7 @@ def combine_decryptions(election_uuid: str, current_user: models.User = Depends(
     task_params = {
         "election_uuid": election.uuid,
     }
-    combine_decryptions.delay(**task_params)
+    tasks.combine_decryptions.delay(**task_params)
     
     return {
         "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
