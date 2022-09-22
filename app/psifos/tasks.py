@@ -45,7 +45,8 @@ def compute_tally(election_uuid: str, serialized_encrypted_votes: list[str], wei
     """
     with SessionLocal() as db:
         election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
-        fields = election.compute_tally(serialized_encrypted_votes, weights)
+        encrypted_votes = [EncryptedVote(**(psifos_utils.from_json(v))) for v in serialized_encrypted_votes]
+        fields = election.compute_tally(encrypted_votes, weights)
         crud.update_election(db=db, election_id=election.id, fields=fields)
 
 
