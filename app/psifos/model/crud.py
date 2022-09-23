@@ -47,6 +47,10 @@ def delete_election_voters(db: Session, election_id: int):
     db.query(models.Voter).filter(models.Voter.election_id == election_id).delete()
     db.commit()
 
+def delete_election_voter(db, election_id, voter_uuid):
+    db.query(models.Voter).filter(models.Voter.election_id == election_id, models.Voter.uuid == voter_uuid).delete()
+    db.commit()
+
     
 # ----- CastVote CRUD Utils -----
 

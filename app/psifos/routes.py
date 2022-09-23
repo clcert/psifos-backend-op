@@ -152,6 +152,14 @@ def delete_voters(election_uuid: str, current_user: models.User = Depends(AuthAd
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
     crud.delete_election_voters(db=db, election_id=election.id)
 
+@api_router.post("/{election_uuid}/voter/{voter_uuid}/delete")
+def delete_voter(election_uuid: str, voter_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+    """
+    Route for delete a voter
+    """
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    crud.delete_election_voter(db=db, election_id=election.id, voter_uuid=voter_uuid)
+
 
 @api_router.get("/{election_uuid}/resume", status_code=200)
 def resume(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):

@@ -178,7 +178,7 @@ class Voter(Base):
     voter_weight = Column(Integer, nullable=False)
 
     # One-to-one relationship
-    cast_vote = relationship("CastVote", cascade="delete", backref="psifos_voter", uselist=False)
+    cast_vote = relationship("CastVote", cascade="all, delete", backref="psifos_voter", uselist=False)
 
     @staticmethod
     def upload_voters(voter_file_content: str):
@@ -199,7 +199,7 @@ class CastVote(Base):
     __tablename__ = "psifos_cast_vote"
 
     id = Column(Integer, primary_key=True, index=True)
-    voter_id = Column(Integer, ForeignKey("psifos_voter.id"), unique=True)
+    voter_id = Column(Integer, ForeignKey("psifos_voter.id", onupdate="CASCADE", ondelete="CASCADE"), unique=True)
 
     vote = Column(SerializableField(EncryptedVote), nullable=True)
     vote_hash = Column(String(500), nullable=True)
