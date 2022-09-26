@@ -29,6 +29,19 @@ def get_voter_by_login_id_and_election_id(db: Session, voter_login_id: int, elec
 def get_voters_by_election_id(db: Session, election_id: int):
     return db.query(models.Voter).filter(models.Voter.election_id == election_id).all()
 
+def get_voter_by_uuid_and_election_id(voter_uuid: str, db: Session, election_id: int):
+    return db.query(models.Voter).filter(models.Voter.election_id == election_id, models.Voter.uuid == voter_uuid)
+
+def edit_voter(voter_uuid: str, db: Session, election_id: int, fields: dict):
+
+    query_set = get_voter_by_uuid_and_election_id(voter_uuid=voter_uuid, db=db, election_id=election_id)
+    query_set.update(fields)
+    db_voter = query_set.first()
+    db.add(db_voter)
+    db.commit()
+    db.refresh(db_voter)
+    return db_voter
+
 
 def create_voter(db: Session, election_id: str, uuid: str, voter: schemas.VoterIn):
     db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())

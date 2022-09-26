@@ -67,6 +67,7 @@ def get_election_stats(election_uuid: str, current_user: models.User = Depends(A
             election_id=election.id
         ),
         "total_voters": election.total_voters,
+        "status": election.election_status
     }
 
 
@@ -142,6 +143,14 @@ def get_voters(election_uuid: str, current_user: models.User = Depends(AuthAdmin
     """
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
     return crud.get_voters_by_election_id(db=db, election_id=election.id)
+
+@api_router.post("/{election_uuid}/voters/{voter_uuid}/edit", response_model=schemas.VoterOut, status_code=200)
+def edit_voter(election_uuid: str, voter_uuid: str, fields_voter: dict, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+    """
+    Route for get a voter
+    """
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
+    return crud.edit_voter(voter_uuid=voter_uuid, db=db, election_id=election.id, fields=fields_voter)
 
 
 @api_router.post("/{election_uuid}/delete-voters", status_code=200)
