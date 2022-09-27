@@ -1,0 +1,23 @@
+FROM python:3.10
+
+# requirements for celery_worker are installed
+COPY ./requirements.txt /tmp/requirements.txt
+RUN pip3 install --upgrade pip
+RUN pip install -r /tmp/requirements.txt
+
+# the project basic files are copied
+COPY ./app/celery_worker /app
+COPY ./app/database/ /app/database
+
+# files/dirs needed by psifos tasks
+COPY ./app/psifos/crypto/ /app/psifos/crypto
+COPY ./app/psifos/model/ /app/psifos/model
+COPY ./app/psifos/utils.py /app/psifos/utils.py
+
+# files/dirs needed by psifos tasks
+COPY ./app/psifos/model/ /app/psifos/model
+COPY ./app/psifos/utils.py /app/psifos/utils.py
+
+WORKDIR /app
+
+CMD celery -A app.celery_worker.celery worker --loglevel=info
