@@ -89,7 +89,7 @@ class CASAuth:
         # If user, set session and redirect to election page
         request.session["user"] = user
         response = RedirectResponse(
-            url=APP_BACKEND_URL + "/cabina/" + election_uuid
+            url=APP_FRONTEND_URL + "/cabina/" + election_uuid
         )
         return response
 
