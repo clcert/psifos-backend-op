@@ -1,7 +1,7 @@
 from urllib import response
 from cas import CASClient
 from app.database import SessionLocal
-from app.config import APP_BACKEND_URL, APP_FRONTEND_URL, CAS_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_AUTHORIZE_URL, OAUTH_TOKEN_URL, OAUTH_USER_INFO_URL
+from app.config import APP_BACKEND_OP_URL, APP_FRONTEND_URL, CAS_URL, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_AUTHORIZE_URL, OAUTH_TOKEN_URL, OAUTH_USER_INFO_URL
 from app.psifos.model.models import Election, Trustee
 from app.psifos.model import crud
 from requests_oauthlib import OAuth2Session
@@ -43,7 +43,7 @@ class CASAuth:
     def __init__(self) -> None:
         self.cas_client = CASClient(
             version=3,
-            service_url=APP_BACKEND_URL + "/vote/",
+            service_url=APP_BACKEND_OP_URL + "/vote/",
             server_url=CAS_URL,
         )
 
@@ -77,7 +77,7 @@ class CASAuth:
 
         # If no ticket, redirect to CAS server to get one (login)
         if not ticket:
-            return self.redirect_cas(APP_BACKEND_URL + "/vote/" + election_uuid)
+            return self.redirect_cas(APP_BACKEND_OP_URL + "/vote/" + election_uuid)
 
         # Verify ticket with CAS server
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
@@ -133,7 +133,7 @@ class CASAuth:
             ticket = request.query_params.get("ticket", None)
             if not ticket:
                 return self.redirect_cas(
-                    APP_BACKEND_URL + f"/{election_uuid}/trustee/login",
+                    APP_BACKEND_OP_URL + f"/{election_uuid}/trustee/login",
                 )
 
             user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
@@ -190,7 +190,7 @@ class OAuth2Auth:
         self.type_logout = "voter"
         client = OAuth2Session(
             client_id=self.client_id,
-            redirect_uri=APP_BACKEND_URL + "/authorized",
+            redirect_uri=APP_BACKEND_OP_URL + "/authorized",
             scope=self.scope,
         )
 
@@ -220,7 +220,7 @@ class OAuth2Auth:
         self.type_logout = "trustee"
         client = OAuth2Session(
             client_id=self.client_id,
-            redirect_uri=APP_BACKEND_URL + "/authorized",
+            redirect_uri=APP_BACKEND_OP_URL + "/authorized",
             scope=self.scope,
         )
 
@@ -250,7 +250,7 @@ class OAuth2Auth:
         login = OAuth2Session(
             self.client_id,
             state=request.session["oauth_state"],
-            redirect_uri=APP_BACKEND_URL + "/authorized",
+            redirect_uri=APP_BACKEND_OP_URL + "/authorized",
         )
         resp = login.fetch_token(
             OAUTH_TOKEN_URL,
