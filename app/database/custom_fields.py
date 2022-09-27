@@ -3,6 +3,7 @@ import sqlalchemy.types as types
 
 class SerializableField(types.TypeDecorator):
     impl = types.Text
+    cache_ok = False
 
     def __init__(self, class_type, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

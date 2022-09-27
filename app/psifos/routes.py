@@ -6,7 +6,7 @@ import uuid
 import csv
 from io import StringIO
 
-import app.psifos.tasks as tasks
+import app.celery_worker.psifos.tasks as tasks
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request
 from sqlalchemy.orm import Session
 from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
