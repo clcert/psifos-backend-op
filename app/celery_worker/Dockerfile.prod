@@ -5,19 +5,23 @@ COPY ./requirements.txt /tmp/requirements.txt
 RUN pip3 install --upgrade pip
 RUN pip install -r /tmp/requirements.txt
 
+# the celery_app folder is created
+RUN mkdir app
+RUN touch ./app/__init__.py
+
 # the project basic files are copied
-COPY ./app/celery_worker /app
+COPY ./app/celery_worker/ /app/celery_worker
 COPY ./app/database/ /app/database
+COPY ./app/config.py /app/config.py
 
 # files/dirs needed by psifos tasks
 COPY ./app/psifos/crypto/ /app/psifos/crypto
+COPY ./app/psifos/psifos_object/ /app/psifos/psifos_object
 COPY ./app/psifos/model/ /app/psifos/model
 COPY ./app/psifos/utils.py /app/psifos/utils.py
 
-# files/dirs needed by psifos tasks
-COPY ./app/psifos/model/ /app/psifos/model
-COPY ./app/psifos/utils.py /app/psifos/utils.py
-
-WORKDIR /app
+# files/dirs needed by psifos_auth tasks
+COPY ./app/psifos_auth/model/ /app/psifos_auth/model
+COPY ./app/psifos_auth/utils.py /app/psifos_auth/utils.py
 
 CMD celery -A app.celery_worker.celery worker --loglevel=info
