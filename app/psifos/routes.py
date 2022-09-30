@@ -25,7 +25,7 @@ from app.psifos_auth.auth_service_check import AuthUser
 
 from starlette_context import context
 
-api_router = APIRouter()
+api_router = APIRouter(prefix="/psifos/api/app")
 
 # ----- Election Admin Routes -----
 
