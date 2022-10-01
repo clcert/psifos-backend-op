@@ -67,7 +67,8 @@ def get_election_stats(election_uuid: str, current_user: models.User = Depends(A
             election_id=election.id
         ),
         "total_voters": election.total_voters,
-        "status": election.election_status
+        "status": election.election_status,
+        "name": election.short_name
     }
 
 
@@ -136,13 +137,17 @@ def upload_voters(election_uuid: str, file: UploadFile, current_user: models.Use
         raise HTTPException(status_code=400, detail="Failed to upload the voters")
     
 
-@api_router.get("/{election_uuid}/get-voters", response_model=list[schemas.VoterOut], status_code=200)
-def get_voters(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
+@api_router.post("/{election_uuid}/get-voters", response_model=list[schemas.VoterOut], status_code=200)
+def get_voters(election_uuid: str, data: dict = {},  current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):
     """
     Route for get voters
     """
+
+    page = data.get("page", 0)
+    page_size = data.get("page_size", None)
+
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
-    return crud.get_voters_by_election_id(db=db, election_id=election.id)
+    return crud.get_voters_by_election_id(db=db, election_id=election.id, page=page, page_size=page_size)
 
 @api_router.post("/{election_uuid}/voters/{voter_uuid}/edit", response_model=schemas.VoterOut, status_code=200)
 def edit_voter(election_uuid: str, voter_uuid: str, fields_voter: dict, current_user: models.User = Depends(AuthAdmin()), db: Session = Depends(get_db)):

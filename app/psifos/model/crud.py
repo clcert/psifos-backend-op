@@ -26,8 +26,8 @@ def get_voter_by_login_id_and_election_id(db: Session, voter_login_id: int, elec
     )
 
 
-def get_voters_by_election_id(db: Session, election_id: int):
-    return db.query(models.Voter).filter(models.Voter.election_id == election_id).all()
+def get_voters_by_election_id(db: Session, election_id: int, page=0, page_size=None):
+    return db.query(models.Voter).filter(models.Voter.election_id == election_id).offset(page).limit(page_size).all()
 
 def get_voter_by_uuid_and_election_id(voter_uuid: str, db: Session, election_id: int):
     return db.query(models.Voter).filter(models.Voter.election_id == election_id, models.Voter.uuid == voter_uuid)
