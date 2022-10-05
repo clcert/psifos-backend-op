@@ -67,7 +67,7 @@ class CASAuth:
         if user:
 
             response = RedirectResponse(
-                url=APP_FRONTEND_URL + "/cabina/" + election_uuid
+                url=APP_FRONTEND_URL + "/booth/" + election_uuid
             )
             response.set_cookie("session", session)
             return response
@@ -89,7 +89,7 @@ class CASAuth:
         # If user, set session and redirect to election page
         request.session["user"] = user
         response = RedirectResponse(
-            url=APP_FRONTEND_URL + "/cabina/" + election_uuid
+            url=APP_FRONTEND_URL + "/booth/" + election_uuid
         )
         return response
 
@@ -97,7 +97,7 @@ class CASAuth:
 
         # Get logoout url from CAS server
         cas_logout_url = self.cas_client.get_logout_url(
-            APP_FRONTEND_URL + "/cabina/" + election_uuid + "?logout=true"
+            APP_FRONTEND_URL + "/booth/" + election_uuid + "?logout=true"
         )
 
         # Clear cookie and redirect to election page
@@ -266,7 +266,7 @@ class OAuth2Auth:
 
         if self.type_logout == "voter":
             response = RedirectResponse(
-                APP_FRONTEND_URL + "/cabina/" + self.election_uuid
+                APP_FRONTEND_URL + "/booth/" + self.election_uuid
             )
 
         elif self.type_logout == "trustee":
