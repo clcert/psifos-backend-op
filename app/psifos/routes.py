@@ -146,6 +146,7 @@ def get_voters(election_uuid: str, data: dict = {},  current_user: models.User =
 
     page = data.get("page", 0)
     page_size = data.get("page_size", None)
+    page = page_size * page if page_size else None
 
     election = get_auth_election(election_uuid=election_uuid, current_user=current_user, db=db)
     return crud.get_voters_by_election_id(db=db, election_id=election.id, page=page, page_size=page_size)
