@@ -17,6 +17,9 @@ from app.psifos.model import models, schemas
 def get_voter_by_voter_id(db: Session, voter_id: int):
     return db.query(models.Voter).filter(models.Voter.id == voter_id).first()
 
+def get_voter_by_name_and_id(db: Session, voter_name: str, election_id: str):
+    return db.query(models.Voter).filter(models.Voter.voter_name == voter_name, models.Voter.election_id == election_id).filter()
+
 
 def get_voter_by_login_id_and_election_id(db: Session, voter_login_id: int, election_id: int):
     return (

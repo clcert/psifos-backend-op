@@ -8,6 +8,7 @@ from requests_oauthlib import OAuth2Session
 
 from fastapi import Request, HTTPException
 from starlette.responses import RedirectResponse
+from app.logger import psifos_logger
 
 class Auth:
 
@@ -118,6 +119,7 @@ class CASAuth:
                     election_id=election.id,
                     db=db
                 )
+                psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
                 if not trustee:
                     response = RedirectResponse(
                         APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
@@ -147,6 +149,7 @@ class CASAuth:
                     trustee_login_id=request.session["user"],
                     election_id=election.id,
                 )
+                psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
                 if not trustee:
                     response = RedirectResponse(
                         url=APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
@@ -202,18 +205,8 @@ class OAuth2Auth:
 
     def logout_voter(self, election_uuid: str, request: Request):
 
-        client = OAuth2Session(
-            client_id=self.client_id,
-            redirect_uri=env["URL"]["back"] + "/authorized",
-            scope=self.scope,
-        )
-        authorization_url, state = client.authorization_url(
-            env["OAUTH"]["authorize_url"]
-        )
-        request.session.clear()
-        response = RedirectResponse(authorization_url)
+        pass
         
-
     def login_trustee(self, election_uuid: str, request: Request, session: str):
 
         self.election_uuid = election_uuid
@@ -233,18 +226,7 @@ class OAuth2Auth:
 
     def logout_trustee(self, election_uuid: str, request: Request):
         
-        client = OAuth2Session(
-            client_id=self.client_id,
-            scope=self.scope,
-        )
-        authorization_url, state = client.authorization_url(
-            env["OAUTH"]["authorize_url"]
-        )
-        request.session["oauth_state"] = state
-        request.session.clear()
-        response = RedirectResponse(authorization_url)
-        response.set_cookie("session", None)
-        return response
+        pass
 
     def authorized(self, request: Request, session: str = None):
         login = OAuth2Session(
@@ -263,22 +245,24 @@ class OAuth2Auth:
         user = login.get(OAUTH_USER_INFO_URL).json()
         user = user["fields"]["username"]
         request.session["user"] = user
+        
+        with SessionLocal() as db:
+            election = crud.get_election_by_uuid(uuid=self.election_uuid, db=db)
+            if self.type_logout == "voter":
+                
+                response = RedirectResponse(
+                    APP_FRONTEND_URL + "/booth/" + self.election_uuid
+                )
+                psifos_logger.voter_info(name=user, election=election)
 
-        if self.type_logout == "voter":
-            response = RedirectResponse(
-                APP_FRONTEND_URL + "/booth/" + self.election_uuid
-            )
+            elif self.type_logout == "trustee":
 
-        elif self.type_logout == "trustee":
-
-            with SessionLocal() as db:
-
-                election = crud.get_election_by_uuid(uuid=self.election_uuid, db=db)
                 trustee = crud.get_by_login_id_and_election_id(
                     trustee_login_id=user,
                     election_id=election.id,
                     db=db
                 )
+                psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
                 self.trustee_uuid = trustee.uuid if trustee else None
 
                 if not self.trustee_uuid:
