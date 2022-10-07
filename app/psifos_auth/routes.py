@@ -13,7 +13,8 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 auth_factory = Auth()
 protocol = TYPE_AUTH
 
-auth_router = APIRouter(prefix="/psifos/api/app")
+# auth_router = APIRouter(prefix="/psifos/api/app")
+auth_router = APIRouter()
 
 security = HTTPBasic()
 
