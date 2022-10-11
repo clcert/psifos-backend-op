@@ -243,8 +243,8 @@ class OAuth2Auth:
         user = user["fields"]["username"]
         request.session["user"] = user
         
-        with SessionLocal() as db:
-            election = crud.get_election_by_uuid(uuid=self.election_uuid, db=db)
+        with SessionLocal() as session:
+            election = crud.get_election_by_uuid(uuid=self.election_uuid, session=session)
             if self.type_logout == "voter":
                 
                 response = RedirectResponse(
