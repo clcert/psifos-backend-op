@@ -1,12 +1,10 @@
 from app.database import SessionLocal
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def get_db():
+async def get_session() -> AsyncSession:
     """
     Database dependency: allows a single Session per request.
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    """   
+    async with SessionLocal() as session:
+        yield session

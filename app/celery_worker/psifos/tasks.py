@@ -1,5 +1,5 @@
 """
-Async celery tasks for Psifos (psifos module)
+celery tasks for Psifos (psifos module)
 
 lib: celery
 broker: redis
@@ -10,13 +10,15 @@ gui: flower
 
 
 import uuid
+
 from app.celery_worker import celery
-from sqlalchemy.orm import Session
-from app.psifos.model import crud, models, schemas
+from app.psifos.model import models, schemas
 from app.database import SessionLocal
+from .model import crud
 
 from app.psifos import utils as psifos_utils
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
+
 
 @celery.task(name="process_castvote")
 def process_cast_vote(election_uuid: str, voter_id: int, serialized_encrypted_vote: str, cast_ip: str):
@@ -25,14 +27,14 @@ def process_cast_vote(election_uuid: str, voter_id: int, serialized_encrypted_vo
     it stores it in the database.
     """
 
-    with SessionLocal() as db:
-        election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
-        voter = crud.get_voter_by_voter_id(voter_id=voter_id, db=db)
+    with SessionLocal() as session:
+        election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
+        voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
 
         enc_vote_data = psifos_utils.from_json(serialized_encrypted_vote)
         encrypted_vote = EncryptedVote(**enc_vote_data)
         verified, fields = voter.cast_vote.process_cast_vote(encrypted_vote, election, voter, cast_ip)
-        cast_vote = crud.update_cast_vote(db=db, voter_id=voter.id, fields=fields)
+        cast_vote = crud.update_cast_vote(session=session, voter_id=voter.id, fields=fields)
     if verified:
         return verified, cast_vote.vote_hash
     return verified, None
@@ -43,11 +45,11 @@ def compute_tally(election_uuid: str, serialized_encrypted_votes: list[str], wei
     """
     Computes the encrypted tally of an election.
     """
-    with SessionLocal() as db:
-        election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
+    with SessionLocal() as session:
+        election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
         encrypted_votes = [EncryptedVote(**(psifos_utils.from_json(v))) for v in serialized_encrypted_votes]
         fields = election.compute_tally(encrypted_votes, weights)
-        crud.update_election(db=db, election_id=election.id, fields=fields)
+        crud.update_election(session=session, election_id=election.id, fields=fields)
 
 
 @celery.task(name="combine_decryptions", ignore_result=True)
@@ -56,10 +58,10 @@ def combine_decryptions(election_uuid: str):
     Combines the partial decryptions of the trustees and releases
     the election results.
     """
-    with SessionLocal() as db:
-        election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
+    with SessionLocal() as session:
+        election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
         fields = election.combine_decryptions()
-        crud.update_election(db=db, election_id=election.id, fields=fields)
+        crud.update_election(session=session, election_id=election.id, fields=fields)
 
 
 @celery.task(name="upload_voters")
@@ -67,8 +69,8 @@ def upload_voters(election_uuid: str, voter_file_content: str):
     """
     Handles the upload of a voter file.
     """
-    with SessionLocal() as db:
-        election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
+    with SessionLocal() as session:
+        election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
 
         try:
             voters = [
@@ -82,13 +84,13 @@ def upload_voters(election_uuid: str, voter_file_content: str):
         n = len(voters)  # total voters
         for voter in voters:
             # check if voter already exists
-            if crud.get_voter_by_login_id_and_election_id(db=db, voter_login_id=voter.voter_login_id, election_id=election.id):
+            if crud.get_voter_by_login_id_and_election_id(session=session, voter_login_id=voter.voter_login_id, election_id=election.id):
                 continue
 
             # add the voter to the database
-            crud.create_voter(db=db, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter)
+            crud.create_voter(session=session, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter)
             k += 1
 
         # update the total_voters field of election
-        crud.update_election(db=db, election_id=election.id, fields={"total_voters": election.total_voters + k})
+        crud.update_election(session=session, election_id=election.id, fields={"total_voters": election.total_voters + k})
     return True, k, n

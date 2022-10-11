@@ -12,10 +12,11 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from werkzeug.security import generate_password_hash
 from requests_oauthlib import OAuth2Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def get_auth_election(election_uuid: str, current_user: auth_models.User, db: Session):
-    election = crud.get_election_by_uuid(db=db, uuid=election_uuid)
+async def get_auth_election(election_uuid: str, current_user: auth_models.User, session: Session | AsyncSession):
+    election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
     if not election:
         raise HTTPException(status_code=400, detail="Election not found")
     if election.admin_id != current_user.id:
@@ -23,9 +24,9 @@ def get_auth_election(election_uuid: str, current_user: auth_models.User, db: Se
 
     return election
 
-def get_auth_voter_and_election(election_uuid: str, voter_login_id: str, db: Session):
-    election = crud.get_election_by_uuid(db=db, uuid=election_uuid)
-    voter = crud.get_voter_by_login_id_and_election_id(db=db, voter_login_id=voter_login_id, election_id=election.id)
+async def get_auth_voter_and_election(election_uuid: str, voter_login_id: str, session: Session | AsyncSession):
+    election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
+    voter = await crud.get_voter_by_login_id_and_election_id(session=session, voter_login_id=voter_login_id, election_id=election.id)
     if not voter:
         raise HTTPException(status_code=400, detail="voter not found")
     if voter.voter_login_id != voter_login_id:
@@ -33,9 +34,9 @@ def get_auth_voter_and_election(election_uuid: str, voter_login_id: str, db: Ses
     
     return voter, election
 
-def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, login_id: str, db: Session):
-    election = crud.get_election_by_uuid(db=db, uuid=election_uuid)
-    trustee = crud.get_trustee_by_uuid(db=db, uuid=trustee_uuid)
+async def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, login_id: str, session: Session | AsyncSession):
+    election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
+    trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
     if not trustee:
         raise HTTPException(status_code=400, detail="Trustee not found")
     if trustee.trustee_login_id != login_id:
@@ -50,7 +51,7 @@ def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, login_id
 
 
 
-def create_user(username: str, password: str) -> str:
+async def create_user(username: str, password: str) -> str:
     """
     Create a new user
     :param username: username of the user
@@ -58,8 +59,7 @@ def create_user(username: str, password: str) -> str:
     """
     hashed_password = generate_password_hash(password, method="sha256")
     user = auth_schemas.UserIn(username=username, password=hashed_password, public_id=str(uuid.uuid4()))
-    with SessionLocal() as db:
-        auth_crud.create_user(db=db, user=user)
+    async with SessionLocal() as session:
+        await auth_crud.create_user(session=session, user=user)
     logging.log(msg="User created successfully!", level=logging.INFO)
-
 

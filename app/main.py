@@ -14,8 +14,6 @@ from starlette_context import middleware, plugins
 
 import os
 
-Base.metadata.create_all(engine)
-
 app = FastAPI()
 
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)

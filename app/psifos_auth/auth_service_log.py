@@ -106,18 +106,18 @@ class CASAuth:
         request.session.clear()
         return response
 
-    def login_trustee(self, election_uuid: str, request: Request, session: str):
+    async def login_trustee(self, election_uuid: str, request: Request, session: str):
 
         # Get user from session cookie
         user = request.session.get("user", None)
 
-        with SessionLocal() as db:
+        async with SessionLocal() as session:
             if user:
-                election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
-                trustee = crud.get_by_login_id_and_election_id(
+                election = await crud.get_election_by_uuid(uuid=election_uuid, session=session)
+                trustee = await crud.get_by_login_id_and_election_id(
                     trustee_login_id=user,
                     election_id=election.id,
-                    db=db
+                    session=session
                 )
                 psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
                 if not trustee:
@@ -143,9 +143,9 @@ class CASAuth:
                 raise HTTPException(status_code=401, detail="ERROR")
             else:
                 request.session["user"] = user
-                election = crud.get_election_by_uuid(uuid=election_uuid, db=db)
-                trustee = crud.get_by_login_id_and_election_id(
-                    db=db,
+                election = await crud.get_election_by_uuid(uuid=election_uuid, session=session)
+                trustee = await crud.get_by_login_id_and_election_id(
+                    session=session,
                     trustee_login_id=request.session["user"],
                     election_id=election.id,
                 )
@@ -204,11 +204,9 @@ class OAuth2Auth:
         return RedirectResponse(authorization_url)
 
     def logout_voter(self, election_uuid: str, request: Request):
-
         pass
         
     def login_trustee(self, election_uuid: str, request: Request, session: str):
-
         self.election_uuid = election_uuid
         self.type_logout = "trustee"
         client = OAuth2Session(
@@ -225,10 +223,9 @@ class OAuth2Auth:
         return RedirectResponse(authorization_url)
 
     def logout_trustee(self, election_uuid: str, request: Request):
-        
         pass
 
-    def authorized(self, request: Request, session: str = None):
+    async def authorized(self, request: Request, session: str = None):
         login = OAuth2Session(
             self.client_id,
             state=request.session["oauth_state"],
@@ -256,12 +253,13 @@ class OAuth2Auth:
                 psifos_logger.voter_info(name=user, election=election)
 
             elif self.type_logout == "trustee":
-
-                trustee = crud.get_by_login_id_and_election_id(
-                    trustee_login_id=user,
-                    election_id=election.id,
-                    db=db
-                )
+                async with SessionLocal() as session:
+                    election = await crud.get_election_by_uuid(uuid=self.election_uuid, session=session)
+                    trustee = await crud.get_by_login_id_and_election_id(
+                        trustee_login_id=user,
+                        election_id=election.id,
+                        session=session
+                    )
                 psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
                 self.trustee_uuid = trustee.uuid if trustee else None
 

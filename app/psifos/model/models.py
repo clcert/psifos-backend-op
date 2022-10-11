@@ -254,7 +254,7 @@ class Trustee(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     election_id = Column(Integer, ForeignKey("psifos_election.id"))
-    trustee_id = Column(Integer, nullable=False)
+    trustee_id = Column(Integer, nullable=False) # TODO: rename to index for deambiguation with trustee_id func. param at await crud.py
     uuid = Column(String(50), nullable=False, unique=True)
 
     name = Column(String(200), nullable=False)

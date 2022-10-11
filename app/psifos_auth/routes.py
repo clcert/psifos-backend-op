@@ -2,7 +2,7 @@ import jwt
 from werkzeug.security import check_password_hash
 from fastapi import HTTPException, Request, APIRouter, Depends, Cookie
 
-from app.dependencies import get_db
+from app.dependencies import get_session
 from app.config import SECRET_KEY, TYPE_AUTH
 
 from app.psifos_auth.auth_service_log import Auth
@@ -19,7 +19,7 @@ auth_router = APIRouter()
 security = HTTPBasic()
 
 @auth_router.post("/login", status_code = 201)
-def login_user(request: Request, credentials: HTTPBasicCredentials = Depends(security), db = Depends(get_db)):
+async def login_user(request: Request, credentials: HTTPBasicCredentials = Depends(security), session = Depends(get_session)):
     """
     Login a admin user
 
@@ -28,7 +28,7 @@ def login_user(request: Request, credentials: HTTPBasicCredentials = Depends(sec
     if not credentials or not credentials.username or not credentials.password:
         raise HTTPException(status_code = 401, detail="an error occurred, please try again")
 
-    user = crud.get_user_by_name(db=db, name=credentials.username)
+    user = await crud.get_user_by_name(session=session, name=credentials.username)
 
     if not user:
         raise HTTPException(status_code = 401, detail = "wrong username or passwords")
@@ -44,7 +44,7 @@ def login_user(request: Request, credentials: HTTPBasicCredentials = Depends(sec
 
 
 @auth_router.get("/vote/{election_uuid}", status_code=200)
-def login_voter(election_uuid: str, request: Request, session: str | None = Cookie(default=None)):
+async def login_voter(election_uuid: str, request: Request, session: str | None = Cookie(default=None)):
     """
     Make the connection and verification with the CAS service
     """
@@ -54,7 +54,7 @@ def login_voter(election_uuid: str, request: Request, session: str | None = Cook
 
 
 @auth_router.get("/vote/{election_uuid}/logout", status_code=200)
-def logout_voter(election_uuid: str, request: Request):
+async def logout_voter(election_uuid: str, request: Request):
     """
     Logout a user
     """
@@ -67,7 +67,7 @@ def logout_voter(election_uuid: str, request: Request):
 
 
 @auth_router.get("/{election_uuid}/trustee/login", status_code=200)
-def login_trustee(election_uuid: str, request: Request, session: str | None = Cookie(default=None)):
+async def login_trustee(election_uuid: str, request: Request, session: str | None = Cookie(default=None)):
     """
     Make the connection and verification with the CAS service
     """
@@ -78,7 +78,7 @@ def login_trustee(election_uuid: str, request: Request, session: str | None = Co
 
 
 @auth_router.get("/{election_uuid}/trustee/logout", status_code=200)
-def logout_trustee(election_uuid: str, request: Request):
+async def logout_trustee(election_uuid: str, request: Request):
     """
     Logout a trustee
     """
@@ -90,7 +90,7 @@ def logout_trustee(election_uuid: str, request: Request):
 
 
 @auth_router.get("/authorized", status_code=200)
-def authorized(request: Request, session: str | None = Cookie(default=None)):
+async def authorized(request: Request, session: str | None = Cookie(default=None)):
 
     auth = auth_factory.get_auth(protocol)
     return auth.authorized(request, session=session)

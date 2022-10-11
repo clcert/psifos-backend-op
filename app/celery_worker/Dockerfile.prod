@@ -17,11 +17,14 @@ COPY ./app/config.py /app/config.py
 # files/dirs needed by psifos tasks
 COPY ./app/psifos/crypto/ /app/psifos/crypto
 COPY ./app/psifos/psifos_object/ /app/psifos/psifos_object
-COPY ./app/psifos/model/ /app/psifos/model
+COPY ./app/psifos/model/models.py /app/psifos/model/models.py
+COPY ./app/psifos/model/schemas.py /app/psifos/model/schemas.py
+COPY ./app/psifos/model/enums.py /app/psifos/model/enums.py
 COPY ./app/psifos/utils.py /app/psifos/utils.py
 
 # files/dirs needed by psifos_auth tasks
-COPY ./app/psifos_auth/model/ /app/psifos_auth/model
+COPY ./app/psifos/model/models.py /app/psifos/model/models.py
+COPY ./app/psifos/model/schemas.py /app/psifos/model/schemas.py
 COPY ./app/psifos_auth/utils.py /app/psifos_auth/utils.py
 
 CMD celery -A app.celery_worker.celery worker --loglevel=info
