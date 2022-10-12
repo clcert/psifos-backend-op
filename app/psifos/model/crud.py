@@ -134,6 +134,7 @@ async def update_cast_vote(session: Session | AsyncSession, voter_id: int, field
     ).values(fields)
     await db_handler.execute(session, query)
     await db_handler.commit(session)
+
     return await get_cast_vote_by_voter_id(session=session, voter_id=voter_id)
 
 
@@ -200,6 +201,8 @@ async def update_trustee(session: Session | AsyncSession, trustee_id: int, field
         models.Trustee.id == trustee_id
     ).values(fields)
     await db_handler.execute(session, query)
+    await db_handler.commit(session)
+
     return await get_trustee_by_id(session=session, id=trustee_id)
 
 async def delete_trustee(session: Session | AsyncSession, election_id: int, uuid: str):
@@ -308,9 +311,9 @@ async def edit_election(session: Session | AsyncSession, election_id: int, elect
     query = update(models.Election).where(
         models.Election.id == election_id
     ).values(election.dict())
-    result = await db_handler.execute(session, query)
+    await db_handler.execute(session, query)
     await db_handler.commit(session)
-
+    
     return await get_election_by_id(session=session, election_id=election_id)
 
 
