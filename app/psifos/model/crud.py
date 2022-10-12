@@ -113,7 +113,7 @@ async def delete_election_voter(session: Session | AsyncSession,  election_id, v
 
 
 async def get_cast_vote_by_voter_id(session: Session | AsyncSession, voter_id: int):
-    query = select(models.Voter).where(
+    query = select(models.CastVote).where(
         models.CastVote.voter_id == voter_id,
     )
     result = await db_handler.execute(session, query)

@@ -13,7 +13,7 @@ def get_voter_by_voter_id(session: Session, voter_id: int):
     return result.scalars().first()
 
 def get_cast_vote_by_voter_id(session: Session, voter_id: int):
-    query = select(models.Voter).where(
+    query = select(models.CastVote).where(
         models.CastVote.voter_id == voter_id,
     )
     result = session.execute(query)
