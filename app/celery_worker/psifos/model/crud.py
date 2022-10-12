@@ -33,7 +33,7 @@ def get_election_by_id(session: Session, election_id: int):
     return result.scalars().first()
 
 def update_election(session: Session, election_id: int, fields: dict):
-    query = select(models.Election).where(
+    query = update(models.Election).where(
         models.Election.id == election_id
     ).values(fields)
     session.execute(query)
@@ -49,7 +49,14 @@ def get_voter_by_login_id_and_election_id(session: Session, voter_login_id: int,
     return result.scalars().first()
 
 def create_voter(session: Session, election_id: str, uuid: str, voter: schemas.VoterIn):
-    session_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
-    session.add(session_voter)
+    db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
+    session.add(db_voter)
     session.commit()
-    session.refresh(session_voter)
+    session.refresh(db_voter)
+
+    db_cast_vote = models.CastVote(voter_id=db_voter.id)
+    session.add(db_cast_vote)
+    session.commit()
+    session.refresh(db_cast_vote)
+    
+    return db_voter, db_cast_vote

@@ -51,5 +51,5 @@ class PsifosLogger(logging.Logger):
         pass
 
 
-with SessionLocal() as session:
-    psifos_logger = PsifosLogger(session=session, name="psifosLogger")
+#with SessionLocal() as session:
+#    psifos_logger = PsifosLogger(session=session, name="psifosLogger")

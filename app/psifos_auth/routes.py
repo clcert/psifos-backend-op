@@ -73,7 +73,7 @@ async def login_trustee(election_uuid: str, request: Request, session: str | Non
     """
     
     auth = auth_factory.get_auth(protocol)
-    return auth.login_trustee(election_uuid, request=request, session=session)
+    return await auth.login_trustee(election_uuid, request=request, session=session)
 
 
 

@@ -28,7 +28,8 @@ class AsyncHandler(AbstractHandler):
 
     async def commit(self, session: AsyncSession):
         await session.commit()
-
+    
+    
 
 class SyncHandler(AbstractHandler):
     """
@@ -43,7 +44,7 @@ class SyncHandler(AbstractHandler):
 
     async def commit(self, session: Session):
         session.commit()
-
+    
 
 class Database(object):
     """

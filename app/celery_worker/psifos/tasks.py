@@ -27,7 +27,7 @@ def process_cast_vote(election_uuid: str, voter_id: int, serialized_encrypted_vo
     it stores it in the database.
     """
 
-    with SessionLocal() as session:
+    with SessionLocal() as session: # Celery worker always uses sync with & sync session
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
         voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
 
@@ -35,6 +35,7 @@ def process_cast_vote(election_uuid: str, voter_id: int, serialized_encrypted_vo
         encrypted_vote = EncryptedVote(**enc_vote_data)
         verified, fields = voter.cast_vote.process_cast_vote(encrypted_vote, election, voter, cast_ip)
         cast_vote = crud.update_cast_vote(session=session, voter_id=voter.id, fields=fields)
+        
     if verified:
         return verified, cast_vote.vote_hash
     return verified, None

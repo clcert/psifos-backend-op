@@ -1,11 +1,4 @@
 from app.database.handler import Database
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
-
 
 from app.config import DATABASE_USER, DATABASE_PASS, DATABASE_HOST, DATABASE_NAME
 

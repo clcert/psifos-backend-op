@@ -315,10 +315,10 @@ async def edit_election(session: Session | AsyncSession, election_id: int, elect
 
 
 async def update_election(session: Session | AsyncSession, election_id: int, fields: dict):
-    query = select(models.Election).where(
+    query = update(models.Election).where(
         models.Election.id == election_id
     ).values(fields)
-    result = await db_handler.execute(session, query)
+    await db_handler.execute(session, query)
     await db_handler.commit(session)
 
     return await get_election_by_id(session=session, election_id=election_id)
