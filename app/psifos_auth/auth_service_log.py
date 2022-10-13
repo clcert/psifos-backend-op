@@ -103,66 +103,72 @@ class CASAuth:
         request.session.clear()
         return response
 
-    #@db_handler.method_with_session
+    @db_handler.method_with_session
     async def login_trustee(self, db_session, election_uuid: str, request: Request, session: str):
+        
+        #print(db_session)
+        #print(election_uuid)
+        #print(request)
+        #print(session)
 
         # Get user from session cookie
         user = request.session.get("user", None)
-        async with SessionLocal() as db_session:
-            if user:
-                election = await crud.get_election_by_uuid(uuid=election_uuid, session=db_session)
-                trustee = await crud.get_by_login_id_and_election_id(
-                    trustee_login_id=user,
-                    election_id=election.id,
-                    session=db_session
+
+        #async with SessionLocal() as db_session:
+        if user:
+            election = await crud.get_election_by_uuid(uuid=election_uuid, session=db_session)
+            trustee = await crud.get_by_login_id_and_election_id(
+                trustee_login_id=user,
+                election_id=election.id,
+                session=db_session
+            )
+            # psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
+            if not trustee:
+                response = RedirectResponse(
+                    APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
                 )
-                # psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
-                if not trustee:
-                    response = RedirectResponse(
-                        APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
-                    )
-                else:
-
-                    response = RedirectResponse(
-                        url=APP_FRONTEND_URL + f"/{election_uuid}/trustee/{trustee.uuid}/home"
-                    )
-                response.set_cookie("session", session)
-                print("\n\nRETURN 1\n\n")
-                return response
-
-            ticket = request.query_params.get("ticket", None)
-            if not ticket:
-                print("\n\nRETURN 2\n\n")
-                return self.redirect_cas(
-                    APP_BACKEND_OP_URL + f"/{election_uuid}/trustee/login",
-                )
-
-            user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
-            if not user:
-                raise HTTPException(status_code=401, detail="ERROR")
             else:
-                request.session["user"] = user
-                election = await crud.get_election_by_uuid(uuid=election_uuid, session=db_session)
-                trustee = await crud.get_by_login_id_and_election_id(
-                    session=db_session,
-                    trustee_login_id=request.session["user"],
-                    election_id=election.id,
+
+                response = RedirectResponse(
+                    url=APP_FRONTEND_URL + f"/{election_uuid}/trustee/{trustee.uuid}/home"
                 )
-                # psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
-                if not trustee:
-                    response = RedirectResponse(
-                        url=APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
-                    )
-                    print("\n\nRETURN 3\n\n")
+            response.set_cookie("session", session)
+            print("\n\nRETURN 1\n\n")
+            return response
 
-                else:
+        ticket = request.query_params.get("ticket", None)
+        if not ticket:
+            print("\n\nRETURN 2\n\n")
+            return self.redirect_cas(
+                APP_BACKEND_OP_URL + f"/{election_uuid}/trustee/login",
+            )
 
-                    response = RedirectResponse(
-                        APP_FRONTEND_URL + f"/{election_uuid}/trustee/{trustee.uuid}/home",
-                    )
-                    print("\n\nRETURN 4\n\n")
+        user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
+        if not user:
+            raise HTTPException(status_code=401, detail="ERROR")
+        else:
+            request.session["user"] = user
+            election = await crud.get_election_by_uuid(uuid=election_uuid, session=db_session)
+            trustee = await crud.get_by_login_id_and_election_id(
+                session=db_session,
+                trustee_login_id=request.session["user"],
+                election_id=election.id,
+            )
+            # psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
+            if not trustee:
+                response = RedirectResponse(
+                    url=APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
+                )
+                print("\n\nRETURN 3\n\n")
 
-                return response
+            else:
+
+                response = RedirectResponse(
+                    APP_FRONTEND_URL + f"/{election_uuid}/trustee/{trustee.uuid}/home",
+                )
+                print("\n\nRETURN 4\n\n")
+
+            return response
 
     def logout_trustee(self, election_uuid: str, request: Request):
 

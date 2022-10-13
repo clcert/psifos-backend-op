@@ -37,7 +37,7 @@ class AsyncHandler(AbstractHandler):
         session_local = self.session_local
         async def wrapper(*args, **kwargs):
             async with session_local() as session:
-                await func(session, *args, **kwargs)
+                return await func(session, *args, **kwargs)
         
         return wrapper
     
@@ -45,7 +45,7 @@ class AsyncHandler(AbstractHandler):
         session_local = self.session_local
         async def wrapper(self, *args, **kwargs):
             async with session_local() as session:
-                await method(self, session, *args, **kwargs)
+                return await method(self, session, *args, **kwargs)
         
         return wrapper
     
@@ -68,7 +68,7 @@ class SyncHandler(AbstractHandler):
         session_local = self.session_local
         async def wrapper(*args, **kwargs):
             with session_local() as session:
-                await func(session, *args, **kwargs)
+                return await func(session, *args, **kwargs)
         
         return wrapper
     
@@ -76,7 +76,7 @@ class SyncHandler(AbstractHandler):
         session_local = self.session_local
         async def wrapper(self, *args, **kwargs):
             with session_local() as session:
-                await method(self, session, *args, **kwargs)
+                return await method(self, session, *args, **kwargs)
         
         return wrapper
 
@@ -100,7 +100,6 @@ class Database(object):
             db_url = "mysql" + url_suffix
             engine = create_engine(db_url)
             session_class = Session
-            db_handler = SyncHandler(session_class)
 
         SessionLocal = sessionmaker(
             autocommit = False,
@@ -114,3 +113,6 @@ class Database(object):
         db_handler = handler_class(SessionLocal)
 
         return Base, engine, SessionLocal, db_handler
+
+
+
