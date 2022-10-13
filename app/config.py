@@ -25,7 +25,7 @@ OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID")
 OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET")
 OAUTH_USER_INFO_URL = os.environ.get("OAUTH_USER_INFO_URL")
 
-USE_ASYNC_ENGINE = bool(os.environ.get("USE_ASYNC_ENGINE", False))
+USE_ASYNC_ENGINE = bool(int(os.environ.get("USE_ASYNC_ENGINE", False)))
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND")
 

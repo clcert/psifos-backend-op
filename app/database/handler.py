@@ -11,6 +11,10 @@ class AbstractHandler(object):
     """
     Holds the common behaviour of a database query handler.
     """
+
+    def __init__(self, session_local) -> None:
+        self.session_local = session_local
+
     def add(self, session: Session | AsyncSession, instance: Any):
         session.add(instance)
 
@@ -28,7 +32,22 @@ class AsyncHandler(AbstractHandler):
 
     async def commit(self, session: AsyncSession):
         await session.commit()
+
+    def func_with_session(self, func):
+        session_local = self.session_local
+        async def wrapper(*args, **kwargs):
+            async with session_local() as session:
+                await func(session, *args, **kwargs)
+        
+        return wrapper
     
+    def method_with_session(self, method):
+        session_local = self.session_local
+        async def wrapper(self, *args, **kwargs):
+            async with session_local() as session:
+                await method(self, session, *args, **kwargs)
+        
+        return wrapper
     
 
 class SyncHandler(AbstractHandler):
@@ -45,6 +64,21 @@ class SyncHandler(AbstractHandler):
     async def commit(self, session: Session):
         session.commit()
     
+    def func_with_session(self, func):
+        session_local = self.session_local
+        async def wrapper(*args, **kwargs):
+            with session_local() as session:
+                await func(session, *args, **kwargs)
+        
+        return wrapper
+    
+    def method_with_session(self, method):
+        session_local = self.session_local
+        async def wrapper(self, *args, **kwargs):
+            with session_local() as session:
+                await method(self, session, *args, **kwargs)
+        
+        return wrapper
 
 class Database(object):
     """
@@ -62,12 +96,11 @@ class Database(object):
             db_url = "mysql+asyncmy" + url_suffix
             engine = create_async_engine(db_url) 
             session_class = AsyncSession
-            db_handler = AsyncHandler()
         else: 
             db_url = "mysql" + url_suffix
             engine = create_engine(db_url)
             session_class = Session
-            db_handler = SyncHandler()
+            db_handler = SyncHandler(session_class)
 
         SessionLocal = sessionmaker(
             autocommit = False,
@@ -76,5 +109,8 @@ class Database(object):
             class_ = session_class,
             expire_on_commit = False
         )
+        
+        handler_class = AsyncHandler if USE_ASYNC_ENGINE else SyncHandler
+        db_handler = handler_class(SessionLocal)
 
         return Base, engine, SessionLocal, db_handler

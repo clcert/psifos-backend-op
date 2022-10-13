@@ -1,8 +1,8 @@
 import logging
 import uuid
 
-from app.database import SessionLocal
 from app.psifos.model import crud
+from app.database import db_handler
 
 from app.psifos_auth.model import models as auth_models
 from app.psifos_auth.model import crud as auth_crud
@@ -48,10 +48,8 @@ async def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, lo
     return trustee, election
 
 
-
-
-
-async def create_user(username: str, password: str) -> str:
+@db_handler.func_with_session
+async def create_user(session, username: str, password: str) -> str:
     """
     Create a new user
     :param username: username of the user
@@ -59,7 +57,5 @@ async def create_user(username: str, password: str) -> str:
     """
     hashed_password = generate_password_hash(password, method="sha256")
     user = auth_schemas.UserIn(username=username, password=hashed_password, public_id=str(uuid.uuid4()))
-    async with SessionLocal() as session:
-        await auth_crud.create_user(session=session, user=user)
+    await auth_crud.create_user(session=session, user=user)
     logging.log(msg="User created successfully!", level=logging.INFO)
-

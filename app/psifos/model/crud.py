@@ -57,8 +57,8 @@ async def get_voter_by_login_id_and_election_id(session: Session | AsyncSession,
     result = await db_handler.execute(session, query)
     return result.scalars().first()
     
-async def get_voters_by_election_id(session: Session | AsyncSession, election_id: int):
-    query = select(models.Voter).where(models.Voter.election_id == election_id).options(
+async def get_voters_by_election_id(session: Session | AsyncSession, election_id: int, page=0, page_size=None):
+    query = select(models.Voter).where(models.Voter.election_id == election_id).offset(page).limit(page_size).options(
         VOTER_QUERY_OPTIONS
     )
     result = await db_handler.execute(session, query)

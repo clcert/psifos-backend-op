@@ -8,6 +8,9 @@ async def get_session() -> Session | AsyncSession:
     """
     Database dependency: allows a single Session per request.
     """   
-
-    async with SessionLocal() as session:
-        yield session
+    if USE_ASYNC_ENGINE:
+        async with SessionLocal() as session:
+            yield session
+    else:
+        with SessionLocal() as session:
+            yield session
