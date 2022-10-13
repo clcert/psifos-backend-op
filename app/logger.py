@@ -11,13 +11,18 @@ class PsifosLogger(logging.Logger):
     Customized logger for pfiso's own tasks
     """
 
-    def __init__(self, session, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
 
         super(PsifosLogger, self).__init__(**kwargs)
 
-        self.session = session
         self.logger = logging.getLogger(PsifosLogger.__name__)
         self.logger.setLevel(logging.INFO)
+
+        ch = logging.StreamHandler()
+
+        formatter = logging.Formatter('INFO-PSIFOS: %(asctime)s %(message)s')
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
 
     async def voter_info(self, name: str, election: models.Voter):
 
@@ -25,9 +30,6 @@ class PsifosLogger(logging.Logger):
         Shows information about the voter log on the platform
         
         """
-
-        # Set config psifos info
-        logging.basicConfig(format='INFO-PSIFOS: %(asctime)s %(message)s')
 
         voter = await crud.get_voter_by_name_and_id(session=self.db, voter_name=name, election_id=election.id)
         status_logging = "successfully" if voter else "incorrectly"
@@ -40,9 +42,6 @@ class PsifosLogger(logging.Logger):
         
         """
 
-        # Set config psifos info
-        logging.basicConfig(format='INFO-PSIFOS: %(asctime)s %(message)s')
-
         status_logging = "successfully" if trustee else "incorrectly"
         self.logger.info(f"Trustee {name} authenticated {status_logging} in {election.short_name}")
 
@@ -51,5 +50,5 @@ class PsifosLogger(logging.Logger):
         pass
 
 
-#with SessionLocal() as session:
-#    psifos_logger = PsifosLogger(session=session, name="psifosLogger")
+
+psifos_logger = PsifosLogger(name="psifosLogger")
