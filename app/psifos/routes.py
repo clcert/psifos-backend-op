@@ -1,12 +1,17 @@
 import base64
 import os
 import uuid
+import pdfkit
+import qrcode
+import urllib.parse
 
 import app.celery_worker.psifos.tasks as tasks
-from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request
+from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request, Response
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
+from app.config import APP_FRONTEND_URL
 
 from app.psifos.model import crud, schemas, models
 from app.dependencies import get_session
@@ -19,8 +24,12 @@ from app.psifos_auth.utils import get_auth_election, get_auth_trustee_and_electi
 from app.psifos_auth.auth_service_check import AuthUser
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from io import BytesIO
+from base64 import b64encode 
+
 # api_router = APIRouter(prefix="/psifos/api/app")
 api_router = APIRouter()
+templates = Jinja2Templates(directory="templates")
 
 # ----- Election Admin Routes -----
 
@@ -696,4 +705,33 @@ async def get_questions(election_uuid: str, current_user: models.User = Depends(
         HTTPException(status_code=400, detail="The election doesn't have questions")
 
     return Questions.serialize(election.questions)
+
+@api_router.post("/{election_uuid}/get-certificate", status_code=200)
+async def get_pdf(election_uuid: str, data: dict = {}, voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+
+    hash_vote = data.get("hash_vote", None)
+    election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
+    cast_vote = await crud.get_cast_vote_by_hash(session=session, hash_vote=hash_vote)
+
+    link_ballot = APP_FRONTEND_URL + "/booth/" + election_uuid + "/ballot-box/?hash=" + urllib.parse.quote(hash_vote)
+    img = qrcode.make(link_ballot) 
+    buffer = BytesIO()
+    img.save(buffer, "PNG")
+    img_str = b64encode(buffer.getvalue()).decode('ascii')
+
+    pdf_data = {
+        "hash_vote": hash_vote,
+        "election_name": election.short_name,
+        "cast_at": cast_vote.cast_at,
+        "img_str": img_str,
+        "link_ballot": link_ballot
+
+    }
+    
+    pdf = templates.get_template("vote_certificate.html")
+    pdf = pdf.render(**pdf_data)
+    result = pdfkit.from_string(pdf)
+    return Response(result, media_type="application/pdf")
+
+
 # <<<

@@ -119,6 +119,13 @@ async def get_cast_vote_by_voter_id(session: Session | AsyncSession, voter_id: i
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
+async def get_cast_vote_by_hash(session: Session | AsyncSession, hash_vote: str):
+    query = select(models.CastVote).where(
+        models.CastVote.vote_hash == hash_vote
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().first()
+
 
 async def create_cast_vote(session: Session | AsyncSession, voter_id: int):
     db_cast_vote = models.CastVote(voter_id=voter_id)
