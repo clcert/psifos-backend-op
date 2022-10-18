@@ -102,7 +102,7 @@ class Election(Base):
         voters_by_weight_init = json.dumps({str(w): normalized_weights.count(w) for w in normalized_weights})
 
         start_data = {
-            "voting_started_at": datetime.datetime.utcnow(),
+            "voting_started_at": utils.tz_now(),
             "election_status": "started",
             "public_key": utils.generate_election_pk(self.trustees),
             "voters_by_weight_init": voters_by_weight_init,
@@ -115,7 +115,7 @@ class Election(Base):
         voters_by_weight_end = json.dumps({str(w): normalized_weights.count(w) for w in normalized_weights})
 
         return {
-            "voting_ended_at": datetime.datetime.utcnow(),
+            "voting_ended_at": utils.tz_now(),
             "election_status": "ended",
             "voters_by_weight_end": voters_by_weight_end,
         }
@@ -183,17 +183,13 @@ class Voter(Base):
     @staticmethod
     def upload_voters(voter_file_content: str):
         buffer = StringIO(voter_file_content)
-        csv_reader = csv.reader(buffer, delimiter=',')
+        csv_reader = csv.reader(buffer, delimiter=",")
         voters: list[dict] = [
-            {
-                "voter_login_id": login_id,
-                "voter_name": name,
-                "voter_weight": weight
-            }
+            {"voter_login_id": login_id, "voter_name": name, "voter_weight": weight}
             for login_id, name, weight in csv_reader
         ]
         return voters
-        
+
 
 class CastVote(Base):
     __tablename__ = "psifos_cast_vote"
@@ -211,13 +207,13 @@ class CastVote(Base):
     cast_ip = Column(Text, nullable=True)
     hash_cast_ip = Column(String(500), nullable=True)
 
-    cast_at = Column(DateTime, default=func.now(), nullable=True)
+    cast_at = Column(DateTime, nullable=True)
 
     def process_cast_vote(self, encrypted_vote: EncryptedVote, election: Election, voter: Voter, cast_ip: str):
         verified = encrypted_vote.verify(election)
         if verified:
             vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
-            cast_at = datetime.datetime.now()
+            cast_at = utils.tz_now()
             ip_fingerprint = crypto_utils.hash_b64(cast_ip)
             valid_cast_votes = voter.cast_vote.valid_cast_votes + 1
             fields = {
@@ -227,15 +223,11 @@ class CastVote(Base):
                 "cast_at": cast_at,
                 "cast_ip": cast_ip,
                 "hash_cast_ip": ip_fingerprint,
-                "valid_cast_votes": valid_cast_votes
+                "valid_cast_votes": valid_cast_votes,
             }
         else:
-            fields = {
-                "invalid_cast_votes": voter.cast_vote.invalid_cast_votes + 1,
-                "invalidated_at": datetime.now()
-            }
+            fields = {"invalid_cast_votes": voter.cast_vote.invalid_cast_votes + 1, "invalidated_at": utils.tz_now()}
         return verified, fields
-
 
 
 class AuditedBallot(Base):
@@ -246,7 +238,7 @@ class AuditedBallot(Base):
 
     raw_vote = Column(Text)
     vote_hash = Column(String(500))
-    added_at = Column(DateTime, default=func.now())
+    added_at = Column(DateTime, default=utils.tz_now())
 
 
 class Trustee(Base):
@@ -254,7 +246,9 @@ class Trustee(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     election_id = Column(Integer, ForeignKey("psifos_election.id"))
-    trustee_id = Column(Integer, nullable=False) # TODO: rename to index for deambiguation with trustee_id func. param at await crud.py
+    trustee_id = Column(
+        Integer, nullable=False
+    )  # TODO: rename to index for deambiguation with trustee_id func. param at await crud.py
     uuid = Column(String(50), nullable=False, unique=True)
 
     name = Column(String(200), nullable=False)

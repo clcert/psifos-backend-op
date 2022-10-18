@@ -5,7 +5,11 @@ Utilities for Psifos.
 """
 
 import json
+from tkinter.messagebox import RETRY
+import pytz
 from app.psifos.crypto.sharedpoint import Point
+from datetime import datetime
+from app.config import TIMEZONE
 
 from functools import reduce
 
@@ -63,5 +67,7 @@ def do_cast_vote_checks(request, election, voter):
             return False, "Error al enviar el voto: votante no encontrado"
     return True, None
 
-
-
+# -- Datetime --
+def tz_now():
+    tz = pytz.timezone(TIMEZONE)
+    return datetime.now(tz)
