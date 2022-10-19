@@ -103,7 +103,7 @@ class Election(Base):
 
         start_data = {
             "voting_started_at": utils.tz_now(),
-            "election_status": "started",
+            "election_status": ElectionStatusEnum.started,
             "public_key": utils.generate_election_pk(self.trustees),
             "voters_by_weight_init": voters_by_weight_init,
         }
@@ -116,7 +116,7 @@ class Election(Base):
 
         return {
             "voting_ended_at": utils.tz_now(),
-            "election_status": "ended",
+            "election_status": ElectionStatusEnum.ended,
             "voters_by_weight_end": voters_by_weight_end,
         }
 
@@ -134,7 +134,7 @@ class Election(Base):
         enc_tally.compute(encrypted_votes, weights)
 
         return {
-            "election_status": "tally_computed",
+            "election_status": ElectionStatusEnum.tally_computed,
             "encrypted_tally": enc_tally,
             "encrypted_tally_hash": hash_b64(TallyManager.serialize(enc_tally)),
         }
@@ -156,7 +156,7 @@ class Election(Base):
 
         return {
             "result": self.encrypted_tally.decrypt(partial_decryptions, self.total_trustees // 2, self.max_weight),
-            "election_status": "decryptions_combined",
+            "election_status": ElectionStatusEnum.decryptions_combined,
         }
 
     def voting_has_started(self):

@@ -1,6 +1,7 @@
 import base64
 import os
 import uuid
+from app.psifos.model.enums import ElectionStatusEnum
 import pdfkit
 import qrcode
 import urllib.parse
@@ -200,7 +201,12 @@ async def start_election(election_uuid: str, current_user: models.User = Depends
     Route for starting an election, once it happens the election
     gets "frozen" which means it shouldn't be modified from now on.
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(
+        election_uuid=election_uuid,
+        current_user=current_user,
+        session=session,
+        status=ElectionStatusEnum.setting_up
+    )
     await crud.update_election(session=session, election_id=election.id, fields=election.start())
     return {
         "message": "The election was succesfully started" 
@@ -213,7 +219,12 @@ async def end_election(election_uuid: str, current_user: models.User = Depends(A
     Route for ending an election, once it happens no voter
     should be able to cast a vote.
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(
+        election_uuid=election_uuid,
+        current_user=current_user,
+        session=session,
+        status=ElectionStatusEnum.started
+    )
     await crud.update_election(session=session, election_id=election.id, fields=election.end())
     return {
         "message": "The election was succesfully ended"
@@ -225,7 +236,12 @@ async def compute_tally(election_uuid: str, current_user: models.User = Depends(
     """
     Route for freezing an election
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(
+        election_uuid=election_uuid,
+        current_user=current_user,
+        session=session,
+        status=ElectionStatusEnum.ended
+    )
     voters = await crud.get_voters_by_election_id(session=session, election_id=election.id)
     
     not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
@@ -249,7 +265,12 @@ async def combine_decryptions(election_uuid: str, current_user: models.User = De
     """
     Route for freezing an election
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(
+        election_uuid=election_uuid,
+        current_user=current_user,
+        session=session,
+        status=ElectionStatusEnum.decryptions_uploaded
+    )
 
     task_params = {
         "election_uuid": election.uuid,
@@ -314,7 +335,12 @@ async def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.Cas
     Route for casting a vote
     """
 
-    voter, election = await get_auth_voter_and_election(session=session, election_uuid=election_uuid, voter_login_id=voter_login_id)
+    voter, election = await get_auth_voter_and_election(
+        session=session,
+        election_uuid=election_uuid,
+        voter_login_id=voter_login_id,
+        status=ElectionStatusEnum.started
+    )
     
     # >>> Los checks de Helios podemos hacerlos con dependencias de FastAPI <<<
     # allowed, msg = psifos_utils.do_cast_vote_checks(request, election, voter)
@@ -642,7 +668,13 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
     """
     Trustee Stage 3
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(
+        session=session,
+        election_uuid=election_uuid,
+        trustee_uuid=trustee_uuid,
+        login_id=trustee_login_id,
+        status=ElectionStatusEnum.tally_computed
+    )
 
     decryption_list = psifos_utils.from_json(trustee_data.decryptions)
     answers_decryptions : TrusteeDecryptions = TrusteeDecryptions(*decryption_list)
@@ -653,8 +685,14 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
         election = await crud.update_election(session=session, election_id=election.id, fields={"decryptions_uploaded": dec_num})
         
         if election.decryptions_uploaded == election.total_trustees:
-            await crud.update_election(session=session, election_id=election.id, fields={"election_status": "decryptions_uploaded"})
-        
+            await crud.update_election(
+                session=session,
+                election_id=election.id,
+                fields={
+                    "election_status": ElectionStatusEnum.decryptions_uploaded
+                }
+            )
+    
         return {"message": "Trustee's stage 3 completed successfully"}
 
     else:

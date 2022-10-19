@@ -15,26 +15,30 @@ from requests_oauthlib import OAuth2Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def get_auth_election(election_uuid: str, current_user: auth_models.User, session: Session | AsyncSession):
+async def get_auth_election(election_uuid: str, current_user: auth_models.User, session: Session | AsyncSession, status: str = None):
     election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
     if not election:
-        raise HTTPException(status_code=400, detail="Election not found")
+        raise HTTPException(status_code=404, detail="Election not found")
     if election.admin_id != current_user.id:
         raise HTTPException(status_code=401, detail="You are not the administrator of this election")
+    if status is not None and election.status != status:
+        raise HTTPException(status_code=400, detail="Election status check failed")
 
     return election
 
-async def get_auth_voter_and_election(election_uuid: str, voter_login_id: str, session: Session | AsyncSession):
+async def get_auth_voter_and_election(election_uuid: str, voter_login_id: str, session: Session | AsyncSession, status: str = None):
     election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
     voter = await crud.get_voter_by_login_id_and_election_id(session=session, voter_login_id=voter_login_id, election_id=election.id)
     if not voter:
         raise HTTPException(status_code=400, detail="voter not found")
     if voter.voter_login_id != voter_login_id:
         raise HTTPException(status_code=401, detail="You are not allowed to access this voter")
+    if status is not None and election.status != status:
+        raise HTTPException(status_code=400, detail="Election status check failed")
     
     return voter, election
 
-async def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, login_id: str, session: Session | AsyncSession):
+async def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, login_id: str, session: Session | AsyncSession, status: str = None):
     election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
     trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
     if not trustee:
@@ -43,6 +47,8 @@ async def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, lo
         raise HTTPException(status_code=401, detail="You are not allowed to access this trustee")
     if trustee.election_id != election.id:
         raise HTTPException(status_code=401, detail="This trustee doesn't belong to this election")
+    if status is not None and election.status != status:
+        raise HTTPException(status_code=400, detail="Election status check failed")
 
     
     return trustee, election
