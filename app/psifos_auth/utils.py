@@ -21,7 +21,7 @@ async def get_auth_election(election_uuid: str, current_user: auth_models.User, 
         raise HTTPException(status_code=404, detail="Election not found")
     if election.admin_id != current_user.id:
         raise HTTPException(status_code=401, detail="You are not the administrator of this election")
-    if status is not None and election.status != status:
+    if status is not None and election.election_status != status:
         raise HTTPException(status_code=400, detail="Election status check failed")
 
     return election
@@ -33,7 +33,7 @@ async def get_auth_voter_and_election(election_uuid: str, voter_login_id: str, s
         raise HTTPException(status_code=400, detail="voter not found")
     if voter.voter_login_id != voter_login_id:
         raise HTTPException(status_code=401, detail="You are not allowed to access this voter")
-    if status is not None and election.status != status:
+    if status is not None and election.election_status != status:
         raise HTTPException(status_code=400, detail="Election status check failed")
     
     return voter, election
@@ -47,7 +47,7 @@ async def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, lo
         raise HTTPException(status_code=401, detail="You are not allowed to access this trustee")
     if trustee.election_id != election.id:
         raise HTTPException(status_code=401, detail="This trustee doesn't belong to this election")
-    if status is not None and election.status != status:
+    if status is not None and election.election_status != status:
         raise HTTPException(status_code=400, detail="Election status check failed")
 
     
