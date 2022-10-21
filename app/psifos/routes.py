@@ -729,7 +729,7 @@ async def get_questions_voters(election_uuid: str,  voter_login_id: str = Depend
     Route for get questions
     """
 
-    _, election = await get_auth_voter_and_election(session=session, election_uuid=election_uuid, voter_login_id=voter_login_id, status="started")
+    _, election = await get_auth_voter_and_election(session=session, election_uuid=election_uuid, voter_login_id=voter_login_id, status="Started")
 
     return election
 
