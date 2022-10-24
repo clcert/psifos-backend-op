@@ -43,7 +43,7 @@ async def login_user(request: Request, credentials: HTTPBasicCredentials = Depen
         raise HTTPException(status_code = 401, detail = "wrong username or passwords")
 
 
-@auth_router.get("/vote/{election_uuid}", status_code=200)
+@auth_router.get("/{election_uuid}/vote", status_code=200)
 async def login_voter(election_uuid: str, request: Request, session: str | None = Cookie(default=None)):
     """
     Make the connection and verification with the CAS service
