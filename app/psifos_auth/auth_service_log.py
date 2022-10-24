@@ -75,7 +75,7 @@ class CASAuth:
 
         # If no ticket, redirect to CAS server to get one (login)
         if not ticket:
-            return self.redirect_cas(APP_BACKEND_OP_URL + "/vote/" + election_uuid)
+            return self.redirect_cas(APP_BACKEND_OP_URL + election_uuid + "/vote")
 
         # Verify ticket with CAS server
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
