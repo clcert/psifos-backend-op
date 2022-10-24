@@ -7,6 +7,7 @@ CRUD utils for Psifos
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.psifos import utils
 from app.psifos.crypto.sharedpoint import Point
@@ -126,6 +127,23 @@ async def get_cast_vote_by_hash(session: Session | AsyncSession, hash_vote: str)
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
+async def count_cast_vote_by_date(session: Session | AsyncSession, election_id: int):
+
+    date_format = func.concat(
+                    func.extract('year', models.CastVote.cast_at), 
+                    "-",
+                    func.extract('month', models.CastVote.cast_at),
+                    "-",
+                    func.extract('day', models.CastVote.cast_at), 
+                    "-",
+                    func.extract('hour', models.CastVote.cast_at),
+                    ":00:00")
+                    
+    query = select(date_format, func.count()).join(
+        models.Voter, models.Voter.id == models.CastVote.voter_id).where(
+            models.Voter.election_id == election_id).group_by(date_format)
+    result = await db_handler.execute(session, query)
+    return result.all()
 
 async def create_cast_vote(session: Session | AsyncSession, voter_id: int):
     db_cast_vote = models.CastVote(voter_id=voter_id)

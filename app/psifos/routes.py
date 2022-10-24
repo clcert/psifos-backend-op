@@ -745,12 +745,18 @@ async def get_questions(election_uuid: str, current_user: models.User = Depends(
 
     return Questions.serialize(election.questions)
 
-@api_router.post("/{election_uuid}/get-certificate", status_code=200)
-async def get_pdf(election_uuid: str, data: dict = {}, voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{election_uuid}/get-certificate", status_code=200)
+async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
 
-    hash_vote = data.get("hash_vote", None)
+    """
+    Return the certificate of the last vote cast by the authenticated voter
+    
+    """
     election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
-    cast_vote = await crud.get_cast_vote_by_hash(session=session, hash_vote=hash_vote)
+    voter = await crud.get_voter_by_login_id_and_election_id(session=session, voter_login_id=voter_login_id, election_id=election.id)
+    cast_vote = await crud.get_cast_vote_by_voter_id(session=session, voter_id=voter.id)
+
+    hash_vote = cast_vote.vote_hash
 
     link_ballot = APP_FRONTEND_URL + "/booth/" + election_uuid + "/ballot-box/?hash=" + urllib.parse.quote(hash_vote)
     img = qrcode.make(link_ballot) 
@@ -772,5 +778,17 @@ async def get_pdf(election_uuid: str, data: dict = {}, voter_login_id: str = Dep
     result = pdfkit.from_string(pdf)
     return Response(result, media_type="application/pdf")
 
+
+@api_router.get("/{election_uuid}/count-dates", status_code=200)
+async def get_count_votes_by_date(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+    """
+    Return the number of votes per hour from the start of the election until it ends
+
+    """
+
+    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    dates = await crud.count_cast_vote_by_date(session=session, election_id=election.id)
+
+    return {"dates": dates}
 
 # <<<
