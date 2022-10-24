@@ -692,6 +692,7 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
                     "election_status": ElectionStatusEnum.decryptions_uploaded
                 }
             )
+            return await psifos_utils.combine_decryptions_without_admin(session, crud, election.id)
     
         return {"message": "Trustee's stage 3 completed successfully"}
 

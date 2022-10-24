@@ -5,6 +5,8 @@ Utilities for Psifos.
 """
 
 import json
+import app.celery_worker.psifos.tasks as tasks
+
 from tkinter.messagebox import RETRY
 import pytz
 from app.psifos.crypto.sharedpoint import Point
@@ -71,3 +73,19 @@ def do_cast_vote_checks(request, election, voter):
 def tz_now():
     tz = pytz.timezone(TIMEZONE)
     return datetime.now(tz)
+
+
+async def combine_decryptions_without_admin(session, crud, election_id):
+    election = await crud.get_election_by_id(
+        session=session,
+        election_id=election_id
+    )
+
+    task_params = {
+        "election_uuid": election.uuid,
+    }
+    tasks.combine_decryptions.delay(**task_params)
+
+    return {
+        "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
+    }
