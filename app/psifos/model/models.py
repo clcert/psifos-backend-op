@@ -11,8 +11,7 @@ import datetime
 from io import StringIO
 import json
 
-from fastapi import UploadFile
-from sqlalchemy.orm import Session, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Enum, DateTime, func
 
 from app.psifos import utils
@@ -29,11 +28,11 @@ from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyManager
 
 from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum
-from app.psifos_auth.model.models import User
 
 from app.database.custom_fields import SerializableField
 from app.database import Base
 
+from app.psifos_auth.model.models import User
 
 class Election(Base):
     __tablename__ = "psifos_election"

@@ -693,7 +693,7 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
         dec_num = election.decryptions_uploaded + 1
         election = await crud.update_election(session=session, election_id=election.id, fields={"decryptions_uploaded": dec_num})
         
-        if election.decryptions_uploaded == election.total_trustees:
+        if election.decryptions_uploaded == election.total_trustees: #TODO: Fix
             await crud.update_election(
                 session=session,
                 election_id=election.id,
