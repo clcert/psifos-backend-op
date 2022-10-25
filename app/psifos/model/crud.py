@@ -341,6 +341,13 @@ async def edit_election(session: Session | AsyncSession, election_id: int, elect
     
     return await get_election_by_id(session=session, election_id=election_id)
 
+async def delete_election(session: Session | AsyncSession, election_id: int):
+    query = delete(models.Election).where(
+        models.Election.id == election_id
+    )
+    await db_handler.execute(session, query)
+    await db_handler.commit(session)
+
 
 async def update_election(session: Session | AsyncSession, election_id: int, fields: dict):
     query = update(models.Election).where(

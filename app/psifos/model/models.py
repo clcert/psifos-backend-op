@@ -76,10 +76,10 @@ class Election(Base):
     voters_by_weight_end = Column(Text, nullable=True)
 
     # One-to-many relationships
-    voters = relationship("Voter", backref="psifos_election")
-    trustees = relationship("Trustee", backref="psifos_election")
-    sharedpoints = relationship("SharedPoint", backref="psifos_election")
-    audited_ballots = relationship("AuditedBallot", backref="psifos_election")
+    voters = relationship("Voter", cascade="all, delete", backref="psifos_election")
+    trustees = relationship("Trustee", cascade="all, delete", backref="psifos_election")
+    sharedpoints = relationship("SharedPoint", cascade="all, delete", backref="psifos_election")
+    audited_ballots = relationship("AuditedBallot", cascade="all, delete", backref="psifos_election")
 
     def get_eg_params(self, serialize=True):
         """
@@ -170,7 +170,7 @@ class Voter(Base):
     __tablename__ = "psifos_voter"
 
     id = Column(Integer, primary_key=True, index=True)
-    election_id = Column(Integer, ForeignKey("psifos_election.id"))
+    election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"))
     uuid = Column(String(50), nullable=False, unique=True)
 
     voter_login_id = Column(String(100), nullable=False)
@@ -234,7 +234,7 @@ class AuditedBallot(Base):
     __tablename__ = "psifos_audited_ballot"
 
     id = Column(Integer, primary_key=True, index=True)
-    election_id = Column(Integer, ForeignKey("psifos_election.id"))
+    election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"))
 
     raw_vote = Column(Text)
     vote_hash = Column(String(500))
@@ -245,7 +245,7 @@ class Trustee(Base):
     __tablename__ = "psifos_trustee"
 
     id = Column(Integer, primary_key=True, index=True)
-    election_id = Column(Integer, ForeignKey("psifos_election.id"))
+    election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"))
     trustee_id = Column(
         Integer, nullable=False
     )  # TODO: rename to index for deambiguation with trustee_id func. param at await crud.py
@@ -279,7 +279,7 @@ class SharedPoint(Base):
     __tablename__ = "psifos_shared_point"
 
     id = Column(Integer, primary_key=True, index=True)
-    election_id = Column(Integer, ForeignKey("psifos_election.id"))
+    election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"))
 
     sender = Column(Integer, nullable=False)
     recipient = Column(Integer, nullable=False)

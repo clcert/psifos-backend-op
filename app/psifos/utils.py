@@ -5,7 +5,6 @@ Utilities for Psifos.
 """
 
 import json
-import app.celery_worker.psifos.tasks as tasks
 
 from tkinter.messagebox import RETRY
 import pytz
@@ -30,7 +29,9 @@ def from_json(value):
         try:
             return json.loads(value)
         except Exception as e:
-            raise Exception("psifos.utils error: in from_json, value is not JSON parseable") from e
+            raise Exception(
+                "psifos.utils error: in from_json, value is not JSON parseable"
+            ) from e
 
     return value
 
@@ -39,7 +40,9 @@ def from_json(value):
 def format_points(points):
     return [Point.serialize(x.point, to_json=False) for x in points]
 
+
 # -- Election utils --
+
 
 def generate_election_pk(trustees):
     a_combined_pk = trustees[0].coefficients.instances[0].coefficient
@@ -53,6 +56,7 @@ def generate_election_pk(trustees):
 
 
 # -- CastVote validation --
+
 
 def do_cast_vote_checks(request, election, voter):
     if not election.voting_has_started():
@@ -69,17 +73,15 @@ def do_cast_vote_checks(request, election, voter):
             return False, "Error al enviar el voto: votante no encontrado"
     return True, None
 
+
 # -- Datetime --
 def tz_now():
     tz = pytz.timezone(TIMEZONE)
     return datetime.now(tz)
 
 
-async def combine_decryptions_without_admin(session, crud, election_id):
-    election = await crud.get_election_by_id(
-        session=session,
-        election_id=election_id
-    )
+async def combine_decryptions_without_admin(session, crud, tasks, election_id):
+    election = await crud.get_election_by_id(session=session, election_id=election_id)
 
     task_params = {
         "election_uuid": election.uuid,

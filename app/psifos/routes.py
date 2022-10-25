@@ -51,6 +51,15 @@ async def create_election(
     await crud.create_election(session=session, election=election_in, admin_id=current_user.get_id(), uuid=uuid_election)
     return {"message": "Elección creada con exito!", "uuid": uuid_election}
 
+@api_router.get("/delete-election/{election_uuid}", status_code=200)
+async def delete_election(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+    """
+    Admin's route for delete a election by uuid
+    """
+
+    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    await crud.delete_election(session=session, election_id=election.id)
+    return {"message": "election delete"}
 
 @api_router.get("/get-election/{election_uuid}", response_model=schemas.ElectionOut, status_code=200)
 async def get_election(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
@@ -692,7 +701,7 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
                     "election_status": ElectionStatusEnum.decryptions_uploaded
                 }
             )
-            return await psifos_utils.combine_decryptions_without_admin(session, crud, election.id)
+            return await psifos_utils.combine_decryptions_without_admin(session, crud, tasks, election.id)
     
         return {"message": "Trustee's stage 3 completed successfully"}
 
