@@ -93,4 +93,4 @@ async def logout_trustee(election_uuid: str, request: Request):
 async def authorized(request: Request, session: str | None = Cookie(default=None)):
 
     auth = auth_factory.get_auth(protocol)
-    return auth.authorized(request, session=session)
+    return await auth.authorized(request, session=session)
