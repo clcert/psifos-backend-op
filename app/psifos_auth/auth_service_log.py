@@ -224,7 +224,8 @@ class OAuth2Auth:
     def logout_trustee(self, election_uuid: str, request: Request):
         pass
 
-    async def authorized(self, request: Request, session: str = None):
+    @db_handler.method_with_session
+    async def authorized(self, db_session, request: Request, session: str = None):
         login = OAuth2Session(
             self.client_id,
             state=request.session["oauth_state"],
@@ -242,44 +243,42 @@ class OAuth2Auth:
         user = user["fields"]["username"]
         request.session["user"] = user
         
-        async with SessionLocal() as session:
-            election = crud.get_election_by_uuid(uuid=self.election_uuid, session=session)
-            if self.type_logout == "voter":
-                
+        election = await crud.get_election_by_uuid(uuid=self.election_uuid, session=db_session)
+        if self.type_logout == "voter":
+            
+            response = RedirectResponse(
+                APP_FRONTEND_URL + "/booth/" + self.election_uuid
+            )
+            # psifos_logger.voter_info(name=user, election=election)
+
+        elif self.type_logout == "trustee":
+            election = await crud.get_election_by_uuid(uuid=self.election_uuid, session=db_session)
+            trustee = await crud.get_by_login_id_and_election_id(
+                trustee_login_id=user,
+                election_id=election.id,
+                session=db_session
+            )
+            # psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
+            self.trustee_uuid = trustee.uuid if trustee else None
+
+            if not self.trustee_uuid:
                 response = RedirectResponse(
-                    APP_FRONTEND_URL + "/booth/" + self.election_uuid
+                    APP_FRONTEND_URL
+                    + "/"
+                    + self.election_uuid
+                    + "/trustee"
+                    + "/home",
+                
                 )
-                # psifos_logger.voter_info(name=user, election=election)
-
-            elif self.type_logout == "trustee":
-                async with SessionLocal() as session:
-                    election = await crud.get_election_by_uuid(uuid=self.election_uuid, session=session)
-                    trustee = await crud.get_by_login_id_and_election_id(
-                        trustee_login_id=user,
-                        election_id=election.id,
-                        session=session
-                    )
-                # psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
-                self.trustee_uuid = trustee.uuid if trustee else None
-
-                if not self.trustee_uuid:
-                    response = RedirectResponse(
-                        APP_FRONTEND_URL
-                        + "/"
-                        + self.election_uuid
-                        + "/trustee"
-                        + "/home",
+            else:
+                response = RedirectResponse(
+                    APP_FRONTEND_URL
+                    + "/"
+                    + self.election_uuid
+                    + "/trustee/"
+                    + self.trustee_uuid
+                    + "/home",
                     
-                    )
-                else:
-                    response = RedirectResponse(
-                        APP_FRONTEND_URL
-                        + "/"
-                        + self.election_uuid
-                        + "/trustee/"
-                        + self.trustee_uuid
-                        + "/home",
-                        
-                    )
+                )
 
         return response
