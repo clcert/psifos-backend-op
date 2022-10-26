@@ -27,4 +27,5 @@ COPY ./app/psifos/model/models.py /app/psifos/model/models.py
 COPY ./app/psifos/model/schemas.py /app/psifos/model/schemas.py
 COPY ./app/psifos_auth/utils.py /app/psifos_auth/utils.py
 
+WORKDIR /app
 CMD celery -A app.celery_worker.celery worker --loglevel=info
