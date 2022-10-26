@@ -205,7 +205,8 @@ class OAuth2Auth:
     def logout_voter(self, election_uuid: str, request: Request):
         pass
         
-    def login_trustee(self, election_uuid: str, request: Request, session: str):
+    @db_handler.method_with_session
+    async def login_trustee(self, db_session, election_uuid: str, request: Request, session: str):
         self.election_uuid = election_uuid
         self.type_logout = "trustee"
         client = OAuth2Session(
