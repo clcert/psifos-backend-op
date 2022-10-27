@@ -234,6 +234,13 @@ async def end_election(election_uuid: str, current_user: models.User = Depends(A
         session=session,
         status=ElectionStatusEnum.started
     )
+
+    voters = await crud.get_voters_by_election_id(session=session, election_id=election.id)
+    not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
+
+    if len(not_null_voters) < 1:
+        raise HTTPException(status_code=400, detail="There must be at least 1 vote casted to end an election.")
+
     await crud.update_election(session=session, election_id=election.id, fields=election.end())
     return {
         "message": "The election was succesfully ended"

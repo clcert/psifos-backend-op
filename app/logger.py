@@ -1,54 +1,52 @@
 from app.psifos.model import crud
-from app.database import SessionLocal
-
-from app.psifos.model import models, schemas
+from app.psifos.model.enums import ElectionEventEnum
+from app.psifos.utils import tz_now
+from app.database import db_handler
 
 import logging
 
-class PsifosLogger(logging.Logger):
+class LogDBHandler(logging.Handler):
+    '''
+    Customized logging handler that puts logs to the database.
+    '''
 
+    _level_to_name = {
+        logging.CRITICAL: 'CRITICAL',
+        logging.ERROR: 'ERROR',
+        logging.WARNING: 'WARNING',
+        logging.INFO: 'INFO',
+        logging.DEBUG: 'DEBUG',
+        logging.NOTSET: 'NOTSET',
+    }
+
+    @db_handler.method_with_session
+    def emit(self, session, record):
+        crud.log_to_db(
+            session=session,
+            log_level=self._level_to_name[record.levelno],
+            log_msg=record.msg,
+            created_at=tz_now().strftime("%Y-%m-%d %H:%M:%S"),
+            created_by=record.name
+        )
+
+
+class PsifosLogger(logging.Logger):
     """
     Customized logger for pfiso's own tasks
     """
 
     def __init__(self, **kwargs) -> None:
-
         super(PsifosLogger, self).__init__(**kwargs)
-
+        
         self.logger = logging.getLogger(PsifosLogger.__name__)
-        self.logger.setLevel(logging.INFO)
+        log_handler = LogDBHandler()
+        self.logger.addHandler(log_handler)
 
-        ch = logging.StreamHandler()
 
-        formatter = logging.Formatter('INFO-PSIFOS: %(asctime)s %(message)s')
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
 
-    async def voter_info(self, name: str, election: models.Voter):
-
-        """
-        Shows information about the voter log on the platform
+    def log_to_db(self, event: ElectionEventEnum, **kwargs):
+        log_msg = {"event": event, **kwargs}
+        self.logger.info(log_msg)
         
-        """
-
-        voter = await crud.get_voter_by_name_and_id(session=self.db, voter_name=name, election_id=election.id)
-        status_logging = "successfully" if voter else "incorrectly"
-        self.logger.info(f"Voter {name} authenticated {status_logging} in {election.short_name}")
-
-    def trustee_info(self, name: str, trustee: models.Trustee, election: models.Election):
-
-        """
-        Shows information about the trustee log on the platform
-        
-        """
-
-        status_logging = "successfully" if trustee else "incorrectly"
-        self.logger.info(f"Trustee {name} authenticated {status_logging} in {election.short_name}")
-
-    def save_db(self):
-
-        pass
-
-
 
 psifos_logger = PsifosLogger(name="psifosLogger")

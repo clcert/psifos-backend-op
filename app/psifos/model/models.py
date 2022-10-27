@@ -7,7 +7,6 @@ SQLAlchemy Models for Psifos.
 from __future__ import annotations
 import csv
 
-import datetime
 from io import StringIO
 import json
 
@@ -283,3 +282,12 @@ class SharedPoint(Base):
     sender = Column(Integer, nullable=False)
     recipient = Column(Integer, nullable=False)
     point = Column(SerializableField(Point), nullable=True)
+
+
+class PsifosLog(Base):
+    __tablename__ = "psifos_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    log_level = Column(String(200), nullable=False)
+    log_msg = Column(String(200), nullable=False)
+    created_at = Column(String(200), nullable=False)
+    created_by = Column(String(200), nullable=False)
