@@ -32,7 +32,7 @@ class LogDBHandler(logging.Handler):
 
 class PsifosLogger(logging.Logger):
     """
-    Customized logger for pfiso's own tasks
+    Customized logger for psifos own tasks
     """
 
     def __init__(self, **kwargs) -> None:
@@ -43,10 +43,9 @@ class PsifosLogger(logging.Logger):
         self.logger.addHandler(log_handler)
 
 
-
-    def log_to_db(self, event: ElectionEventEnum, **kwargs):
+    def log_to_db(self, level, event: ElectionEventEnum, **kwargs):
         log_msg = {"event": event, **kwargs}
-        self.logger.info(log_msg)
+        self.logger.log(level, log_msg)
         
 
-psifos_logger = PsifosLogger(name="psifosLogger")
+psifos_logger = PsifosLogger(name="psifos_logger")
