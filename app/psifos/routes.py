@@ -794,17 +794,30 @@ async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()),
     result = pdfkit.from_string(pdf)
     return Response(result, media_type="application/pdf")
 
-
-@api_router.get("/{election_uuid}/count-dates", status_code=200)
-async def get_count_votes_by_date(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+import datetime
+from datetime import timedelta
+@api_router.post("/{election_uuid}/count-dates", status_code=200)
+async def get_count_votes_by_date(election_uuid: str, data: dict = {}, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
-    Return the number of votes per hour from the start of the election until it ends
+    Return the number of votes per deltaTime from the start of the election until it ends
 
     """
+    
+    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
 
-    election = get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
-    dates = await crud.count_cast_vote_by_date(session=session, election_id=election.id)
+    date_init = election.voting_started_at
+    date_end = election.voting_ended_at if election.voting_ended_at else psifos_utils.tz_now()
+    date_end = datetime.datetime(year=date_end.year, month=date_end.month, day=date_end.day, hour=date_end.hour, minute=date_end.minute, second=date_end.second)
+    
+    delta_minutes = data.get("minutes", 60)
+    count_cast_votes = {}
 
-    return {"dates": dates}
+    while date_init <= date_end:
 
+        date_delta = date_init + timedelta(minutes=delta_minutes)
+        dates = await crud.count_cast_vote_by_date(session=session, election_id=election.id, init_date=date_init, end_date=date_delta)
+        count_cast_votes[str(date_init)] = len(dates)
+        date_init = date_delta
+
+    return count_cast_votes
 # <<<
