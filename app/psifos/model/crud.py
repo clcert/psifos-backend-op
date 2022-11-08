@@ -361,12 +361,13 @@ async def edit_questions(session: Session | AsyncSession, db_election: models.El
 
 # --- PsifosLog CRUD Utils ---
 
-async def log_to_db(session: Session | AsyncSession, log_level: str, log_msg: str, created_at: str, created_by: str):
-    db_log = models.PsifosLog(
+async def log_to_db(session: Session | AsyncSession, election_id: int, log_level: str, event: str, event_params: str, created_at: str):
+    db_log = models.ElectionLog(
+        election_id=election_id,
         log_level=log_level,
-        log_msg=log_msg,
+        event=event,
+        event_params=event_params,
         created_at=created_at,
-        created_by=created_by
     )
     db_handler.add(session, db_log)
     await db_handler.commit(session)

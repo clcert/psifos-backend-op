@@ -1,14 +1,15 @@
+import logging
+import json
+
 from app.psifos.model import crud
 from app.psifos.model.enums import ElectionEventEnum
 from app.psifos.utils import tz_now
 from app.database import db_handler
 
-import logging
-
-class LogDBHandler(logging.Handler):
-    '''
-    Customized logging handler that puts logs to the database.
-    '''
+class ElectionLogger(object):
+    """
+    Customized logger for psifos own tasks
+    """
 
     _level_to_name = {
         logging.CRITICAL: 'CRITICAL',
@@ -20,32 +21,39 @@ class LogDBHandler(logging.Handler):
     }
 
     @db_handler.method_with_session
-    def emit(self, session, record):
-        crud.log_to_db(
+    async def _log_to_db(self, session, level, election_id, event: ElectionEventEnum, **kwargs):
+        await crud.log_to_db(
             session=session,
-            log_level=self._level_to_name[record.levelno],
-            log_msg=record.msg,
+            log_level=self._level_to_name[level],
+            election_id=election_id,
+            event=event,
+            event_params=json.dumps(kwargs),
             created_at=tz_now().strftime("%Y-%m-%d %H:%M:%S"),
-            created_by=record.name
         )
-
-
-class PsifosLogger(logging.Logger):
-    """
-    Customized logger for psifos own tasks
-    """
-
-    def __init__(self, **kwargs) -> None:
-        super(PsifosLogger, self).__init__(**kwargs)
         
-        self.logger = logging.getLogger(PsifosLogger.__name__)
-        log_handler = LogDBHandler()
-        self.logger.addHandler(log_handler)
+    
+    async def critical(self, election_id, event: ElectionEventEnum, **kwargs):
+        await self._log_to_db(logging.CRITICAL, election_id, event, **kwargs)
 
-
-    def log_to_db(self, level, event: ElectionEventEnum, **kwargs):
-        log_msg = {"event": event, **kwargs}
-        self.logger.log(level, log_msg)
         
+    async def error(self, election_id, event: ElectionEventEnum, **kwargs):
+        await self._log_to_db(logging.ERROR, election_id, event, **kwargs)
 
-psifos_logger = PsifosLogger(name="psifos_logger")
+        
+    async def warning(self, election_id, event: ElectionEventEnum, **kwargs):
+        await self._log_to_db(logging.WARNING, election_id, event, **kwargs)
+
+        
+    async def info(self, election_id, event: ElectionEventEnum, **kwargs):
+        await self._log_to_db(logging.INFO, election_id, event, **kwargs)
+    
+        
+    async def debug(self, election_id, event: ElectionEventEnum, **kwargs):
+        await self._log_to_db(logging.DEBUG, election_id, event, **kwargs)
+    
+        
+    async def notset(self, election_id, event: ElectionEventEnum, **kwargs):
+        await self._log_to_db(logging.NOTSET, election_id, event, **kwargs)
+
+        
+psifos_logger = ElectionLogger()

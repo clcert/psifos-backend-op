@@ -11,7 +11,7 @@ from io import StringIO
 import json
 
 from sqlalchemy.orm import relationship
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Enum, DateTime, func
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Enum, DateTime
 
 from app.psifos import utils
 from app.psifos.psifos_object.result import ElectionResult
@@ -20,15 +20,14 @@ from app.psifos.psifos_object.questions import Questions
 import app.psifos.crypto.utils as crypto_utils
 
 from app.psifos.crypto.elgamal import ElGamal, PublicKey
-from app.psifos.crypto.sharedpoint import Certificate, ListOfCoefficients, ListOfSignatures, Point
+from app.psifos.crypto.sharedpoint import Point
 from app.psifos.crypto.utils import hash_b64
-from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyManager
 
 from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum
 
-from app.database.custom_fields import SerializableField
+from app.database.custom_fields import PublicKeyField, QuestionsField, TallyManagerField, ElectionResultField, EncryptedVoteField, CertificateField, TrusteeDecryptionsField, CoefficientsField, AcknowledgementsField, PointField
 from app.database import Base
 
 from app.psifos_auth.model.models import User
@@ -47,9 +46,9 @@ class Election(Base):
     private_p = Column(Boolean, default=False, nullable=False)
     description = Column(Text)
 
-    public_key = Column(SerializableField(PublicKey), nullable=True)
+    public_key = Column(PublicKeyField, nullable=True)
     private_key = Column(Text, nullable=True)  # PsifosObject: EGSecretKey
-    questions = Column(SerializableField(Questions), nullable=True)
+    questions = Column(QuestionsField, nullable=True)
 
     obscure_voter_names = Column(Boolean, default=False, nullable=False)
     randomize_answer_order = Column(Boolean, default=False, nullable=False)
@@ -60,12 +59,11 @@ class Election(Base):
     total_trustees = Column(Integer, default=0)
 
     cast_url = Column(String(500))
-    encrypted_tally = Column(SerializableField(TallyManager), nullable=True)
+    encrypted_tally = Column(TallyManagerField, nullable=True)
     encrypted_tally_hash = Column(Text, nullable=True)
 
-    decryptions = Column(SerializableField(TrusteeDecryptions), nullable=True)
     decryptions_uploaded = Column(Integer, default=0)
-    result = Column(SerializableField(ElectionResult), nullable=True)
+    result = Column(ElectionResultField, nullable=True)
 
     voting_started_at = Column(DateTime, nullable=True)
     voting_ended_at = Column(DateTime, nullable=True)
@@ -195,7 +193,7 @@ class CastVote(Base):
     id = Column(Integer, primary_key=True, index=True)
     voter_id = Column(Integer, ForeignKey("psifos_voter.id", onupdate="CASCADE", ondelete="CASCADE"), unique=True)
 
-    vote = Column(SerializableField(EncryptedVote), nullable=True)
+    vote = Column(EncryptedVoteField, nullable=True)
     vote_hash = Column(String(500), nullable=True)
     vote_tinyhash = Column(String(500), nullable=True)
 
@@ -256,16 +254,16 @@ class Trustee(Base):
 
     current_step = Column(Integer, default=0)
 
-    public_key = Column(SerializableField(PublicKey), nullable=True)
+    public_key = Column(PublicKeyField, nullable=True)
     public_key_hash = Column(String(100), nullable=True)
     secret_key = Column(Text, nullable=True)  # PsifosObject: EGSecretKey
     pok = Column(Text, nullable=True)  # PsifosObject: DLogProof
 
-    decryptions = Column(SerializableField(TrusteeDecryptions), nullable=True)
+    decryptions = Column(TrusteeDecryptionsField, nullable=True)
 
-    certificate = Column(SerializableField(Certificate), nullable=True)
-    coefficients = Column(SerializableField(ListOfCoefficients), nullable=True)
-    acknowledgements = Column(SerializableField(ListOfSignatures), nullable=True)
+    certificate = Column(CertificateField, nullable=True)
+    coefficients = Column(CoefficientsField, nullable=True)
+    acknowledgements = Column(AcknowledgementsField, nullable=True)
 
     def get_decryptions(self):
         if self.decryptions:
@@ -281,13 +279,18 @@ class SharedPoint(Base):
 
     sender = Column(Integer, nullable=False)
     recipient = Column(Integer, nullable=False)
-    point = Column(SerializableField(Point), nullable=True)
+    point = Column(PointField, nullable=True)
 
 
-class PsifosLog(Base):
-    __tablename__ = "psifos_logs"
+class ElectionLog(Base):
+    __tablename__ = "election_logs"
+    
     id = Column(Integer, primary_key=True, index=True)
+    election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"))
+    
     log_level = Column(String(200), nullable=False)
-    log_msg = Column(String(200), nullable=False)
+    
+    event = Column(String(200), nullable=False)
+    event_params = Column(String(200), nullable=False)
+    
     created_at = Column(String(200), nullable=False)
-    created_by = Column(String(200), nullable=False)

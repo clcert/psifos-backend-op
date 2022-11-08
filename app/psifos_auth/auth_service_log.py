@@ -116,7 +116,6 @@ class CASAuth:
                 election_id=election.id,
                 session=db_session
             )
-            psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
             if not trustee:
                 response = RedirectResponse(
                     APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
@@ -146,7 +145,6 @@ class CASAuth:
                 trustee_login_id=request.session["user"],
                 election_id=election.id,
             )
-            psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
             if not trustee:
                 response = RedirectResponse(
                     url=APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
@@ -250,7 +248,6 @@ class OAuth2Auth:
             response = RedirectResponse(
                 APP_FRONTEND_URL + "/booth/" + self.election_uuid
             )
-            # psifos_logger.voter_info(name=user, election=election)
 
         elif self.type_logout == "trustee":
             election = await crud.get_election_by_uuid(uuid=self.election_uuid, session=db_session)
@@ -259,7 +256,6 @@ class OAuth2Auth:
                 election_id=election.id,
                 session=db_session
             )
-            # psifos_logger.trustee_info(name=user, trustee=trustee, election=election)
             self.trustee_uuid = trustee.uuid if trustee else None
 
             if not self.trustee_uuid:

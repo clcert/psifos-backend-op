@@ -1,13 +1,13 @@
 import base64
 import os
 import uuid
-from app.psifos.model.enums import ElectionStatusEnum
 import pdfkit
 import qrcode
 import urllib.parse
-
 import app.celery_worker.psifos.tasks as tasks
+
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request, Response
+from app.psifos.model.enums import ElectionStatusEnum, ElectionEventEnum
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
@@ -24,6 +24,8 @@ from app.psifos_auth.auth_bearer import AuthAdmin
 from app.psifos_auth.utils import get_auth_election, get_auth_trustee_and_election, get_auth_voter_and_election
 from app.psifos_auth.auth_service_check import AuthUser
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.logger import psifos_logger
 
 from io import BytesIO
 from base64 import b64encode 
@@ -147,6 +149,7 @@ async def upload_voters(election_uuid: str, file: UploadFile, current_user: mode
     status, voter_counter, total_voters = task.get()
 
     if status:
+        await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.VOTER_FILE_UPLOADED)
         return {
             "message": f"[{voter_counter}/{total_voters}] voters were successfully uploaded"
         }
@@ -183,6 +186,7 @@ async def delete_voters(election_uuid: str, current_user: models.User = Depends(
     """
     election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
     await crud.delete_election_voters(session=session, election_id=election.id)
+    await psifos_logger.warning(election_id=election.id, event=ElectionEventEnum.ELECTORAL_ROLL_MODIFIED)
 
 @api_router.post("/{election_uuid}/voter/{voter_uuid}/delete")
 async def delete_voter(election_uuid: str, voter_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
@@ -191,7 +195,7 @@ async def delete_voter(election_uuid: str, voter_uuid: str, current_user: models
     """
     election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
     await crud.delete_election_voter(session=session, election_id=election.id, voter_uuid=voter_uuid)
-
+    await psifos_logger.warning(election_id=election.id, event=ElectionEventEnum.ELECTORAL_ROLL_MODIFIED, voter_uuid=voter_uuid)
 
 @api_router.get("/{election_uuid}/resume", status_code=200)
 async def resume(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
@@ -217,6 +221,9 @@ async def start_election(election_uuid: str, current_user: models.User = Depends
         status=ElectionStatusEnum.setting_up
     )
     await crud.update_election(session=session, election_id=election.id, fields=election.start())
+
+    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.VOTING_STARTED)
+
     return {
         "message": "The election was succesfully started" 
     }
@@ -242,6 +249,9 @@ async def end_election(election_uuid: str, current_user: models.User = Depends(A
         raise HTTPException(status_code=400, detail="There must be at least 1 vote casted to end an election.")
 
     await crud.update_election(session=session, election_id=election.id, fields=election.end())
+
+    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.VOTING_STOPPED)
+
     return {
         "message": "The election was succesfully ended"
     }
@@ -272,6 +282,8 @@ async def compute_tally(election_uuid: str, current_user: models.User = Depends(
     
     tasks.compute_tally.delay(**task_params)
 
+    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.TALLY_COMPUTED)
+
     return {
         "message": "The encrypted tally was succesfully computed"
     }
@@ -293,6 +305,7 @@ async def combine_decryptions(election_uuid: str, current_user: models.User = De
     }
     tasks.combine_decryptions.delay(**task_params)
     
+    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.DECRYPTIONS_COMBINED)
     return {
         "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
     }
@@ -313,11 +326,12 @@ async def create_trustee(election_uuid: str, trustee_in: schemas.TrusteeIn, curr
     Require a valid token to access >>> token_required
     """
     election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    trustee_uuid = str(uuid.uuid1())
     await crud.create_trustee(
         session=session,
         election_id=election.id,
-        uuid=str(uuid.uuid1()),
-        trustee_id=await crud.get_next_trustee_id(session=session, election_id=election.id),
+        uuid=trustee_uuid,
+        trustee_id = await crud.get_next_trustee_id(session=session, election_id=election.id),
         trustee=trustee_in
     )
     await crud.update_election(
@@ -325,6 +339,7 @@ async def create_trustee(election_uuid: str, trustee_in: schemas.TrusteeIn, curr
         election_id=election.id,
         fields={"total_trustees": election.total_trustees + 1}
     )
+    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.TRUSTEE_CREATED, **trustee_in.dict())
     return {"message": "The trustee was successfully created"}
 
 
@@ -460,7 +475,7 @@ async def trustee_upload_pk(election_uuid: str, trustee_uuid: str, trustee_data:
     """
     Upload public key of trustee
     """
-    trustee, _ = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
 
     public_key_and_proof = psifos_utils.from_json(trustee_data.public_key_json)
 
@@ -473,6 +488,13 @@ async def trustee_upload_pk(election_uuid: str, trustee_uuid: str, trustee_data:
 
     # as uploading the pk is the "step 0", we need to update the current_step
     await crud.update_trustee(session=session, trustee_id=trustee.id, fields={"current_step":1})
+
+    await psifos_logger.info(
+        election_id=election.id,
+        event=ElectionEventEnum.PUBLIC_KEY_UPLOADED,
+        trustee_login_id=trustee.trustee_login_id,
+        trustee_email=trustee.email
+    )
     
     return {"message": "The certificate of the trustee was uploaded successfully"}
 
@@ -710,6 +732,12 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
             )
             return await psifos_utils.combine_decryptions_without_admin(session, crud, tasks, election.id)
     
+        await psifos_logger.info(
+            election_id=election.id,
+            event=ElectionEventEnum.DECRYPTION_RECIEVED,
+            trustee_login_id=trustee.trustee_login_id,
+            trustee_email=trustee.email
+        )
         return {"message": "Trustee's stage 3 completed successfully"}
 
     else:
