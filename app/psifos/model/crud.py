@@ -7,7 +7,6 @@ CRUD utils for Psifos
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from sqlalchemy import and_
 
 from app.psifos import utils
