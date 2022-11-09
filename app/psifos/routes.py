@@ -833,6 +833,9 @@ async def get_count_votes_by_date(election_uuid: str, data: dict = {}, current_u
     
     election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
 
+    if election.election_status == "Setting up":
+        return {}
+
     date_init = election.voting_started_at
     date_end = election.voting_ended_at if election.voting_ended_at else psifos_utils.tz_now()
     date_end = datetime.datetime(year=date_end.year, month=date_end.month, day=date_end.day, hour=date_end.hour, minute=date_end.minute, second=date_end.second)

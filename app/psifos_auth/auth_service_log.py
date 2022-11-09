@@ -131,7 +131,7 @@ class CASAuth:
         ticket = request.query_params.get("ticket", None)
         if not ticket:
             return self.redirect_cas(
-                APP_BACKEND_OP_URL + f"/{election_uuid}/trustee/login",
+                APP_BACKEND_OP_URL + f"{election_uuid}/trustee/login",
             )
 
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
