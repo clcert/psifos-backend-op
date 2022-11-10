@@ -730,7 +730,15 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
                     "election_status": ElectionStatusEnum.decryptions_uploaded
                 }
             )
-            return await psifos_utils.combine_decryptions_without_admin(session, crud, tasks, election.id)
+            task_params = {
+                "election_uuid": election.uuid,
+            }
+            tasks.combine_decryptions.delay(**task_params)
+            await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.DECRYPTIONS_COMBINED)
+
+            return {
+                "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
+            }
     
         await psifos_logger.info(
             election_id=election.id,
@@ -802,7 +810,7 @@ async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()),
 
     hash_vote = cast_vote.vote_hash
 
-    link_ballot = APP_FRONTEND_URL + "/booth/" + election_uuid + "/ballot-box/?hash=" + urllib.parse.quote(hash_vote)
+    link_ballot = APP_FRONTEND_URL + "/booth/" + election_uuid + "/public-info?hash=" + urllib.parse.quote(hash_vote)
     img = qrcode.make(link_ballot) 
     buffer = BytesIO()
     img.save(buffer, "PNG")

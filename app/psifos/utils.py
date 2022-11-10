@@ -80,14 +80,3 @@ def tz_now():
     return datetime.now(tz)
 
 
-async def combine_decryptions_without_admin(session, crud, tasks, election_id):
-    election = await crud.get_election_by_id(session=session, election_id=election_id)
-
-    task_params = {
-        "election_uuid": election.uuid,
-    }
-    tasks.combine_decryptions.delay(**task_params)
-
-    return {
-        "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
-    }
