@@ -7,7 +7,7 @@ import urllib.parse
 import app.celery_worker.psifos.tasks as tasks
 
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request, Response
-from app.psifos.model.enums import ElectionStatusEnum, ElectionEventEnum
+from app.psifos.model.enums import ElectionStatusEnum, ElectionPublicEventEnum
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptions
@@ -149,7 +149,7 @@ async def upload_voters(election_uuid: str, file: UploadFile, current_user: mode
     status, voter_counter, total_voters = task.get()
 
     if status:
-        await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.VOTER_FILE_UPLOADED)
+        await psifos_logger.info(election_id=election.id, event=ElectionPublicEventEnum.VOTER_FILE_UPLOADED)
         return {
             "message": f"[{voter_counter}/{total_voters}] voters were successfully uploaded"
         }
@@ -186,7 +186,7 @@ async def delete_voters(election_uuid: str, current_user: models.User = Depends(
     """
     election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
     await crud.delete_election_voters(session=session, election_id=election.id)
-    await psifos_logger.warning(election_id=election.id, event=ElectionEventEnum.ELECTORAL_ROLL_MODIFIED)
+    await psifos_logger.warning(election_id=election.id, event=ElectionPublicEventEnum.ELECTORAL_ROLL_MODIFIED)
 
 @api_router.post("/{election_uuid}/voter/{voter_uuid}/delete")
 async def delete_voter(election_uuid: str, voter_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
@@ -195,7 +195,7 @@ async def delete_voter(election_uuid: str, voter_uuid: str, current_user: models
     """
     election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
     await crud.delete_election_voter(session=session, election_id=election.id, voter_uuid=voter_uuid)
-    await psifos_logger.warning(election_id=election.id, event=ElectionEventEnum.ELECTORAL_ROLL_MODIFIED, voter_uuid=voter_uuid)
+    await psifos_logger.warning(election_id=election.id, event=ElectionPublicEventEnum.ELECTORAL_ROLL_MODIFIED, voter_uuid=voter_uuid)
 
 @api_router.get("/{election_uuid}/resume", status_code=200)
 async def resume(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
@@ -222,7 +222,7 @@ async def start_election(election_uuid: str, current_user: models.User = Depends
     )
     await crud.update_election(session=session, election_id=election.id, fields=election.start())
 
-    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.VOTING_STARTED)
+    await psifos_logger.info(election_id=election.id, event=ElectionPublicEventEnum.VOTING_STARTED)
 
     return {
         "message": "The election was succesfully started" 
@@ -250,7 +250,7 @@ async def end_election(election_uuid: str, current_user: models.User = Depends(A
 
     await crud.update_election(session=session, election_id=election.id, fields=election.end())
 
-    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.VOTING_STOPPED)
+    await psifos_logger.info(election_id=election.id, event=ElectionPublicEventEnum.VOTING_STOPPED)
 
     return {
         "message": "The election was succesfully ended"
@@ -282,7 +282,7 @@ async def compute_tally(election_uuid: str, current_user: models.User = Depends(
     
     tasks.compute_tally.delay(**task_params)
 
-    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.TALLY_COMPUTED)
+    await psifos_logger.info(election_id=election.id, event=ElectionPublicEventEnum.TALLY_COMPUTED)
 
     return {
         "message": "The encrypted tally was succesfully computed"
@@ -305,7 +305,7 @@ async def combine_decryptions(election_uuid: str, current_user: models.User = De
     }
     tasks.combine_decryptions.delay(**task_params)
     
-    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.DECRYPTIONS_COMBINED)
+    await psifos_logger.info(election_id=election.id, event=ElectionPublicEventEnum.DECRYPTIONS_COMBINED)
     return {
         "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
     }
@@ -339,7 +339,7 @@ async def create_trustee(election_uuid: str, trustee_in: schemas.TrusteeIn, curr
         election_id=election.id,
         fields={"total_trustees": election.total_trustees + 1}
     )
-    await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.TRUSTEE_CREATED, **trustee_in.dict())
+    await psifos_logger.info(election_id=election.id, event=ElectionPublicEventEnum.TRUSTEE_CREATED, **trustee_in.dict())
     return {"message": "The trustee was successfully created"}
 
 
@@ -491,7 +491,7 @@ async def trustee_upload_pk(election_uuid: str, trustee_uuid: str, trustee_data:
 
     await psifos_logger.info(
         election_id=election.id,
-        event=ElectionEventEnum.PUBLIC_KEY_UPLOADED,
+        event=ElectionPublicEventEnum.PUBLIC_KEY_UPLOADED,
         trustee_login_id=trustee.trustee_login_id,
         trustee_email=trustee.email
     )
@@ -734,7 +734,7 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
                 "election_uuid": election.uuid,
             }
             tasks.combine_decryptions.delay(**task_params)
-            await psifos_logger.info(election_id=election.id, event=ElectionEventEnum.DECRYPTIONS_COMBINED)
+            await psifos_logger.info(election_id=election.id, event=ElectionPublicEventEnum.DECRYPTIONS_COMBINED)
 
             return {
                 "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
@@ -742,7 +742,7 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
     
         await psifos_logger.info(
             election_id=election.id,
-            event=ElectionEventEnum.DECRYPTION_RECIEVED,
+            event=ElectionPublicEventEnum.DECRYPTION_RECIEVED,
             trustee_login_id=trustee.trustee_login_id,
             trustee_email=trustee.email
         )

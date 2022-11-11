@@ -20,6 +20,13 @@ class ElectionStatusEnum(str, enum.Enum):
     results_released = "Results released"
 
 class ElectionEventEnum(str, enum.Enum):
+
+    @classmethod
+    def has_member_key(cls, key):
+        return key in cls.__members__.values()
+
+class ElectionPublicEventEnum(ElectionEventEnum):
+
     VOTER_FILE_UPLOADED = "voter_file_uploaded"
     ELECTORAL_ROLL_MODIFIED = "electoral_roll_modified"
     TRUSTEE_CREATED = "trustee_created"
@@ -29,3 +36,6 @@ class ElectionEventEnum(str, enum.Enum):
     TALLY_COMPUTED = "tally_computed"
     DECRYPTION_RECIEVED = "decryption_recieved"
     DECRYPTIONS_COMBINED = "decryptions_combined"
+
+class ElectionAdminEventEnum(ElectionEventEnum):
+    VOTER_LOGIN = "voter_login"
