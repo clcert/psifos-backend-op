@@ -5,12 +5,12 @@ from fastapi import HTTPException, Request, APIRouter, Depends, Cookie
 from app.dependencies import get_session
 from app.config import SECRET_KEY, TYPE_AUTH
 
-from app.psifos_auth.auth_service_log import Auth
+from app.psifos_auth.auth_service_logging import AuthFactory
 from app.psifos_auth.model import crud
 
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
-auth_factory = Auth()
+auth_factory = AuthFactory()
 protocol = TYPE_AUTH
 
 # auth_router = APIRouter(prefix="/psifos/api/app")
@@ -50,7 +50,7 @@ async def login_voter(election_uuid: str, request: Request, session: str | None 
     """
 
     auth = auth_factory.get_auth(protocol)
-    return auth.login_voter(election_uuid, request=request, session=session)
+    return await auth.login_voter(election_uuid, request=request, session=session)
 
 
 @auth_router.get("/vote/{election_uuid}/logout", status_code=200)

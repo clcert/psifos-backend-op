@@ -39,3 +39,6 @@ class ElectionPublicEventEnum(ElectionEventEnum):
 
 class ElectionAdminEventEnum(ElectionEventEnum):
     VOTER_LOGIN = "voter_login"
+    TRUSTEE_LOGIN = "trustee_login"
+    VOTER_LOGIN_FAIL = "voter_login_fail"
+    TRUSTEE_LOGIN_FAIL = "trustee_login_fail"
