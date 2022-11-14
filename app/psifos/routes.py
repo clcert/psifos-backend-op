@@ -5,6 +5,7 @@ import pdfkit
 import qrcode
 import urllib.parse
 import app.celery_worker.psifos.tasks as tasks
+import datetime
 
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request, Response
 from app.psifos.model.enums import ElectionStatusEnum, ElectionPublicEventEnum
@@ -24,6 +25,8 @@ from app.psifos_auth.auth_bearer import AuthAdmin
 from app.psifos_auth.utils import get_auth_election, get_auth_trustee_and_election, get_auth_voter_and_election
 from app.psifos_auth.auth_service_check import AuthUser
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from datetime import timedelta
 
 from app.logger import psifos_logger
 
@@ -830,8 +833,6 @@ async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()),
     result = pdfkit.from_string(pdf)
     return Response(result, media_type="application/pdf")
 
-import datetime
-from datetime import timedelta
 @api_router.post("/{election_uuid}/count-dates", status_code=200)
 async def get_count_votes_by_date(election_uuid: str, data: dict = {}, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
@@ -859,4 +860,39 @@ async def get_count_votes_by_date(election_uuid: str, data: dict = {}, current_u
         date_init = date_delta
 
     return count_cast_votes
+
+@api_router.post("/{election_uuid}/count-logs", status_code=200)
+async def get_count_logs_by_date(election_uuid: str, data: dict = {}, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+    """
+    Return the number of logs per deltaTime from the start of the election until it ends
+
+    """
+    
+    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+
+    if election.election_status == "Setting up":
+        return {}
+
+    date_init = election.voting_started_at
+    date_end = election.voting_ended_at if election.voting_ended_at else psifos_utils.tz_now()
+    date_end = datetime.datetime(year=date_end.year, month=date_end.month, day=date_end.day, hour=date_end.hour, minute=date_end.minute, second=date_end.second)
+    
+    delta_minutes = data.get("minutes", 60)
+    type_log = data.get("type_log", None)
+    count_logs = {}
+    total = 0
+
+    while date_init <= date_end:
+
+        date_delta = date_init + timedelta(minutes=delta_minutes)
+        dates = await crud.count_logs_by_date(session=session, election_id=election.id, init_date=date_init, end_date=date_delta, type_log=type_log)
+        count_date = len(dates)
+        total += count_date
+        count_logs[str(date_init)] = count_date
+        date_init = date_delta
+
+    return {
+        "count_logs": count_logs,
+        "total_logs": total
+        }
 # <<<
