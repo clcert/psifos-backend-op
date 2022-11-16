@@ -96,17 +96,15 @@ class CASAuth(AbstractAuth):
     def __init__(self) -> None:
         self.cas_client = CASClient(
             version=3,
-            service_url=APP_BACKEND_OP_URL + "/vote/",
+            service_url=APP_BACKEND_OP_URL + "vote/",
             server_url=CAS_URL,
         )
 
-    def redirect_cas(self, redirect_url):
+    def redirect_cas(self):
         """
         Redirects to the CAS server
 
         """
-
-        self.cas_client.service_url = redirect_url
         cas_login_url = self.cas_client.get_login_url()
         return RedirectResponse(url=cas_login_url)
 
@@ -128,10 +126,11 @@ class CASAuth(AbstractAuth):
 
         # Get ticket from query string url
         ticket = request.query_params.get("ticket", None)
+        self.cas_client.service_url = APP_BACKEND_OP_URL + election_uuid + "/vote"
 
         # If no ticket, redirect to CAS server to get one (login)
         if not ticket:
-            return self.redirect_cas(APP_BACKEND_OP_URL + election_uuid + "/vote")
+            return self.redirect_cas()
 
         # Verify ticket with CAS server
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
@@ -178,10 +177,10 @@ class CASAuth(AbstractAuth):
             return response
 
         ticket = request.query_params.get("ticket", None)
+        self.cas_client.service_url = APP_BACKEND_OP_URL + f"{election_uuid}/trustee/login"
+
         if not ticket:
-            return self.redirect_cas(
-                APP_BACKEND_OP_URL + f"{election_uuid}/trustee/login",
-            )
+            return self.redirect_cas()
 
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
         if not user:

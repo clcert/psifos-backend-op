@@ -50,7 +50,7 @@ async def login_voter(election_uuid: str, request: Request, session: str | None 
     """
 
     auth = auth_factory.get_auth(protocol)
-    return await auth.login_voter(election_uuid, request=request, session=session)
+    return await auth.login_voter(election_uuid=election_uuid, request=request, session=session)
 
 
 @auth_router.get("/vote/{election_uuid}/logout", status_code=200)
