@@ -21,6 +21,8 @@ class QuestionFactory():
             return ClosedQuestion(**kwargs)
         elif q_type == "open_question":
             return OpenQuestion(**kwargs)
+        elif q_type == "mixnet_question":
+            return MixnetQuestion(**kwargs)
         else:
             return None
 
@@ -83,3 +85,13 @@ class ClosedQuestion(AbstractQuestion):
 
     def __init__(self, **kwargs) -> None:
         super(ClosedQuestion, self).__init__(**kwargs)
+
+
+class MixnetQuestion(AbstractQuestion):
+    """
+    Allows a voter to select between mixnet options.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        self.tally_type = "mixnet"
+        super(MixnetQuestion, self).__init__(**kwargs)
