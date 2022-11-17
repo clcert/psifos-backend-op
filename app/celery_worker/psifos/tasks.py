@@ -11,17 +11,19 @@ gui: flower
 
 import uuid
 
+
 from app.celery_worker import celery
 from app.psifos.model import models, schemas
 from app.database import SessionLocal
 from .model import crud
+from datetime import datetime
 
 from app.psifos import utils as psifos_utils
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 
 
 @celery.task(name="process_castvote")
-def process_cast_vote(election_uuid: str, voter_id: int, serialized_encrypted_vote: str, cast_ip: str):
+def process_cast_vote(private_p: bool, election_uuid: str, serialized_encrypted_vote: str, cast_ip: str, **kwargs):
     """
     Verifies if a cast_vote is valid, if so then
     it stores it in the database.
@@ -29,16 +31,24 @@ def process_cast_vote(election_uuid: str, voter_id: int, serialized_encrypted_vo
 
     with SessionLocal() as session: 
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
-        voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
+        if private_p:
+            voter_id = kwargs.get("voter_id")
+            voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
+        else:
+            voter_login_id = kwargs.get("voter_login_id")
+            voter_in = schemas.VoterIn(voter_login_id=voter_login_id, voter_name=voter_login_id, voter_weight=1)
+            voter = crud.create_voter(session=session, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter_in)
 
         enc_vote_data = psifos_utils.from_json(serialized_encrypted_vote)
         encrypted_vote = EncryptedVote(**enc_vote_data)
-        verified, fields = voter.cast_vote.process_cast_vote(encrypted_vote, election, voter, cast_ip)
-        cast_vote = crud.update_cast_vote(session=session, voter_id=voter.id, fields=fields)
-        
-    if verified:
-        return verified, cast_vote.vote_hash
-    return verified, None
+        is_valid, voter_fields, cast_vote_fields = voter.process_cast_vote(encrypted_vote, election, cast_ip)
+        cast_vote = crud.update_or_create_cast_vote(session=session, voter_id=voter.id, fields=cast_vote_fields)
+        voter = crud.update_voter(session=session, voter_id=voter.id, fields=voter_fields)
+    
+    if is_valid:
+        return is_valid, cast_vote.vote_hash
+    
+    return is_valid, None
 
 
 @celery.task(name="compute_tally", ignore_result=True)

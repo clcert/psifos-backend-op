@@ -313,7 +313,7 @@ async def get_elections_by_user(session: Session | AsyncSession, admin_id: int):
 
 async def get_num_casted_votes(session: Session | AsyncSession, election_id: int):
     voters = await get_voters_by_election_id(session=session, election_id=election_id)
-    return len([v for v in voters if v.cast_vote.valid_cast_votes >= 1])
+    return len([v for v in voters if v.valid_cast_votes >= 1])
 
 
 async def create_election(session: Session | AsyncSession, election: schemas.ElectionIn, admin_id: int, uuid: str):

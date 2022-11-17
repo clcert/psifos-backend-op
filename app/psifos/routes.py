@@ -246,7 +246,7 @@ async def end_election(election_uuid: str, current_user: models.User = Depends(A
     )
 
     voters = await crud.get_voters_by_election_id(session=session, election_id=election.id)
-    not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
+    not_null_voters = [v for v in voters if v.valid_cast_votes >= 1]
 
     if len(not_null_voters) < 1:
         raise HTTPException(status_code=400, detail="There must be at least 1 vote casted to end an election.")
@@ -273,7 +273,7 @@ async def compute_tally(election_uuid: str, current_user: models.User = Depends(
     )
     voters = await crud.get_voters_by_election_id(session=session, election_id=election.id)
     
-    not_null_voters = [v for v in voters if v.cast_vote.valid_cast_votes >= 1]
+    not_null_voters = [v for v in voters if v.valid_cast_votes >= 1]
     serialized_encrypted_votes = [EncryptedVote.serialize(v.cast_vote.vote) for v in not_null_voters]
     weights = [v.voter_weight for v in not_null_voters]
 
@@ -375,21 +375,26 @@ async def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.Cas
         voter_login_id=voter_login_id,
         status=ElectionStatusEnum.started
     )
-    
+
+    task_params = {
+        "serialized_encrypted_vote": cast_vote.encrypted_vote,
+        "cast_ip": request.client.host,
+    }
+
+    if election.private_p:
+        task_params["voter_id"] = voter.id
+
+    else:
+        task_params["voter_login_id"] = voter_login_id
+        
     # >>> Los checks de Helios podemos hacerlos con dependencias de FastAPI <<<
     # allowed, msg = psifos_utils.do_cast_vote_checks(request, election, voter)
     # if not allowed:
     #    return make_response(jsonify({"message": f"{msg}"}), 400)
 
-    serialized_encrypted_vote = cast_vote.encrypted_vote
-    cast_ip = request.client.host
 
-    task_params = {
-        "election_uuid": election.uuid,
-        "serialized_encrypted_vote": serialized_encrypted_vote,
-        "voter_id": voter.id,
-        "cast_ip":cast_ip,
-    }
+    task_params["private_p"] = election.private_p
+    task_params["election_uuid"] = election.uuid
     
     task = tasks.process_cast_vote.delay(**task_params)
     verified, vote_fingerprint = task.get()
@@ -780,7 +785,7 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
 
 # >>> Revisar
 @api_router.get("/{election_uuid}/questions", status_code=200, response_model=schemas.ElectionOut)
-async def get_questions_voters(election_uuid: str,  voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+async def get_questions(election_uuid: str,  voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for get questions
     """

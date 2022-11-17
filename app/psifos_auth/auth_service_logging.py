@@ -76,7 +76,8 @@ class AbstractAuth(object):
         election = await crud.get_election_by_uuid(uuid=election_uuid, session=db_session)
         voter = await crud.get_voter_by_login_id_and_election_id(db_session, user_id, election.id)
 
-        if voter:
+        
+        if (voter is not None) or (not election.private_p):
             await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.VOTER_LOGIN)
 
         else:
@@ -136,7 +137,10 @@ class CASAuth(AbstractAuth):
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
 
         # If no user, return error
+        
+        print(f"\n\n-{user}-\n\n")
         if not user:
+            print("\n\nAAAA\n\n")
             raise HTTPException(status_code=401, detail="ERROR")
 
         # If user, set session and redirect to election page
@@ -184,6 +188,7 @@ class CASAuth(AbstractAuth):
 
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
         if not user:
+            print("\n\nBBBB\n\n")
             raise HTTPException(status_code=401, detail="ERROR")
         else:
             request.session["user"] = user

@@ -11,16 +11,16 @@ from io import StringIO
 import json
 
 from sqlalchemy.orm import relationship
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Enum, DateTime
+from sqlalchemy import Column, ForeignKey
+from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime
 
 from app.psifos import utils
-from app.psifos.psifos_object.result import ElectionResult
 from app.psifos.psifos_object.questions import Questions
 
 import app.psifos.crypto.utils as crypto_utils
+from datetime import datetime
 
 from app.psifos.crypto.elgamal import ElGamal, PublicKey
-from app.psifos.crypto.sharedpoint import Point
 from app.psifos.crypto.utils import hash_b64
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyManager
@@ -106,7 +106,7 @@ class Election(Base):
         return start_data
 
     def end(self):
-        voters = [v for v in self.voters if v.cast_vote.valid_cast_votes >= 1]
+        voters = [v for v in self.voters if v.valid_cast_votes >= 1]
         normalized_weights = [v.voter_weight / self.max_weight for v in voters]
         voters_by_weight_end = json.dumps({str(w): normalized_weights.count(w) for w in normalized_weights})
 
@@ -169,10 +169,13 @@ class Voter(Base):
     election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"))
     uuid = Column(String(50), nullable=False, unique=True)
 
-    voter_login_id = Column(String(100), nullable=False)
+    voter_login_id = Column(String(100), nullable=False, unique=True)
     voter_name = Column(String(200), nullable=False)
     voter_weight = Column(Integer, nullable=False)
 
+    valid_cast_votes = Column(Integer, default=0)
+    invalid_cast_votes = Column(Integer, default=0)
+    
     # One-to-one relationship
     cast_vote = relationship("CastVote", cascade="all, delete", backref="psifos_voter", uselist=False)
 
@@ -186,6 +189,25 @@ class Voter(Base):
         ]
         return voters
 
+    def process_cast_vote(self, encrypted_vote: EncryptedVote, election: Election, cast_ip: str):
+        is_valid = encrypted_vote.verify(election)
+        cast_vote_fields = {
+            "vote": encrypted_vote,
+            "vote_hash": crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)),
+            "is_valid": is_valid,
+            "cast_ip": cast_ip,
+            "cast_ip_hash": crypto_utils.hash_b64(cast_ip),
+            "cast_at": utils.tz_now(),
+        }
+
+        voter_fields = {}
+        if is_valid:
+            voter_fields["valid_cast_votes"] = self.valid_cast_votes + 1
+        else:
+            voter_fields["invalid_cast_votes"] = self.invalid_cast_votes + 1
+
+        return is_valid, voter_fields, cast_vote_fields
+
 
 class CastVote(Base):
     __tablename__ = "psifos_cast_vote"
@@ -193,37 +215,17 @@ class CastVote(Base):
     id = Column(Integer, primary_key=True, index=True)
     voter_id = Column(Integer, ForeignKey("psifos_voter.id", onupdate="CASCADE", ondelete="CASCADE"), unique=True)
 
-    vote = Column(EncryptedVoteField, nullable=True)
-    vote_hash = Column(String(500), nullable=True)
-    vote_tinyhash = Column(String(500), nullable=True)
+    vote = Column(EncryptedVoteField, nullable=False)
+    vote_hash = Column(String(500), nullable=False)
+    # vote_tinyhash = Column(String(500), nullable=False)
 
-    valid_cast_votes = Column(Integer, default=0)
-    invalid_cast_votes = Column(Integer, default=0)
+    is_valid = Column(Boolean, nullable=False)
+    
+    cast_ip = Column(Text, nullable=False)
+    cast_ip_hash = Column(String(500), nullable=False)
 
-    cast_ip = Column(Text, nullable=True)
-    hash_cast_ip = Column(String(500), nullable=True)
+    cast_at = Column(DateTime, nullable=False)
 
-    cast_at = Column(DateTime, nullable=True)
-
-    def process_cast_vote(self, encrypted_vote: EncryptedVote, election: Election, voter: Voter, cast_ip: str):
-        verified = encrypted_vote.verify(election)
-        if verified:
-            vote_fingerprint = crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote))
-            cast_at = utils.tz_now()
-            ip_fingerprint = crypto_utils.hash_b64(cast_ip)
-            valid_cast_votes = voter.cast_vote.valid_cast_votes + 1
-            fields = {
-                "voter_id": voter.id,
-                "vote": encrypted_vote,
-                "vote_hash": vote_fingerprint,
-                "cast_at": cast_at,
-                "cast_ip": cast_ip,
-                "hash_cast_ip": ip_fingerprint,
-                "valid_cast_votes": valid_cast_votes,
-            }
-        else:
-            fields = {"invalid_cast_votes": voter.cast_vote.invalid_cast_votes + 1, "invalidated_at": utils.tz_now()}
-        return verified, fields
 
 
 class AuditedBallot(Base):

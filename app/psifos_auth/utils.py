@@ -1,7 +1,7 @@
 import logging
 import uuid
 
-from app.psifos.model import crud
+from app.psifos.model import crud, models
 from app.database import db_handler
 
 from app.psifos_auth.model import models as auth_models
@@ -29,14 +29,18 @@ async def get_auth_election(election_uuid: str, current_user: auth_models.User, 
 async def get_auth_voter_and_election(election_uuid: str, voter_login_id: str, session: Session | AsyncSession, status: str = None):
     election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
     voter = await crud.get_voter_by_login_id_and_election_id(session=session, voter_login_id=voter_login_id, election_id=election.id)
-    if not voter:
-        raise HTTPException(status_code=400, detail="voter not found")
-    if voter.voter_login_id != voter_login_id:
-        raise HTTPException(status_code=401, detail="You are not allowed to access this voter")
+    
+    if election.private_p:
+        if not voter:
+            raise HTTPException(status_code=400, detail="voter not found")
+        if voter.voter_login_id != voter_login_id:
+            raise HTTPException(status_code=401, detail="You are not allowed to access this voter")
+    
     if status is not None and election.election_status != status:
         raise HTTPException(status_code=400, detail="Election status check failed")
     
     return voter, election
+
 
 async def get_auth_trustee_and_election(election_uuid:str, trustee_uuid: str, login_id: str, session: Session | AsyncSession, status: str = None):
     election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)

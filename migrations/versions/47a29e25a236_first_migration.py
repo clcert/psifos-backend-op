@@ -1,8 +1,8 @@
 """first migration
 
-Revision ID: 43c6bb404a04
+Revision ID: 47a29e25a236
 Revises: 
-Create Date: 2022-11-08 18:16:11.586235
+Create Date: 2022-11-15 20:46:47.189683
 
 """
 from alembic import op
@@ -12,7 +12,7 @@ import app
 
 
 # revision identifiers, used by Alembic.
-revision = '43c6bb404a04'
+revision = '47a29e25a236'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -70,7 +70,6 @@ def upgrade() -> None:
     sa.Column('event', sa.String(length=200), nullable=False),
     sa.Column('event_params', sa.String(length=200), nullable=False),
     sa.Column('created_at', sa.String(length=200), nullable=False),
-    sa.Column('created_by', sa.String(length=200), nullable=False),
     sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -125,6 +124,8 @@ def upgrade() -> None:
     sa.Column('voter_login_id', sa.String(length=100), nullable=False),
     sa.Column('voter_name', sa.String(length=200), nullable=False),
     sa.Column('voter_weight', sa.Integer(), nullable=False),
+    sa.Column('valid_cast_votes', sa.Integer(), nullable=True),
+    sa.Column('invalid_cast_votes', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
@@ -133,14 +134,13 @@ def upgrade() -> None:
     op.create_table('psifos_cast_vote',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('voter_id', sa.Integer(), nullable=True),
-    sa.Column('vote', app.database.custom_fields.EncryptedVoteField(), nullable=True),
-    sa.Column('vote_hash', sa.String(length=500), nullable=True),
-    sa.Column('vote_tinyhash', sa.String(length=500), nullable=True),
-    sa.Column('valid_cast_votes', sa.Integer(), nullable=True),
-    sa.Column('invalid_cast_votes', sa.Integer(), nullable=True),
-    sa.Column('cast_ip', sa.Text(), nullable=True),
-    sa.Column('hash_cast_ip', sa.String(length=500), nullable=True),
-    sa.Column('cast_at', sa.DateTime(), nullable=True),
+    sa.Column('vote', app.database.custom_fields.EncryptedVoteField(), nullable=False),
+    sa.Column('vote_hash', sa.String(length=500), nullable=False),
+    sa.Column('is_valid', sa.Boolean(), nullable=False),
+    sa.Column('cast_ip', sa.Text(), nullable=False),
+    sa.Column('cast_ip_hash', sa.String(length=500), nullable=False),
+    sa.Column('cast_at', sa.DateTime(), nullable=False),
+    sa.Column('reviewed_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['voter_id'], ['psifos_voter.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('voter_id')

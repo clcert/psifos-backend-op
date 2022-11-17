@@ -120,15 +120,14 @@ class CastVoteOut(CastVoteBase):
     """
 
     id: int
-    vote_hash: str | None
-    vote_tinyhash: str | None
-    valid_cast_votes: int
-    invalid_cast_votes: int
-    cast_ip: str | None
-    hash_cast_ip: str | None
-    cast_at: datetime | None
-    verified_at: datetime | None
-    invalidated_at: datetime | None
+    vote_hash: str
+    # vote_tinyhash: str | None
+    
+    cast_ip: str
+    cast_ip_hash: str
+    is_valid: bool
+    
+    cast_at: datetime
 
     class Config:
         orm_mode = True
@@ -162,6 +161,9 @@ class VoterOut(VoterBase):
 
     id: int
     uuid: str
+
+    valid_cast_votes: int
+    invalid_cast_votes: int
 
     cast_vote: CastVoteOut = None
 
