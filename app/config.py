@@ -14,6 +14,7 @@ SECRET_KEY: str = os.environ.get("SECRET_KEY")
 APP_FRONTEND_URL = os.environ.get("APP_FRONTEND_URL")
 APP_BACKEND_OP_URL = os.environ.get("APP_BACKEND_OP_URL")
 APP_BACKEND_INFO_URL = os.environ.get("APP_BACKEND_INFO_URL")
+APP_MIXNET_URL = os.environ.get("APP_MIXNET_URL")
 
 TYPE_AUTH = os.environ.get("TYPE_AUTH")
 

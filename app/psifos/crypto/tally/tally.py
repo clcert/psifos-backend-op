@@ -35,6 +35,7 @@ class TallyManager(SerializableList):
             encrypted_answers = [
                 enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes
             ]
+
             tally.compute(encrypted_answers=encrypted_answers, weights=weights)
     
     def decryption_factors_and_proofs(self, sk):

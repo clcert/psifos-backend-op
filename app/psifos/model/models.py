@@ -127,7 +127,7 @@ class Election(Base):
         enc_tally = TallyManager(*tally_params)
 
         # Then we compute the encrypted_tally
-        enc_tally.compute(encrypted_votes, weights)
+        enc_tally.compute(encrypted_votes=encrypted_votes, weights=weights)
 
         return {
             "election_status": ElectionStatusEnum.tally_computed,
@@ -169,7 +169,7 @@ class Voter(Base):
     election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"))
     uuid = Column(String(50), nullable=False, unique=True)
 
-    voter_login_id = Column(String(100), nullable=False, unique=True)
+    voter_login_id = Column(String(100), nullable=False)
     voter_name = Column(String(200), nullable=False)
     voter_weight = Column(Integer, nullable=False)
 

@@ -103,6 +103,4 @@ class HomomorphicTally(AbstractTally):
             "ans_results": [dlog_table.lookup(result) for result in q_result]
         }
 
-        print(result)
-        
         return result
