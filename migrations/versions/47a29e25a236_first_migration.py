@@ -45,6 +45,7 @@ def upgrade() -> None:
     sa.Column('obscure_voter_names', sa.Boolean(), nullable=False),
     sa.Column('randomize_answer_order', sa.Boolean(), nullable=False),
     sa.Column('normalization', sa.Boolean(), nullable=False),
+    sa.Column('include_blank_null_vote', sa.Boolean(), nullable=False),
     sa.Column('max_weight', sa.Integer(), nullable=False),
     sa.Column('total_voters', sa.Integer(), nullable=True),
     sa.Column('total_trustees', sa.Integer(), nullable=True),
