@@ -5,15 +5,12 @@ Encrypted answer for Psifos vote.
 """
 
 from app.database.serialization import SerializableObject
-from app.psifos.crypto.elgamal import Ciphertext, ListOfCipherTexts, ListOfZKDisjunctiveProofs, Plaintext, ZKDisjunctiveProof, disjunctive_challenge_generator
+from app.psifos.crypto.elgamal import ListOfCipherTexts, Plaintext, disjunctive_challenge_generator
 
 class AbstractEncryptedAnswer(SerializableObject):
     def __init__(self, **kwargs) -> None:
         self.enc_ans_type = kwargs["enc_ans_type"]
-
         self.choices : ListOfCipherTexts = ListOfCipherTexts(*kwargs["choices"])
-        self.individual_proofs : ListOfZKDisjunctiveProofs = ListOfZKDisjunctiveProofs(*kwargs["individual_proofs"])
-        self.overall_proof : ZKDisjunctiveProof = ZKDisjunctiveProof(*kwargs["overall_proof"])
         
     @classmethod
     def generate_plaintexts(cls, pk, min_ptxt=0, max_ptxt=1): 

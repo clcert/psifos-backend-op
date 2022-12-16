@@ -14,7 +14,13 @@ SECRET_KEY: str = os.environ.get("SECRET_KEY")
 APP_FRONTEND_URL = os.environ.get("APP_FRONTEND_URL")
 APP_BACKEND_OP_URL = os.environ.get("APP_BACKEND_OP_URL")
 APP_BACKEND_INFO_URL = os.environ.get("APP_BACKEND_INFO_URL")
-APP_MIXNET_URL = os.environ.get("APP_MIXNET_URL")
+
+APP_MIXNET_PREFIX = os.environ.get("APP_MIXNET_PREFIX", "mixserver0")
+APP_MIXNET_PORT =  os.environ.get("APP_MIXNET_PORT", "8000")
+APP_MIXNET_TOKEN =  os.environ.get("APP_MIXNET_TOKEN")
+MIXNET_NUM_SERVERS = int(os.environ.get("MIXNET_NUM_SERVERS", 3))
+MIXNET_WIDTH = int(os.environ.get("MIXNET_WIDTH", 6))
+MIXNET_WAIT_INTERVAL = int(os.environ.get("MIXNET_WAIT_INTERVAL", 5))
 
 TYPE_AUTH = os.environ.get("TYPE_AUTH")
 
