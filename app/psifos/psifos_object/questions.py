@@ -63,6 +63,8 @@ class AbstractQuestion(SerializableObject):
         self.max_answers: int = int(kwargs["max_answers"])
         self.min_answers: int = int(kwargs["min_answers"])
 
+        self.include_blank_null: str = str(kwargs["include_blank_null"])
+
         self.tally_type = "homomorphic"
 
 

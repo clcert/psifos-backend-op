@@ -186,7 +186,6 @@ class ElectionBase(PsifosSchema):
     max_weight: int
     obscure_voter_names: bool | None
     randomize_answer_order: bool | None
-    include_blank_null_vote: bool | None
     private_p: bool | None
     normalization: bool | None
 
