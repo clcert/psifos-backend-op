@@ -11,7 +11,7 @@ from app.psifos.crypto.elgamal import Ciphertext, ListOfCipherTexts
 import requests
 import random
 import time
-from app.config import APP_MIXNET_PREFIX, APP_MIXNET_PORT, APP_MIXNET_TOKEN, MIXNET_NUM_SERVERS, MIXNET_WAIT_INTERVAL
+from app.config import MIXNET_01_NAME, MIXNET_01_URL, MIXNET_02_NAME, MIXNET_02_URL, MIXNET_03_NAME, MIXNET_03_URL, MIXNET_TOKEN, MIXNET_WIDTH, MIXNET_WAIT_INTERVAL
 from app.database.serialization import SerializableList
 
 class ListOfEncryptedTexts(SerializableList):
@@ -38,29 +38,29 @@ class MixnetTally(AbstractTally):
                 for ctxt in enc_ans.get_choices()
             ])
         
+        server_names = [MIXNET_01_NAME, MIXNET_02_NAME, MIXNET_03_NAME]
+        server_urls = [MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL]
+
         # then we create the payload and send it to each mixnet sv
-        for i in range(1, MIXNET_NUM_SERVERS + 1):
+        for name, url in zip(server_names, server_urls):
             PAYLOAD = {
                 "servers_data": [
                     {
-                        "name": f"{APP_MIXNET_PREFIX}{j}",
-                        "url": f"http://{APP_MIXNET_PREFIX}{j}:{APP_MIXNET_PORT}"
+                        "name": name,
+                        "url": url
                     }
-                    for j in range(1, MIXNET_NUM_SERVERS + 1) if i != j
+                    for a_name, a_url in zip(server_names, server_urls) if name != a_name and url != a_url 
                 ],
-                "token": APP_MIXNET_TOKEN, 
+                "token": MIXNET_TOKEN, 
                 "ciphertexts": ciphertexts
             }
-            requests.post(
-                url=f"http://{APP_MIXNET_PREFIX}{i}:{APP_MIXNET_PORT}/init",
-                params=PAYLOAD
-            )
+            requests.post(url=f"{url}/init", params=PAYLOAD)
                             
         # once each mixnet sv has been initialized, 
         # we retrieve the encrypted texts if available
-        sv_idx = random.randint(1, MIXNET_NUM_SERVERS)
+        sv_idx = random.randint(1, len(server_urls))
         while True:
-            r = requests.get(f"http://{APP_MIXNET_PREFIX}{sv_idx}:{APP_MIXNET_PORT}/get-ciphertexts").json()
+            r = requests.get(f"{server_urls[sv_idx]}/get-ciphertexts").json()
             if r["status"] == "COMPUTED_CIPHERTEXTS":
                 self.tally = ListOfEncryptedTexts(*r["ciphertexts"])
                 break
