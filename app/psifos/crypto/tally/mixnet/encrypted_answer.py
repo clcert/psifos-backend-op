@@ -17,5 +17,7 @@ class EncryptedMixnetAnswer(AbstractEncryptedAnswer):
     """
     def __init__(self, **kwargs) -> None:
         super(EncryptedMixnetAnswer, self).__init__(**kwargs)
-        self.choices = self.choices[:MIXNET_WIDTH]
+    
+    def verify(self, **kwargs):
+        return len(self.get_choices()) == MIXNET_WIDTH
     
