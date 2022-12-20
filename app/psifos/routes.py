@@ -544,7 +544,6 @@ async def get_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_logi
         raise HTTPException(status_code=400, detail="The election's global trustee step is not 1")
 
     try:
-        params = election.get_eg_params()
         trustees = await crud.get_trustees_by_election_id(session=session, election_id=election.id)
         certificates = [
             sharedpoint.Certificate.serialize(t.certificate, to_json=False)
@@ -553,7 +552,6 @@ async def get_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_logi
         assert None not in certificates
 
         return {
-            "params": params,
             "certificates": psifos_utils.to_json(certificates),
         }
 
@@ -591,7 +589,6 @@ async def get_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_logi
         raise HTTPException(status_code=400, detail="The election's global trustee step is not 2")
 
     try:    
-        params = election.get_eg_params()
         trustees = await crud.get_trustees_by_election_id(session=session, election_id=election.id)
         coefficients = [
             sharedpoint.ListOfCoefficients.serialize(t.coefficients, to_json=False)
@@ -612,7 +609,6 @@ async def get_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_logi
         )
 
         return {
-            "params": params,
             "certificates": psifos_utils.to_json(certificates),
             "coefficients": psifos_utils.to_json(coefficients),
             "points": psifos_utils.to_json(points),
@@ -653,7 +649,6 @@ async def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_log
         raise HTTPException(status_code=400, detail="The election's global trustee step is not 3")
 
     try:
-        params = election.get_eg_params()
         trustees = await crud.get_trustees_by_election_id(session=session, election_id=election.id)
 
         coefficients = [
@@ -689,7 +684,6 @@ async def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_log
         )
 
         return {
-            "params": params,
             "certificates": psifos_utils.to_json(certificates),
             "coefficents": psifos_utils.to_json(coefficients),
             "points": psifos_utils.to_json(points),
@@ -766,7 +760,6 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
     """
     trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
 
-    params = election.get_eg_params()
     trustees = await crud.get_trustees_by_election_id(session=session, election_id=election.id)
     certificates = [sharedpoint.Certificate.serialize(t.certificate, to_json=False) for t in trustees]
     points = await crud.format_points_sent_to(
@@ -777,7 +770,6 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
     return {
         "election": schemas.ElectionOut.from_orm(election),
         "trustee": schemas.TrusteeOut.from_orm(trustee),
-        "params": params,
         "certificates": psifos_utils.to_json(certificates),
         "points": psifos_utils.to_json(points),
     }
