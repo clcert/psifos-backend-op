@@ -65,8 +65,6 @@ class AbstractQuestion(SerializableObject):
 
         self.include_blank_null: str = str(kwargs["include_blank_null"])
 
-        self.tally_type = "homomorphic"
-
 
 class OpenQuestion(AbstractQuestion):
     """
@@ -87,6 +85,7 @@ class ClosedQuestion(AbstractQuestion):
 
     def __init__(self, **kwargs) -> None:
         super(ClosedQuestion, self).__init__(**kwargs)
+        self.tally_type = "homomorphic"
 
 
 class MixnetQuestion(AbstractQuestion):
@@ -95,5 +94,5 @@ class MixnetQuestion(AbstractQuestion):
     """
 
     def __init__(self, **kwargs) -> None:
-        self.tally_type = "mixnet"
         super(MixnetQuestion, self).__init__(**kwargs)
+        self.tally_type = "mixnet"

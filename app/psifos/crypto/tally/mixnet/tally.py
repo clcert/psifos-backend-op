@@ -46,25 +46,28 @@ class MixnetTally(AbstractTally):
             PAYLOAD = {
                 "servers_data": [
                     {
-                        "name": name,
-                        "url": url
+                        "name": a_name,
+                        "url": a_url
                     }
                     for a_name, a_url in zip(server_names, server_urls) if name != a_name and url != a_url 
                 ],
                 "token": MIXNET_TOKEN, 
                 "ciphertexts": ciphertexts
             }
-            requests.post(url=f"{url}/init", params=PAYLOAD)
-                            
+            requests.post(url=f"{url}/init", json=PAYLOAD)
+        
+        """
         # once each mixnet sv has been initialized, 
         # we retrieve the encrypted texts if available
         sv_idx = random.randint(1, len(server_urls))
         while True:
             r = requests.get(f"{server_urls[sv_idx]}/get-ciphertexts").json()
-            if r["status"] == "COMPUTED_CIPHERTEXTS":
+            print(r)
+            if r["status"] == "CIPHERTEXTS_COMPUTED":
                 self.tally = ListOfEncryptedTexts(*r["ciphertexts"])
                 break
             time.sleep(MIXNET_WAIT_INTERVAL)
+        """
 
         self.computed = True
         self.num_tallied = len(ciphertexts)

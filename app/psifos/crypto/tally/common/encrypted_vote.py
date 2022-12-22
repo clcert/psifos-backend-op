@@ -49,7 +49,7 @@ class EncryptedVote(SerializableObject):
 
             q = election.questions.instances[question_num]
 
-            if not ea.verify(election.public_key, min_ptxt=q.min_answers, max_ptxt=q.max_answers):
+            if not ea.verify(pk=election.public_key, min_ptxt=q.min_answers, max_ptxt=q.max_answers):
                 return False
 
         return True
