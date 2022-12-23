@@ -54,6 +54,19 @@ class MixnetTally(AbstractTally):
                 "token": MIXNET_TOKEN, 
                 "ciphertexts": ciphertexts
             }
+
+            print(f"""
+            
+            
+            
+            {PAYLOAD}
+            
+            
+            
+            
+            
+            """)
+
             requests.post(url=f"{url}/init", json=PAYLOAD)
         
         """
