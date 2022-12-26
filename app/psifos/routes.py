@@ -893,21 +893,3 @@ async def get_count_logs_by_date(election_uuid: str, data: dict = {}, current_us
         "total_logs": total
         }
 # <<<
-
-
-@api_router.get("/sus", status_code=200)
-def sus():
-    tasks.sus_task.delay()
-    return "SUS"
-
-@api_router.get("/lel", status_code=200)
-def lel():
-    import requests
-    from app.config import MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL
-    #requests.post(url=f"{MIXNET_01_URL}/init", json={"amogus": "sus"})
-    #requests.post(url=f"{MIXNET_02_URL}/init", json={"amogus": "sus"})
-    #requests.post(url=f"{MIXNET_03_URL}/init", json={"amogus": "sus"})
-
-    requests.post(url=f"http://mixserver01:8000/init", json={"amogus": "sus"})
-    requests.post(url=f"http://mixserver02:8000/init", json={"amogus": "sus"})
-    requests.post(url=f"http://mixserver03:8000/init", json={"amogus": "sus"})

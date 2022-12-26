@@ -106,15 +106,3 @@ def upload_voters(election_uuid: str, voter_file_content: str):
         crud.update_election(session=session, election_id=election.id, fields={"total_voters": election.total_voters + k})
     return True, k, n
 
-
-
-@celery.task(name="sus")
-def sus_task():
-    import requests
-    from app.config import MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL
-    print(MIXNET_01_URL)
-    print(MIXNET_02_URL)
-    print(MIXNET_03_URL)
-    requests.post(url=f"{MIXNET_01_URL}/init", json={"amogus": "sus"})
-    requests.post(url=f"{MIXNET_02_URL}/init", json={"amogus": "sus"})
-    requests.post(url=f"{MIXNET_03_URL}/init", json={"amogus": "sus"})
