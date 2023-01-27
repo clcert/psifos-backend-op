@@ -61,7 +61,7 @@ class MixnetTally(AbstractTally):
         sv_idx = random.randint(0, len(server_urls)-1)
         print(f"\n\nMIXSERVER{sv_idx+1} SELECCIONADO!\n\n")
         while True:
-            r = requests.get(f"{server_urls[sv_idx]}/get-ciphertexts").json()
+            r = requests.get(f"{server_urls[sv_idx]}/get-ciphertexts?token={MIXNET_TOKEN}").json()
             if r["status"] == "CIPHERTEXTS_COMPUTED":
                 response_content = [mixnet_output["ciphertexts"] for mixnet_output in r["content"]]
                 self.tally = ListOfEncryptedTexts(*response_content)
