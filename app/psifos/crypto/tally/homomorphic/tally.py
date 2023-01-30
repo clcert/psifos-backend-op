@@ -65,7 +65,7 @@ class HomomorphicTally(AbstractTally):
 
         return question_factors, question_proofs
 
-    def decrypt(self, decryption_factors, t, max_weight=1):
+    def decrypt(self, decryption_factors, t, max_weight=1, **kwargs):
         """
         decrypt a tally given decryption factors
 

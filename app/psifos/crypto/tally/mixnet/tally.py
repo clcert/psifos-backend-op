@@ -4,6 +4,7 @@ Mixnet tally for psifos questions.
 27-05-2022
 """
 
+import itertools
 from ..common.abstract_tally import AbstractTally
 from app.psifos.crypto.elgamal import Ciphertext, ListOfCipherTexts
 
@@ -29,6 +30,9 @@ class MixnetTally(AbstractTally):
         super(MixnetTally, self).__init__(**kwargs)
         self.tally = ListOfEncryptedTexts(*tally) if self.computed else []
 
+    def get_tally(self):
+        return [x.instances for x in self.tally.instances]
+        
     def compute(self, encrypted_answers, **kwargs) -> None:
         # first we create the list of ciphertexts
         ciphertexts = []
@@ -72,5 +76,40 @@ class MixnetTally(AbstractTally):
         self.num_tallied = len(ciphertexts)
                   
 
-    def decrypt() -> None:
-        pass
+    def decrypt(self, decryption_factors, t, **kwargs) -> None:
+        q_result = []
+        tally = self.get_tally()
+        for vote_num, vote_ctxts in enumerate(tally):
+            v_result = []
+            for ctxt_num, ctxt in enumerate(vote_ctxts):
+                last_raw_value = None
+                
+                # generate al subsets of size t+1 and compare values between each iteration
+                iterator = itertools.combinations([
+                    (di, df[vote_num][ctxt_num]) 
+                    for di, df in decryption_factors
+                ], t+1)
+                
+                for subset_factor_list in iterator:
+                    raw_value = ctxt.decrypt(subset_factor_list, self.public_key)
+                    
+                    if raw_value is None:
+                        raise Exception("Error computing decryption: None returned")
+                    if last_raw_value is not None and raw_value != last_raw_value:
+                        raise Exception("Not all decryptions agree!")
+                    last_raw_value = raw_value
+                v_result.append(raw_value)
+            q_result.append(v_result)
+        
+        
+        print(f"""
+        
+        {q_result}
+        
+        """)    
+        result = {
+            "tally_type": "mixnet",
+            "ans_results": q_result
+        }
+
+        return result

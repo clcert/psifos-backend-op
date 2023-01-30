@@ -38,5 +38,5 @@ class HomomorphicResult(AbstractResult):
 
 class MixnetResult(AbstractResult):
     def __init__(self, **kwargs) -> None:
-        self.open_answers = kwargs["open_answers"] # FIXME: Must modify when MixnetTally is created.
+        print(kwargs)
         super(MixnetResult, self).__init__(**kwargs)

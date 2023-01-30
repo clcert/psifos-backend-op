@@ -48,7 +48,7 @@ class TallyManager(SerializableList):
     
     def decrypt(self, partial_decryptions, t, max_weight=1):
         return ElectionResult(*[
-            tally.decrypt(partial_decryptions[q_num], t, max_weight)
+            tally.decrypt(partial_decryptions[q_num], t, max_weight=max_weight)
             for q_num, tally in enumerate(self.instances)
         ])
     
