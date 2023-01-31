@@ -3,7 +3,7 @@ Election result classes for Psifos.
 
 14-04-2022
 """
-from app.psifos.crypto.elgamal import ListOfIntegers
+from app.psifos.crypto.elgamal import ListOfIntegers, ListOfVotes
 from app.database.serialization import SerializableList, SerializableObject
 
 
@@ -27,7 +27,7 @@ class ElectionResult(SerializableList):
 class AbstractResult(SerializableObject):
     def __init__(self, **kwargs) -> None:
         self.tally_type = kwargs["tally_type"]
-        self.ans_results = ListOfIntegers(*kwargs["ans_results"])
+        
     
     def get_ans_results(self):
         return self.ans_results.instances
@@ -35,8 +35,9 @@ class AbstractResult(SerializableObject):
 class HomomorphicResult(AbstractResult):
     def __init__(self, **kwargs) -> None:
         super(HomomorphicResult, self).__init__(**kwargs)
+        self.ans_results = ListOfIntegers(*kwargs["ans_results"])
 
 class MixnetResult(AbstractResult):
     def __init__(self, **kwargs) -> None:
-        print(kwargs)
         super(MixnetResult, self).__init__(**kwargs)
+        self.ans_results = ListOfVotes(*kwargs["ans_results"])

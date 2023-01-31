@@ -459,7 +459,7 @@ class Ciphertext(SerializableObject):
         # check the overall challenge
         return (challenge_generator([p.commitment for p in proof.proofs])) == (sum([p.challenge for p in proof.proofs]) % self.pk.q)
 
-    def decrypt(self, decryption_factors, public_key):
+    def decrypt(self, decryption_factors, public_key, decode_m=False):
       """
       decrypt a ciphertext given a list of decryption factors (from multiple trustees)
       """
@@ -468,8 +468,15 @@ class Ciphertext(SerializableObject):
       for dec_index, dec_factor in decryption_factors:
         x = pow(dec_factor, lagrange(indices, dec_index, public_key.q), public_key.p)
         running_decryption = (running_decryption * number.inverse(x, public_key.p)) % public_key.p
-        
-      return running_decryption
+
+      if decode_m:
+        if running_decryption < public_key.q:
+          y = running_decryption
+        else:
+          y = -running_decryption % public_key.p
+        return y
+      else:
+        return running_decryption
 
     def check_group_membership(self, pk):
         """
@@ -553,6 +560,12 @@ class ListOfIntegers(SerializableList):
         super(ListOfIntegers, self).__init__()
         for value in args:
             self.instances.append(int(value))
+
+class ListOfVotes(SerializableList):
+    def __init__(self, *args) -> None:
+        super(ListOfVotes, self).__init__()
+        for value in args:
+            self.instances.append(ListOfIntegers(*value))
 
 class ListOfZKProofs(SerializableList):
     def __init__(self, *args) -> None:

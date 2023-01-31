@@ -91,7 +91,7 @@ class MixnetTally(AbstractTally):
                 ], t+1)
                 
                 for subset_factor_list in iterator:
-                    raw_value = ctxt.decrypt(subset_factor_list, self.public_key)
+                    raw_value = ctxt.decrypt(subset_factor_list, self.public_key, decode_m=True)
                     
                     if raw_value is None:
                         raise Exception("Error computing decryption: None returned")
@@ -100,13 +100,7 @@ class MixnetTally(AbstractTally):
                     last_raw_value = raw_value
                 v_result.append(raw_value)
             q_result.append(v_result)
-        
-        
-        print(f"""
-        
-        {q_result}
-        
-        """)    
+         
         result = {
             "tally_type": "mixnet",
             "ans_results": q_result
