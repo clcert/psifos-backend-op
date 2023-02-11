@@ -30,13 +30,14 @@ class TallyManager(SerializableList):
         for tally_dict in args:
             self.instances.append(TallyFactory.create(**tally_dict))
     
-    def compute(self, encrypted_votes, weights):
+    def compute(self, encrypted_votes, weights, public_key, election_name, election_uuid):
         for q_num, tally in enumerate(self.instances):
             encrypted_answers = [
                 enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes
             ]
 
-            tally.compute(encrypted_answers=encrypted_answers, weights=weights)
+            tally.compute(encrypted_answers=encrypted_answers, weights=weights, public_key=public_key, 
+                          election_name=election_name, election_uuid=election_uuid)
     
     def decryption_factors_and_proofs(self, sk):
         decryption_factors, decryption_proofs = [], []
@@ -46,9 +47,10 @@ class TallyManager(SerializableList):
             decryption_proofs.append(q_dec_p)
         return decryption_factors, decryption_proofs
     
-    def decrypt(self, partial_decryptions, t, max_weight=1):
+    def decrypt(self, partial_decryptions, t, max_weight=1, questions=[]):
         return ElectionResult(*[
-            tally.decrypt(partial_decryptions[q_num], t, max_weight=max_weight)
+            tally.decrypt(partial_decryptions[q_num], t, max_weight=max_weight, 
+            total_closed_options=questions.instances[q_num].total_closed_options)
             for q_num, tally in enumerate(self.instances)
         ])
     

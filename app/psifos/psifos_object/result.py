@@ -40,4 +40,4 @@ class HomomorphicResult(AbstractResult):
 class MixnetResult(AbstractResult):
     def __init__(self, **kwargs) -> None:
         super(MixnetResult, self).__init__(**kwargs)
-        self.ans_results = ListOfVotes(*kwargs["ans_results"])
+        self.ans_results = ListOfIntegers(*kwargs["ans_results"])

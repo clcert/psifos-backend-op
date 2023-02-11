@@ -474,7 +474,7 @@ class Ciphertext(SerializableObject):
           y = running_decryption
         else:
           y = -running_decryption % public_key.p
-        return y
+        return y - 1
       else:
         return running_decryption
 

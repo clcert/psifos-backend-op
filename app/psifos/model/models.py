@@ -142,7 +142,8 @@ class Election(Base):
         enc_tally = TallyManager(*tally_params)
 
         # Then we compute the encrypted_tally
-        enc_tally.compute(encrypted_votes=encrypted_votes, weights=weights)
+        enc_tally.compute(encrypted_votes=encrypted_votes, weights=weights, public_key=self.public_key,
+                          election_name=self.short_name, election_uuid=self.uuid)
 
         return {
             "election_status": ElectionStatusEnum.tally_computed,
@@ -166,7 +167,7 @@ class Election(Base):
         ]
 
         return {
-            "result": self.encrypted_tally.decrypt(partial_decryptions, self.total_trustees // 2, self.max_weight),
+            "result": self.encrypted_tally.decrypt(partial_decryptions, self.total_trustees // 2, self.max_weight, self.questions),
             "election_status": ElectionStatusEnum.decryptions_combined,
         }
 

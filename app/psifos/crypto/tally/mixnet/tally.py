@@ -12,6 +12,7 @@ from app.psifos.crypto.elgamal import Ciphertext, ListOfCipherTexts
 import requests
 import random
 import time
+import re
 from app.config import MIXNET_01_NAME, MIXNET_01_URL, MIXNET_02_NAME, MIXNET_02_URL, MIXNET_03_NAME, MIXNET_03_URL, MIXNET_TOKEN, MIXNET_WIDTH, MIXNET_WAIT_INTERVAL
 from app.database.serialization import SerializableList
 
@@ -41,9 +42,14 @@ class MixnetTally(AbstractTally):
                 Ciphertext.serialize(ctxt, to_json=False)
                 for ctxt in enc_ans.get_choices()
             ])
+        public_key = kwargs["public_key"]
+        election_name = kwargs["election_name"]
+        election_uuid = kwargs["election_uuid"]
         
         server_names = [MIXNET_01_NAME, MIXNET_02_NAME, MIXNET_03_NAME]
         server_urls = [MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL]
+
+        TOKEN = re.sub(r'[^a-zA-Z0-9]+', '', f'{election_name}{election_uuid}')
 
         # then we create the payload and send it to each mixnet sv
         for name, url in zip(server_names, server_urls):
@@ -55,9 +61,11 @@ class MixnetTally(AbstractTally):
                     }
                     for a_name, a_url in zip(server_names, server_urls) if name != a_name and url != a_url 
                 ],
-                "token": MIXNET_TOKEN, 
+                "public_key_y": public_key.y,
+                "token": TOKEN, 
                 "ciphertexts": ciphertexts
             }
+            print(f"\n{PAYLOAD}\n")
             requests.post(url=f"{url}/init", json=PAYLOAD)
         
         # once each mixnet sv has been initialized, 
@@ -65,7 +73,7 @@ class MixnetTally(AbstractTally):
         sv_idx = random.randint(0, len(server_urls)-1)
         print(f"\n\nMIXSERVER{sv_idx+1} SELECCIONADO!\n\n")
         while True:
-            r = requests.get(f"{server_urls[sv_idx]}/get-ciphertexts?token={MIXNET_TOKEN}").json()
+            r = requests.get(f"{server_urls[sv_idx]}/get-ciphertexts?token={TOKEN}").json()
             if r["status"] == "CIPHERTEXTS_COMPUTED":
                 response_content = [mixnet_output["ciphertexts"] for mixnet_output in r["content"]]
                 self.tally = ListOfEncryptedTexts(*response_content)
@@ -79,6 +87,7 @@ class MixnetTally(AbstractTally):
     def decrypt(self, decryption_factors, t, **kwargs) -> None:
         q_result = []
         tally = self.get_tally()
+        total_closed_options = kwargs["total_closed_options"]
         for vote_num, vote_ctxts in enumerate(tally):
             v_result = []
             for ctxt_num, ctxt in enumerate(vote_ctxts):
@@ -100,10 +109,37 @@ class MixnetTally(AbstractTally):
                     last_raw_value = raw_value
                 v_result.append(raw_value)
             q_result.append(v_result)
-         
+
+        count_vote = self.count_votes(q_result, total_closed_options)
         result = {
             "tally_type": "mixnet",
-            "ans_results": q_result
+            "ans_results": count_vote
         }
 
         return result
+
+    def count_votes(self, votes, total_closed_options):
+
+        # The votes come with a +1 from the front, take it into account when counting
+        q_result = [0] * total_closed_options
+        null_vote = total_closed_options + 1
+        blank_vote = null_vote - 1
+
+        # Lets count by votes
+        for vote in votes:
+            set_vote = set(vote)
+
+            # check null vote
+            if null_vote in vote:
+                q_result[null_vote - 1] += 1
+
+            # check blank vote
+            elif len(set_vote) == 1 and blank_vote in set_vote:
+                q_result[blank_vote - 1] += 1
+
+            # count normal counts
+            else:   
+                for answer in vote:
+                    q_result[answer - 1] += 1 if answer != blank_vote else 0
+
+        return q_result

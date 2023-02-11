@@ -29,7 +29,7 @@ class HomomorphicTally(AbstractTally):
         else:
             self.tally = ListOfCipherTexts(*tally)
     
-    def compute(self, encrypted_answers, weights):
+    def compute(self, encrypted_answers, weights, **kwargs):
         self.computed = True
         for enc_ans, weight in zip(encrypted_answers, weights):
             choices = enc_ans.get_choices()

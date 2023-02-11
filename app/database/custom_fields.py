@@ -6,9 +6,10 @@ from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyManager
 from app.psifos.psifos_object.result import ElectionResult
 from app.psifos.psifos_object.questions import Questions
+from sqlalchemy.dialects.mysql import LONGTEXT
 
 class SerializableField(types.TypeDecorator):
-    impl = types.Text
+    impl = LONGTEXT
     cache_ok = False
     class_type = None
 
