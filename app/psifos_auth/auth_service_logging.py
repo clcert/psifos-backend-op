@@ -227,11 +227,11 @@ class OAuth2Auth(AbstractAuth):
         self, db_session, election_uuid: str, request: Request = None, session: str = None
     ):
 
-        self.election_uuid = election_uuid
-        self.type_logout = "voter"
+        request.session["election_uuid"] = election_uuid
+        request.session["type_logout"] = "voter"
         client = OAuth2Session(
             client_id=self.client_id,
-            redirect_uri=APP_BACKEND_OP_URL + "/authorized",
+            redirect_uri=APP_BACKEND_OP_URL + "authorized",
             scope=self.scope,
         )
 
@@ -246,11 +246,12 @@ class OAuth2Auth(AbstractAuth):
     async def login_trustee(
         self, db_session, election_uuid: str, request: Request, session: str
     ):
-        self.election_uuid = election_uuid
+        request.session["election_uuid"] = election_uuid
+        request.session["type_logout"] = "trustee"
         self.type_logout = "trustee"
         client = OAuth2Session(
             client_id=self.client_id,
-            redirect_uri=APP_BACKEND_OP_URL + "/authorized",
+            redirect_uri=APP_BACKEND_OP_URL + "authorized",
             scope=self.scope,
         )
 
@@ -264,10 +265,11 @@ class OAuth2Auth(AbstractAuth):
 
     @db_handler.method_with_session
     async def authorized(self, db_session, request: Request, session: str = None):
+        election_uuid = request.session["election_uuid"]
         login = OAuth2Session(
             self.client_id,
             state=request.session["oauth_state"],
-            redirect_uri=APP_BACKEND_OP_URL + "/authorized",
+            redirect_uri=APP_BACKEND_OP_URL + "authorized",
         )
         resp = login.fetch_token(
             OAUTH_TOKEN_URL,
@@ -281,9 +283,9 @@ class OAuth2Auth(AbstractAuth):
         user = user["fields"]["username"]
         request.session["user"] = user
 
-        if self.type_logout == "voter":
+        if request.session["type_logout"] == "voter":
 
-            return await self.check_voter(db_session, self.election_uuid, user)
+            return await self.check_voter(db_session, election_uuid, user)
 
-        elif self.type_logout == "trustee":
-            return await self.check_trustee(db_session, self.election_uuid, request)
+        elif request.session["type_logout"] == "trustee":
+            return await self.check_trustee(db_session, election_uuid, request)
