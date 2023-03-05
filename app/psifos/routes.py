@@ -810,7 +810,7 @@ async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()),
 
     hash_vote = cast_vote.vote_hash
 
-    link_ballot = APP_FRONTEND_URL + "/booth/" + election_uuid + "/public-info?hash=" + urllib.parse.quote(hash_vote)
+    link_ballot = APP_FRONTEND_URL + "psifos/booth/" + election_uuid + "/public-info?hash=" + urllib.parse.quote(hash_vote)
     img = qrcode.make(link_ballot) 
     buffer = BytesIO()
     img.save(buffer, "PNG")

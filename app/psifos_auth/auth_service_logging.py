@@ -59,12 +59,12 @@ class AbstractAuth(object):
         if not trustee:
             await psifos_logger.warning(election_id=election.id, event=ElectionAdminEventEnum.TRUSTEE_LOGIN_FAIL, user=request.session["user"])
             return RedirectResponse(
-                url=APP_FRONTEND_URL + f"/{election_uuid}/trustee/home"
+                url=APP_FRONTEND_URL + f"psifos/{election_uuid}/trustee/home"
             )
         else:
             await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.TRUSTEE_LOGIN, user=request.session["user"])
             return RedirectResponse(
-                APP_FRONTEND_URL + f"/{election_uuid}/trustee/{trustee.uuid}/home",
+                APP_FRONTEND_URL + f"psifos/{election_uuid}/trustee/{trustee.uuid}/home",
             )
 
     async def check_voter(self, db_session, election_uuid: str, user_id: str):
@@ -84,7 +84,7 @@ class AbstractAuth(object):
             await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.VOTER_LOGIN_FAIL)
 
         return RedirectResponse(
-                url=APP_FRONTEND_URL + "/booth/" + election_uuid
+                url=APP_FRONTEND_URL + "psifos/booth/" + election_uuid
             )
 
 
@@ -155,7 +155,7 @@ class CASAuth(AbstractAuth):
 
         # Get logoout url from CAS server
         cas_logout_url = self.cas_client.get_logout_url(
-            APP_FRONTEND_URL + "/booth/" + election_uuid + "?logout=true"
+            APP_FRONTEND_URL + "psifos/booth/" + election_uuid + "?logout=true"
         )
 
         # Clear cookie and redirect to election page
@@ -201,7 +201,7 @@ class CASAuth(AbstractAuth):
         """
 
         cas_logout_url = self.cas_client.get_logout_url(
-            APP_FRONTEND_URL + f"/{election_uuid}/trustee/home?logout=true"
+            APP_FRONTEND_URL + f"psifos/{election_uuid}/trustee/home?logout=true"
         )
 
         response = RedirectResponse(url=cas_logout_url)
