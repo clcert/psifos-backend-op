@@ -1,0 +1,73 @@
+body {
+    margin: 50px;
+    padding: 20px;
+    border: 3px solid #004b93;
+}
+
+.center {
+    text-align: center;
+}
+
+.logos {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.uchile-logo {
+    height: 175px;
+    width: 175px;
+}
+
+.participa-logo {
+    height: 62.5px;
+    width: 316.25px;
+}
+
+.title {
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    font-size: 20px;
+    margin-top: 5px;
+    color: #004b93;
+}
+
+.bold {
+    font-weight: bold;
+    font-family: monospace;
+}
+
+.data-paragraph {
+    font-size: 18px;
+    margin-left: 200px;
+    margin-right: 200px;
+}
+
+.verification-paragraph {
+    font-size: 18px;
+}
+
+.vote-code {
+    font-family: monospace;
+    font-weight: bold;
+    color: #004b93;
+    font-size: 25px;
+}
+
+.qr-container {
+    display: flex;
+    justify-content: center;
+}
+
+.qr-image {
+    width: 200px;
+    height: 200px;
+}
+
+.verification-link {
+    font-size: 10px;
+    font-family: monospace;
+    margin-top: 5px
+}

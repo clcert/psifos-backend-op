@@ -818,7 +818,7 @@ async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()),
 
     pdf_data = {
         "hash_vote": hash_vote,
-        "election_name": election.short_name,
+        "election_name": election.name,
         "cast_at": cast_vote.cast_at,
         "img_str": img_str,
         "link_ballot": link_ballot
