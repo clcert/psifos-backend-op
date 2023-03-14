@@ -1,7 +1,9 @@
 body {
-    margin: 50px;
+    margin: 10px;
     padding: 20px;
     border: 3px solid #004b93;
+    font-family: "Custom Font", monospace;
+    height: fit-content;
 }
 
 .center {
@@ -9,14 +11,20 @@ body {
 }
 
 .logos {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
+    display: block;
+}
+
+.logo-left {
+}
+
+.logo-right {
+    margin-left: 315px;
+    margin-top: -100px;
 }
 
 .uchile-logo {
-    height: 175px;
-    width: 175px;
+    height: 150px;
+    width: 150px;
 }
 
 .participa-logo {
@@ -25,6 +33,7 @@ body {
 }
 
 .title {
+    margin-top: 70px;
     margin-bottom: 5px;
 }
 
@@ -40,25 +49,24 @@ body {
 }
 
 .data-paragraph {
-    font-size: 18px;
-    margin-left: 200px;
-    margin-right: 200px;
+    margin-top: 50px;
+    font-size: 16px;
 }
 
 .verification-paragraph {
-    font-size: 18px;
+    margin-top: 50px;
+    font-size: 16px;
 }
 
 .vote-code {
     font-family: monospace;
     font-weight: bold;
     color: #004b93;
-    font-size: 25px;
+    font-size: 20px;
 }
 
 .qr-container {
-    display: flex;
-    justify-content: center;
+    text-align: center;
 }
 
 .qr-image {
@@ -69,5 +77,6 @@ body {
 .verification-link {
     font-size: 10px;
     font-family: monospace;
-    margin-top: 5px
+    margin-top: 5px;
+    margin-bottom: 220px;
 }

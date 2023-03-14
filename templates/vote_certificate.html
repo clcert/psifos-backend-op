@@ -1,18 +1,24 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <style>
+        @font-face {
+            font-family: "Custom Font";
+            src: url("data:font/ttf;base64,{{ font_str }}") format('truetype');
+        }
+    </style>
     <link rel="stylesheet" type="text/css" href="vote_certificate.css">
-    <title>Item Details</title>
+    <title>Certificado de Votación</title>
   </head>
 
   <body>
 
     <div class="logos">
-        <div class="logo">
-            <img class="uchile-logo" src="uchile-logo.jpg" alt="Logo Universidad de Chile">
+        <div class="logo-left">
+            <img class="uchile-logo" src="data:image/jpg;base64,{{ uch_str }}" alt="Logo Universidad de Chile">
         </div>
-        <div class="logo">
-            <img class="participa-logo" src="participa-logo.png" alt="Logo Participa UChile">
+        <div class="logo-right">
+            <img class="participa-logo" src="data:image/png;base64,{{ par_str }}" alt="Logo Participa UChile">
         </div>
     </div>
 
@@ -20,10 +26,10 @@
     <h2 class="subtitle center">{{ election_name }}</h2>
 
     <p class="data-paragraph center">Participa UChile, certifica que con fecha <span class="bold">{{ cast_at }}</span> se ha recibido
-        y validado exitosamente el <i>voto encriptado</i> identificado con el siguiente código de papeleta:</p>
+        y validado exitosamente el voto encriptado identificado con el siguiente código de papeleta:</p>
     <p class="vote-code center">{{ hash_vote }}</p>
 
-    <p class="verification-paragraph center">Es posible verificar que el <i>voto encriptado</i> se encuentra en la <i>Urna Electrónica</i>
+    <p class="verification-paragraph center">Es posible verificar que el voto encriptado se encuentra en la urna electrónica
     escaneando el siguiente código QR:</p>
     <div class="qr-container">
         <img class="qr-image center" src="data:image/png;base64,{{ img_str }}" alt="Verification URL address">
