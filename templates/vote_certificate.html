@@ -2,22 +2,39 @@
   <head>
     <meta charset="utf-8" />
     <style>
-        .qr-image{
-            width: 200px;
-            height: 200px;
+        @font-face {
+            font-family: "Custom Font";
+            src: url("data:font/ttf;base64,{{ font_str }}") format('truetype');
         }
-
-
     </style>
-    <title>Item Details</title>
+    <link rel="stylesheet" type="text/css" href="vote_certificate.css">
+    <title>Certificado de Votación</title>
   </head>
-  <body>
-    <h1>Certificado de votación {{election_name}}</h1>
 
-    <p>El voto del usuario ha sido validado con exito</p>
-    <p>Codigo de papeleta: {{hash_vote}}</p>
-    <p>Fecha de validación: {{cast_at}}</p>
-    <p>Puedes <a href="{{link_ballot}}">verificar aquí</a> que tu codigo esta en la papeleta</p>
-    <img class="qr-image" src="data:image/png;base64,{{ img_str }}">
+  <body>
+
+    <div class="logos">
+        <div class="logo-left">
+            <img class="uchile-logo" src="data:image/jpg;base64,{{ uch_str }}" alt="Logo Universidad de Chile">
+        </div>
+        <div class="logo-right">
+            <img class="participa-logo" src="data:image/png;base64,{{ par_str }}" alt="Logo Participa UChile">
+        </div>
+    </div>
+
+    <h1 class="title center">Certificado de Votación</h1>
+    <h2 class="subtitle center">{{ election_name }}</h2>
+
+    <p class="data-paragraph center">Participa UChile, certifica que con fecha <span class="bold">{{ cast_at }}</span> se ha recibido
+        y validado exitosamente el voto encriptado identificado con el siguiente código de papeleta:</p>
+    <p class="vote-code center">{{ hash_vote }}</p>
+
+    <p class="verification-paragraph center">Es posible verificar que el voto encriptado se encuentra en la urna electrónica
+    escaneando el siguiente código QR:</p>
+    <div class="qr-container">
+        <img class="qr-image center" src="data:image/png;base64,{{ img_str }}" alt="Verification URL address">
+    </div>
+    <p class="verification-link center">{{ link_ballot }}</p>
+
   </body>
 </html>

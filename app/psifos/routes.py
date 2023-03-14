@@ -816,18 +816,29 @@ async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()),
     img.save(buffer, "PNG")
     img_str = b64encode(buffer.getvalue()).decode('ascii')
 
+    with open("templates/uchile-logo.jpg", "rb") as image:
+        uch_str = b64encode(image.read()).decode('ascii')
+
+    with open("templates/participa-logo.png", "rb") as image:
+        par_str = b64encode(image.read()).decode('ascii')
+
+    with open("templates/Inter-VariableFont.ttf", "rb") as font:
+        font_str = b64encode(font.read()).decode('ascii')
+
     pdf_data = {
         "hash_vote": hash_vote,
-        "election_name": election.short_name,
+        "election_name": election.name,
         "cast_at": cast_vote.cast_at,
+        "font_str": font_str,
+        "uch_str": uch_str,
+        "par_str": par_str,
         "img_str": img_str,
         "link_ballot": link_ballot
-
     }
     
     pdf = templates.get_template("vote_certificate.html")
     pdf = pdf.render(**pdf_data)
-    result = pdfkit.from_string(pdf)
+    result = pdfkit.from_string(pdf, css="templates/vote_certificate.css")
     return Response(result, media_type="application/pdf")
 
 @api_router.post("/{election_uuid}/count-dates", status_code=200)
