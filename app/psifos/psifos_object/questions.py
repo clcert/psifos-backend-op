@@ -96,3 +96,4 @@ class MixnetQuestion(AbstractQuestion):
     def __init__(self, **kwargs) -> None:
         super(MixnetQuestion, self).__init__(**kwargs)
         self.tally_type = "mixnet"
+        self.group_votes: str = str(kwargs["group_votes"])
