@@ -73,24 +73,6 @@ async def get_election(election_uuid: str, current_user: models.User = Depends(A
     """
     return await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
 
-
-@api_router.get("/get-election-stats/{election_uuid}", status_code=200)
-async def get_election_stats(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
-    """
-    Admin's route for getting the stats of a specific election.
-    """
-    election = await get_auth_election(election_uuid = election_uuid, current_user=current_user, session=session)
-    return {
-        "num_casted_votes": await crud.get_num_casted_votes(
-            session=session,
-            election_id=election.id
-        ),
-        "total_voters": election.total_voters,
-        "status": election.election_status,
-        "name": election.short_name
-    }
-
-
 @api_router.get("/get-elections", response_model=list[schemas.ElectionOut], status_code=200)
 async def get_elections(current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
@@ -106,7 +88,6 @@ async def get_elections(current_user: models.User = Depends(AuthAdmin()), sessio
         election for election 
         in elections
     ]
-
 
 @api_router.post("/edit-election/{election_uuid}", status_code=201)
 async def edit_election(election_uuid: str, election_in: schemas.ElectionIn, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
@@ -840,34 +821,6 @@ async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()),
     pdf = pdf.render(**pdf_data)
     result = pdfkit.from_string(pdf, css="templates/vote_certificate.css")
     return Response(result, media_type="application/pdf")
-
-@api_router.post("/{election_uuid}/count-dates", status_code=200)
-async def get_count_votes_by_date(election_uuid: str, data: dict = {}, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
-    """
-    Return the number of votes per deltaTime from the start of the election until it ends
-
-    """
-    
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
-
-    if election.election_status == "Setting up":
-        return {}
-
-    date_init = election.voting_started_at
-    date_end = election.voting_ended_at if election.voting_ended_at else psifos_utils.tz_now()
-    date_end = datetime.datetime(year=date_end.year, month=date_end.month, day=date_end.day, hour=date_end.hour, minute=date_end.minute, second=date_end.second)
-    
-    delta_minutes = data.get("minutes", 60)
-    count_cast_votes = {}
-
-    while date_init <= date_end:
-
-        date_delta = date_init + timedelta(minutes=delta_minutes)
-        dates = await crud.count_cast_vote_by_date(session=session, election_id=election.id, init_date=date_init, end_date=date_delta)
-        count_cast_votes[str(date_init)] = len(dates)
-        date_init = date_delta
-
-    return count_cast_votes
 
 @api_router.post("/{election_uuid}/count-logs", status_code=200)
 async def get_count_logs_by_date(election_uuid: str, data: dict = {}, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
