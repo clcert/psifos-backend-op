@@ -1,8 +1,8 @@
 """first migration
 
-Revision ID: 47a29e25a236
+Revision ID: 74f1af31ad12
 Revises: 
-Create Date: 2022-11-15 20:46:47.189683
+Create Date: 2023-04-18 21:10:02.069227
 
 """
 from alembic import op
@@ -12,7 +12,7 @@ import app
 
 
 # revision identifiers, used by Alembic.
-revision = '47a29e25a236'
+revision = '74f1af31ad12'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -140,7 +140,6 @@ def upgrade() -> None:
     sa.Column('cast_ip', sa.Text(), nullable=False),
     sa.Column('cast_ip_hash', sa.String(length=500), nullable=False),
     sa.Column('cast_at', sa.DateTime(), nullable=False),
-    sa.Column('reviewed_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['voter_id'], ['psifos_voter.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('voter_id')
