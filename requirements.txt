@@ -2,7 +2,7 @@ alembic==1.8.1
 amqp==5.1.1
 anyio==3.6.1
 async-timeout==4.0.2
-asyncmy==0.2.5
+asyncmy==0.2.7
 attrs==21.4.0
 billiard==3.6.4.0
 black==22.6.0
