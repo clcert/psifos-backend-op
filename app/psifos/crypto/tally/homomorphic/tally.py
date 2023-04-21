@@ -24,7 +24,7 @@ class HomomorphicTally(AbstractTally):
         super(HomomorphicTally, self).__init__(**kwargs)
 
         if not self.computed:
-            self.tally = [0] * self.question.total_options
+            self.tally = [0] * self.question.total_closed_options
 
         else:
             self.tally = ListOfCipherTexts(*tally)
