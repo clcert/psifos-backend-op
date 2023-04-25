@@ -35,7 +35,7 @@ MarkupSafe==2.1.1
 mypy-extensions==0.4.3
 mysqlclient==2.1.0
 Naked==0.1.31
-oauthlib==3.2.1
+oauthlib==3.2.2
 packaging==21.3
 pathspec==0.9.0
 pdfkit==1.0.0
