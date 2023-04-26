@@ -60,23 +60,23 @@ async def create_election(
     return {"message": "Elección creada con exito!", "uuid": uuid_election}
 
 
-@api_router.get("/delete-election/{election_uuid}", status_code=200)
-async def delete_election(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/delete-election/{short_name}", status_code=200)
+async def delete_election(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Admin's route for delete a election by uuid
     """
 
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     await crud.delete_election(session=session, election_id=election.id)
     return {"message": "election delete"}
 
 
-@api_router.get("/get-election/{election_uuid}", response_model=schemas.ElectionOut, status_code=200)
-async def get_election(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/get-election/{short_name}", response_model=schemas.ElectionOut, status_code=200)
+async def get_election(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Admin's route for getting a specific election by uuid
     """
-    return await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    return await get_auth_election(short_name=short_name, current_user=current_user, session=session)
 
 
 @api_router.get("/get-elections", response_model=list[schemas.ElectionOut], status_code=200)
@@ -96,13 +96,13 @@ async def get_elections(current_user: models.User = Depends(AuthAdmin()), sessio
     ]
 
 
-@api_router.post("/edit-election/{election_uuid}", status_code=201)
-async def edit_election(election_uuid: str, election_in: schemas.ElectionIn, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/edit-election/{short_name}", status_code=201)
+async def edit_election(short_name: str, election_in: schemas.ElectionIn, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Admin's route for editing an election
     """
     election_exist = await crud.get_election_by_short_name(session=session, short_name=election_in.short_name) is not None
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
 
     if election_exist and election.short_name != election_in.short_name:
         raise HTTPException(
@@ -115,23 +115,23 @@ async def edit_election(election_uuid: str, election_in: schemas.ElectionIn, cur
     }
 
 
-@api_router.post("/create-questions/{election_uuid}", status_code=200)
-async def create_questions(election_uuid: str, data_questions: dict, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/create-questions/{short_name}", status_code=200)
+async def create_questions(short_name: str, data_questions: dict, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Admin's route for creating questions for an election
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     questions = Questions(*data_questions["question"])
     await crud.edit_questions(session=session, db_election=election, questions=questions)
     return {"message": "Preguntas creadas con exito!"}
 
 
-@api_router.post("/{election_uuid}/upload-voters", status_code=200)
-async def upload_voters(election_uuid: str, file: UploadFile, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/upload-voters", status_code=200)
+async def upload_voters(short_name: str, file: UploadFile, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Admin's route for uploading the voters of an election
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
 
     voter_file_content = file.file.read().decode('utf-8')
     task_params = {
@@ -151,8 +151,8 @@ async def upload_voters(election_uuid: str, file: UploadFile, current_user: mode
             status_code=400, detail="Failed to upload the voters")
 
 
-@api_router.post("/{election_uuid}/get-voters", response_model=list[schemas.VoterOut], status_code=200)
-async def get_voters(election_uuid: str, data: dict = {},  current_user: models.User = Depends(AuthAdmin()), session: Session = Depends(get_session)):
+@api_router.post("/{short_name}/get-voters", response_model=list[schemas.VoterOut], status_code=200)
+async def get_voters(short_name: str, data: dict = {},  current_user: models.User = Depends(AuthAdmin()), session: Session = Depends(get_session)):
     """
     Route for get voters
     """
@@ -161,47 +161,47 @@ async def get_voters(election_uuid: str, data: dict = {},  current_user: models.
     page_size = data.get("page_size", None)
     page = page_size * page if page_size else None
 
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     return await crud.get_voters_by_election_id(session=session, election_id=election.id, page=page, page_size=page_size)
 
 
-@api_router.post("/{election_uuid}/voters/{voter_uuid}/edit", response_model=schemas.VoterOut, status_code=200)
-async def edit_voter(election_uuid: str, voter_uuid: str, fields_voter: dict, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/voters/{voter_uuid}/edit", response_model=schemas.VoterOut, status_code=200)
+async def edit_voter(short_name: str, voter_uuid: str, fields_voter: dict, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for get a voter
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     return await crud.edit_voter(voter_uuid=voter_uuid, session=session, election_id=election.id, fields=fields_voter)
 
 
-@api_router.post("/{election_uuid}/delete-voters", status_code=200)
-async def delete_voters(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/delete-voters", status_code=200)
+async def delete_voters(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for delete voters
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     await crud.delete_election_voters(session=session, election_id=election.id)
     await psifos_logger.warning(election_id=election.id, event=ElectionPublicEventEnum.ELECTORAL_ROLL_MODIFIED)
 
 
-@api_router.post("/{election_uuid}/voter/{voter_uuid}/delete")
-async def delete_voter(election_uuid: str, voter_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/voter/{voter_uuid}/delete")
+async def delete_voter(short_name: str, voter_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for delete a voter
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     await crud.delete_election_voter(session=session, election_id=election.id, voter_uuid=voter_uuid)
     await psifos_logger.warning(election_id=election.id, event=ElectionPublicEventEnum.ELECTORAL_ROLL_MODIFIED, voter_uuid=voter_uuid)
 
 
-@api_router.post("/{election_uuid}/start-election", status_code=200)
-async def start_election(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/start-election", status_code=200)
+async def start_election(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for starting an election, once it happens the election
     gets "frozen" which means it shouldn't be modified from now on.
     """
     election = await get_auth_election(
-        election_uuid=election_uuid,
+        short_name=short_name,
         current_user=current_user,
         session=session,
         status=ElectionStatusEnum.setting_up
@@ -215,14 +215,14 @@ async def start_election(election_uuid: str, current_user: models.User = Depends
     }
 
 
-@api_router.post("/{election_uuid}/end-election", status_code=200)
-async def end_election(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/end-election", status_code=200)
+async def end_election(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for ending an election, once it happens no voter
     should be able to cast a vote.
     """
     election = await get_auth_election(
-        election_uuid=election_uuid,
+        short_name=short_name,
         current_user=current_user,
         session=session,
         status=ElectionStatusEnum.started
@@ -244,13 +244,13 @@ async def end_election(election_uuid: str, current_user: models.User = Depends(A
     }
 
 
-@api_router.post("/{election_uuid}/compute-tally", status_code=200)
-async def compute_tally(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/compute-tally", status_code=200)
+async def compute_tally(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for freezing an election
     """
     election = await get_auth_election(
-        election_uuid=election_uuid,
+        short_name=short_name,
         current_user=current_user,
         session=session,
         status=ElectionStatusEnum.ended
@@ -277,13 +277,13 @@ async def compute_tally(election_uuid: str, current_user: models.User = Depends(
     }
 
 
-@api_router.post("/{election_uuid}/combine-decryptions", status_code=200)
-async def combine_decryptions(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/combine-decryptions", status_code=200)
+async def combine_decryptions(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for freezing an election
     """
     election = await get_auth_election(
-        election_uuid=election_uuid,
+        short_name=short_name,
         current_user=current_user,
         session=session,
         status=ElectionStatusEnum.decryptions_uploaded
@@ -300,22 +300,22 @@ async def combine_decryptions(election_uuid: str, current_user: models.User = De
     }
 
 
-@api_router.get("/{election_uuid}/get-trustees", status_code=200, response_model=list[schemas.TrusteeOut])
-async def get_trustees(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/get-trustees", status_code=200, response_model=list[schemas.TrusteeOut])
+async def get_trustees(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for get trustees
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     return await crud.get_trustees_by_election_id(session=session, election_id=election.id)
 
 
-@api_router.post("/{election_uuid}/create-trustee", status_code=200)
-async def create_trustee(election_uuid: str, trustee_in: schemas.TrusteeIn, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/create-trustee", status_code=200)
+async def create_trustee(short_name: str, trustee_in: schemas.TrusteeIn, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for create trustee
     Require a valid token to access >>> token_required
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     trustee_uuid = str(uuid.uuid1())
     await crud.create_trustee(
         session=session,
@@ -333,12 +333,12 @@ async def create_trustee(election_uuid: str, trustee_in: schemas.TrusteeIn, curr
     return {"message": "The trustee was successfully created"}
 
 
-@api_router.post("/{election_uuid}/delete-trustee/{trustee_uuid}", status_code=200)
-async def delete_trustee(election_uuid: str, trustee_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/delete-trustee/{trustee_uuid}", status_code=200)
+async def delete_trustee(short_name: str, trustee_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for delete trustee
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     await crud.delete_trustee(session=session, election_id=election.id, uuid=trustee_uuid)
     await crud.update_election(
         session=session,
@@ -350,15 +350,15 @@ async def delete_trustee(election_uuid: str, trustee_uuid: str, current_user: mo
 
 # ----- Voter Routes -----
 
-@api_router.post("/{election_uuid}/cast-vote", status_code=200)
-async def cast_vote(request: Request, election_uuid: str, cast_vote: schemas.CastVoteIn, voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/cast-vote", status_code=200)
+async def cast_vote(request: Request, short_name: str, cast_vote: schemas.CastVoteIn, voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for casting a vote
     """
 
     voter, election = await get_auth_voter_and_election(
         session=session,
-        election_uuid=election_uuid,
+        short_name=short_name,
         voter_login_id=voter_login_id,
         status=ElectionStatusEnum.started
     )
@@ -412,18 +412,18 @@ async def get_trustee(trustee_uuid, session: Session | AsyncSession = Depends(ge
             status_code=400, detail="Error al obtener el trustee")
 
 
-@api_router.get("/{election_uuid}/trustee/{trustee_uuid}/home", status_code=200, response_model=schemas.TrusteeHome)
-async def get_trustee_home(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/trustee/{trustee_uuid}/home", status_code=200, response_model=schemas.TrusteeHome)
+async def get_trustee_home(short_name: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Trustee's route for getting his home
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
 
     return schemas.TrusteeHome(trustee=schemas.TrusteeOut.from_orm(trustee), election=schemas.ElectionOut.from_orm(election))
 
 
-@api_router.get("/{election_uuid}/get-randomness", status_code=200)
-async def get_randomness(election_uuid: str, _: str = Depends(AuthUser())):
+@api_router.get("/{short_name}/get-randomness", status_code=200)
+async def get_randomness(short_name: str, _: str = Depends(AuthUser())):
     """
     Get some randomness to sprinkle into the sjcl entropy pool
     """
@@ -433,12 +433,12 @@ async def get_randomness(election_uuid: str, _: str = Depends(AuthUser())):
 # Routes for keygenerator trustee (Trustee Stage 1)
 
 
-@api_router.get("/{election_uuid}/trustee/{trustee_uuid}/get-step", status_code=200)
-async def get_step(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/trustee/{trustee_uuid}/get-step", status_code=200)
+async def get_step(short_name: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Get the step of the trustee
     """
-    _, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    _, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
     trustee_step = await crud.get_global_trustee_step(
         session=session,
         election_id=election.id
@@ -450,13 +450,13 @@ async def get_step(election_uuid: str, trustee_uuid: str, trustee_login_id: str 
     }
 
 
-@api_router.get("/{election_uuid}/get-eg-params", status_code=200)
-async def election_get_eg_params(election_uuid: str, session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/get-eg-params", status_code=200)
+async def election_get_eg_params(short_name: str, session: Session | AsyncSession = Depends(get_session)):
     """
     Returns a JSON with the election eg_params.
     """
     try:
-        election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
+        election = await crud.get_election_by_short_name(session=session, short_name=short_name)
         return election.get_eg_params()
 
     except:
@@ -464,12 +464,12 @@ async def election_get_eg_params(election_uuid: str, session: Session | AsyncSes
             status_code=400, detail="Error al obtener los parametros de la eleccion.")
 
 
-@api_router.post("/{election_uuid}/trustee/{trustee_uuid}/upload-pk", status_code=200)
-async def trustee_upload_pk(election_uuid: str, trustee_uuid: str, trustee_data: schemas.PublicKeyData, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/trustee/{trustee_uuid}/upload-pk", status_code=200)
+async def trustee_upload_pk(short_name: str, trustee_uuid: str, trustee_data: schemas.PublicKeyData, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Upload public key of trustee
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
 
     public_key_and_proof = psifos_utils.from_json(trustee_data.public_key_json)
 
@@ -493,12 +493,12 @@ async def trustee_upload_pk(election_uuid: str, trustee_uuid: str, trustee_data:
     return {"message": "The certificate of the trustee was uploaded successfully"}
 
 
-@api_router.post("/{election_uuid}/trustee/{trustee_uuid}/step-1", status_code=200)
-async def post_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep1Data, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/trustee/{trustee_uuid}/step-1", status_code=200)
+async def post_trustee_step_1(short_name: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep1Data, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Step 1 of the keygenerator trustee
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
     global_trustee_step = await crud.get_global_trustee_step(session=session, election_id=election.id)
     if global_trustee_step != 1:
         raise HTTPException(
@@ -520,12 +520,12 @@ async def post_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_dat
     return {"message": "Keygenerator step 1 completed successfully"}
 
 
-@api_router.get("/{election_uuid}/trustee/{trustee_uuid}/step-1", status_code=200)
-async def get_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/trustee/{trustee_uuid}/step-1", status_code=200)
+async def get_trustee_step_1(short_name: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Step 1 of the keygenerator trustee
     """
-    _, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    _, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
     global_trustee_step = await crud.get_global_trustee_step(session=session, election_id=election.id)
     if global_trustee_step != 1:
         raise HTTPException(
@@ -548,12 +548,12 @@ async def get_trustee_step_1(election_uuid: str, trustee_uuid: str, trustee_logi
             status_code=400, detail="Some trustees haven't generated their keypair")
 
 
-@api_router.post("/{election_uuid}/trustee/{trustee_uuid}/step-2", status_code=200)
-async def post_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep2Data, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/trustee/{trustee_uuid}/step-2", status_code=200)
+async def post_trustee_step_2(short_name: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep2Data, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Step 2 of the keygenerator trustee
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
     global_trustee_step = await crud.get_global_trustee_step(session=session, election_id=election.id)
     if global_trustee_step != 2:
         raise HTTPException(
@@ -568,12 +568,12 @@ async def post_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_dat
     return {"message": "Keygenerator step 2 completed successfully"}
 
 
-@api_router.get("/{election_uuid}/trustee/{trustee_uuid}/step-2", status_code=200)
-async def get_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/trustee/{trustee_uuid}/step-2", status_code=200)
+async def get_trustee_step_2(short_name: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Step 2 of the keygenerator trustee
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
     global_trustee_step = await crud.get_global_trustee_step(session=session, election_id=election.id)
     if global_trustee_step != 2:
         raise HTTPException(
@@ -611,12 +611,12 @@ async def get_trustee_step_2(election_uuid: str, trustee_uuid: str, trustee_logi
             status_code=400, detail="Some trustees haven't completed the step 1 of the key generator")
 
 
-@api_router.post("/{election_uuid}/trustee/{trustee_uuid}/step-3", status_code=200)
-async def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep3Data, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/trustee/{trustee_uuid}/step-3", status_code=200)
+async def post_trustee_step_3(short_name: str, trustee_uuid: str, trustee_data: schemas.KeyGenStep3Data, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Step 3 of the keygenerator trustee
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
     global_trustee_step = await crud.get_global_trustee_step(session=session, election_id=election.id)
     if global_trustee_step != 3:
         raise HTTPException(
@@ -631,12 +631,12 @@ async def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_dat
     return {"message": "Keygenerator step 3 completed successfully"}
 
 
-@api_router.get("/{election_uuid}/trustee/{trustee_uuid}/step-3", status_code=200)
-async def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/trustee/{trustee_uuid}/step-3", status_code=200)
+async def post_trustee_step_3(short_name: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Step 3 of the keygenerator trustee
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
     global_trustee_step = await crud.get_global_trustee_step(session=session, election_id=election.id)
     if global_trustee_step != 3:
         raise HTTPException(
@@ -692,23 +692,23 @@ async def post_trustee_step_3(election_uuid: str, trustee_uuid: str, trustee_log
             status_code=400, detail="Some trustees haven't completed the step 2 of the key generator")
 
 
-@api_router.get("/{election_uuid}/trustee/{trustee_uuid}/check-sk", status_code=200)
-async def trustee_check_sk(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/trustee/{trustee_uuid}/check-sk", status_code=200)
+async def trustee_check_sk(short_name: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Trustee Stage 2
     """
-    trustee, _ = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, _ = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
     return sharedpoint.Certificate.serialize(trustee.certificate, to_json=False)
 
 
-@api_router.post("/{election_uuid}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200)
-async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_data: schemas.DecryptionIn, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200)
+async def trustee_decrypt_and_prove(short_name: str, trustee_uuid: str, trustee_data: schemas.DecryptionIn, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Trustee Stage 3
     """
     trustee, election = await get_auth_trustee_and_election(
         session=session,
-        election_uuid=election_uuid,
+        short_name=short_name,
         trustee_uuid=trustee_uuid,
         login_id=trustee_login_id,
         status=ElectionStatusEnum.tally_computed
@@ -754,12 +754,12 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
             status_code=400, detail="An error was found during the verification of the proofs")
 
 
-@api_router.get("/{election_uuid}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200)
-async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200)
+async def trustee_decrypt_and_prove(short_name: str, trustee_uuid: str, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Trustee Stage 3
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, election_uuid=election_uuid, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
 
     trustees = await crud.get_trustees_by_election_id(session=session, election_id=election.id)
     certificates = [sharedpoint.Certificate.serialize(
@@ -778,23 +778,23 @@ async def trustee_decrypt_and_prove(election_uuid: str, trustee_uuid: str, trust
 
 
 # >>> Revisar
-@api_router.get("/{election_uuid}/questions", status_code=200, response_model=schemas.ElectionOut)
-async def get_questions(election_uuid: str,  voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/questions", status_code=200, response_model=schemas.ElectionOut)
+async def get_questions(short_name: str,  voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
     Route for get questions
     """
 
-    _, election = await get_auth_voter_and_election(session=session, election_uuid=election_uuid, voter_login_id=voter_login_id, status="Started")
+    _, election = await get_auth_voter_and_election(session=session, short_name=short_name, voter_login_id=voter_login_id, status="Started")
 
     return election
 
 
-@api_router.get("/{election_uuid}/questions", status_code=200)
-async def get_questions(election_uuid: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/questions", status_code=200)
+async def get_questions(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Admin's route for getting all the questions of a specific election
     """
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
     if not election.questions:
         HTTPException(status_code=400,
                       detail="The election doesn't have questions")
@@ -802,20 +802,20 @@ async def get_questions(election_uuid: str, current_user: models.User = Depends(
     return Questions.serialize(election.questions)
 
 
-@api_router.get("/{election_uuid}/get-certificate", status_code=200)
-async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.get("/{short_name}/get-certificate", status_code=200)
+async def get_pdf(short_name: str, voter_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
 
     """
     Return the certificate of the last vote cast by the authenticated voter
 
     """
-    election = await crud.get_election_by_uuid(session=session, uuid=election_uuid)
+    election = await crud.get_election_by_short_name(session=session, short_name=short_name)
     voter = await crud.get_voter_by_login_id_and_election_id(session=session, voter_login_id=voter_login_id, election_id=election.id)
     cast_vote = await crud.get_cast_vote_by_voter_id(session=session, voter_id=voter.id)
 
     hash_vote = cast_vote.vote_hash
 
-    link_ballot = APP_FRONTEND_URL + "psifos/booth/" + election_uuid + \
+    link_ballot = APP_FRONTEND_URL + "psifos/booth/" + short_name + \
         "/public-info?hash=" + urllib.parse.quote(hash_vote)
     img = qrcode.make(link_ballot)
     buffer = BytesIO()
@@ -848,14 +848,14 @@ async def get_pdf(election_uuid: str, voter_login_id: str = Depends(AuthUser()),
     return Response(result, media_type="application/pdf")
 
 
-@api_router.post("/{election_uuid}/count-logs", status_code=200)
-async def get_count_logs_by_date(election_uuid: str, data: dict = {}, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+@api_router.post("/{short_name}/count-logs", status_code=200)
+async def get_count_logs_by_date(short_name: str, data: dict = {}, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
     """
     Return the number of logs per deltaTime from the start of the election until it ends
 
     """
 
-    election = await get_auth_election(election_uuid=election_uuid, current_user=current_user, session=session)
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
 
     if election.election_status == "Setting up":
         return {}

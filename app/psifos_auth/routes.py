@@ -43,47 +43,47 @@ async def login_user(request: Request, credentials: HTTPBasicCredentials = Depen
         raise HTTPException(status_code = 401, detail = "wrong username or passwords")
 
 
-@auth_router.get("/{election_uuid}/vote", status_code=200)
-async def login_voter(election_uuid: str, request: Request, session: str | None = Cookie(default=None)):
+@auth_router.get("/{short_name}/vote", status_code=200)
+async def login_voter(short_name: str, request: Request, session: str | None = Cookie(default=None)):
     """
     Make the connection and verification with the CAS service
     """
 
     auth = auth_factory.get_auth(protocol)
-    return await auth.login_voter(election_uuid=election_uuid, request=request, session=session)
+    return await auth.login_voter(short_name=short_name, request=request, session=session)
 
 
-@auth_router.get("/vote/{election_uuid}/logout", status_code=200)
-async def logout_voter(election_uuid: str, request: Request):
+@auth_router.get("/vote/{short_name}/logout", status_code=200)
+async def logout_voter(short_name: str, request: Request):
     """
     Logout a user
     """
 
     auth = auth_factory.get_auth(protocol)
-    return auth.logout_voter(election_uuid, request)
+    return auth.logout_voter(short_name, request)
 
 
 # Trustee Auth
 
 
-@auth_router.get("/{election_uuid}/trustee/login", status_code=200)
-async def login_trustee(election_uuid: str, request: Request, session: str | None = Cookie(default=None)):
+@auth_router.get("/{short_name}/trustee/login", status_code=200)
+async def login_trustee(short_name: str, request: Request, session: str | None = Cookie(default=None)):
     """
     Make the connection and verification with the CAS service
     """
     
     auth = auth_factory.get_auth(protocol)
-    return await auth.login_trustee(election_uuid=election_uuid, request=request, session=session)
+    return await auth.login_trustee(short_name=short_name, request=request, session=session)
 
 
 
-@auth_router.get("/{election_uuid}/trustee/logout", status_code=200)
-async def logout_trustee(election_uuid: str, request: Request):
+@auth_router.get("/{short_name}/trustee/logout", status_code=200)
+async def logout_trustee(short_name: str, request: Request):
     """
     Logout a trustee
     """
     auth = auth_factory.get_auth(protocol)
-    return auth.logout_trustee(election_uuid, request)
+    return auth.logout_trustee(short_name, request)
 
 
 # OAuth2
