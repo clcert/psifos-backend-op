@@ -14,8 +14,7 @@ class HomomorphicDecryption(AbstractDecryption):
         self.decryption_proofs = ListOfZKProofs(*decryption_proofs)
 
     
-    def _homomorphic_verify(self, homomorphic_tally: HomomorphicTally):
-        public_key = homomorphic_tally.public_key
+    def _homomorphic_verify(self, public_key, homomorphic_tally: HomomorphicTally):
         tally = homomorphic_tally.tally
 
         # go through each one
@@ -37,9 +36,9 @@ class HomomorphicDecryption(AbstractDecryption):
 
         return True
 
-    def verify(self, homomorphic_tally : HomomorphicTally):
-        abstract_verify = super(HomomorphicDecryption, self).verify(homomorphic_tally)
-        homomorphic_verify = self._homomorphic_verify(homomorphic_tally)
+    def verify(self, public_key, homomorphic_tally : HomomorphicTally):
+        abstract_verify = super(HomomorphicDecryption, self).verify(public_key, homomorphic_tally)
+        homomorphic_verify = self._homomorphic_verify(public_key, homomorphic_tally)
         return abstract_verify and homomorphic_verify
 
     def get_decryption_factors(self):

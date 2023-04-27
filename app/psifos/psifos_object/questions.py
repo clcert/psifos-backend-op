@@ -19,8 +19,6 @@ class QuestionFactory():
         q_type = kwargs.get("q_type", None)
         if q_type == "closed_question":
             return ClosedQuestion(**kwargs)
-        elif q_type == "open_question":
-            return OpenQuestion(**kwargs)
         elif q_type == "mixnet_question":
             return MixnetQuestion(**kwargs)
         else:
@@ -64,19 +62,6 @@ class AbstractQuestion(SerializableObject):
         self.min_answers: int = int(kwargs["min_answers"])
 
         self.include_blank_null: str = str(kwargs["include_blank_null"])
-
-
-class OpenQuestion(AbstractQuestion):
-    """
-    Allows a voter not only to select between closed options, but
-    also open options, i.e options written by themself.
-    """
-
-    def __init__(self, **kwargs) -> None:
-        self.total_open_options: int = int(kwargs["total_open_options"])
-        self.open_option_max_size: int = int(kwargs["open_option_max_size"])
-        super(OpenQuestion, self).__init__(**kwargs)
-
 
 class ClosedQuestion(AbstractQuestion):
     """

@@ -34,7 +34,7 @@ class MixnetTally(AbstractTally):
     def get_tally(self):
         return [x.instances for x in self.tally.instances]
         
-    def compute(self, encrypted_answers, **kwargs) -> None:
+    def compute(self, public_key, encrypted_answers, **kwargs) -> None:
         # first we create the list of ciphertexts
         ciphertexts = []
         for enc_ans in encrypted_answers:
@@ -42,9 +42,10 @@ class MixnetTally(AbstractTally):
                 Ciphertext.serialize(ctxt, to_json=False)
                 for ctxt in enc_ans.get_choices()
             ])
-        public_key = kwargs["public_key"]
-        election_name = kwargs["election_name"]
-        election_uuid = kwargs["election_uuid"]
+        
+        election = kwargs.get("election")
+        election_name = election.election_name
+        election_uuid = election.election_uuid
         
         server_names = [MIXNET_01_NAME, MIXNET_02_NAME, MIXNET_03_NAME]
         server_urls = [MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL]
@@ -84,10 +85,9 @@ class MixnetTally(AbstractTally):
         self.num_tallied = len(ciphertexts)
                   
 
-    def decrypt(self, decryption_factors, t, **kwargs) -> None:
+    def decrypt(self, public_key, decryption_factors, t, **kwargs) -> None:
         q_result = []
         tally = self.get_tally()
-        total_closed_options = kwargs["total_closed_options"]
         for vote_num, vote_ctxts in enumerate(tally):
             v_result = []
             for ctxt_num, ctxt in enumerate(vote_ctxts):
@@ -100,7 +100,11 @@ class MixnetTally(AbstractTally):
                 ], t+1)
                 
                 for subset_factor_list in iterator:
-                    raw_value = ctxt.decrypt(subset_factor_list, self.public_key, decode_m=True)
+                    raw_value = ctxt.decrypt(
+                        decryption_factors=subset_factor_list,
+                        public_key=public_key,
+                        decode_m=True
+                    )
                     
                     if raw_value is None:
                         raise Exception("Error computing decryption: None returned")
@@ -110,7 +114,7 @@ class MixnetTally(AbstractTally):
                 v_result.append(raw_value)
             q_result.append(v_result)
 
-        count_vote = self.count_votes(q_result, total_closed_options)
+        count_vote = self.count_votes(q_result, self.num_options)
         result = {
             "tally_type": "mixnet",
             "ans_results": count_vote

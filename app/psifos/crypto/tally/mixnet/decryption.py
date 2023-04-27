@@ -30,8 +30,7 @@ class MixnetDecryption(AbstractDecryption):
         self.decryption_factors = ListOfDecryptionFactors(*decryption_factors)
         self.decryption_proofs = ListOfDecryptionProofs(*decryption_proofs)
 
-    def _mixnet_verify(self, mixnet_tally: MixnetTally):
-        public_key = mixnet_tally.public_key
+    def _mixnet_verify(self, public_key, mixnet_tally: MixnetTally):
         tally = mixnet_tally.get_tally()
         decryption_factors = self.get_decryption_factors()
         decryption_proofs = self.get_decryption_proofs()
@@ -57,9 +56,9 @@ class MixnetDecryption(AbstractDecryption):
         print("DECRYPTION VERIFIED!")
         return True
     
-    def verify(self, mixnet_tally : MixnetTally):
-        abstract_verify = super(MixnetDecryption, self).verify(mixnet_tally)
-        mixnet_verify = self._mixnet_verify(mixnet_tally)
+    def verify(self, public_key, mixnet_tally : MixnetTally):
+        abstract_verify = super(MixnetDecryption, self).verify(public_key, mixnet_tally)
+        mixnet_verify = self._mixnet_verify(public_key, mixnet_tally)
         return abstract_verify and mixnet_verify
 
     def get_decryption_factors(self):

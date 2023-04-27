@@ -8,10 +8,10 @@ class TrusteeDecryptions(SerializableList):
         for decryption_dict in args:
             self.instances.append(DecryptionFactory.create(**decryption_dict))
     
-    def verify(self, encrypted_tally):
+    def verify(self, public_key, encrypted_tally):
         tallies = encrypted_tally.get_tallies()
         for tally, decryption in zip(tallies, self.instances):
-            question_verify = decryption.verify(tally)
+            question_verify = decryption.verify(public_key, tally)
             if not question_verify:
                 return False
         return True

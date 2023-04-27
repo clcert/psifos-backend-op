@@ -83,7 +83,11 @@ class SerializableObject(object):
                 serialized_attr = str(attr_value)
                 setattr(a_obj, attr, serialized_attr)
 
-        return json.dumps(a_obj.__dict__) if to_json else a_obj.__dict__
+        filtered_dict = {
+            key: value for key, value in a_obj.__dict__.items()
+            if not key.startswith("_")
+        }
+        return json.dumps(filtered_dict) if to_json else filtered_dict
 
     @classmethod
     def deserialize(cls, json_data: str = '{}') -> SerializableObject:

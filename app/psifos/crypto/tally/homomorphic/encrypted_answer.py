@@ -36,7 +36,7 @@ class EncryptedClosedAnswer(AbstractEncryptedAnswer):
 
         for choice_num in range(len(self.choices.instances)):
             choice = self.choices.instances[choice_num]
-            choice.pk = pk
+            choice._pk = pk
             individual_proof = self.individual_proofs.instances[choice_num]
 
             # verify that elements belong to the proper group

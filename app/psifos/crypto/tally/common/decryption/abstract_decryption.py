@@ -1,6 +1,4 @@
 from app.database.serialization import SerializableObject
-from app.psifos.crypto.elgamal import ListOfZKProofs, ListOfIntegers
-from app.psifos.crypto.elgamal import fiatshamir_challenge_generator
 
 
 class AbstractDecryption(SerializableObject):
@@ -11,7 +9,7 @@ class AbstractDecryption(SerializableObject):
     def __init__(self, tally_type) -> None:
         self.tally_type = tally_type
 
-    def verify(self, a_tally):
+    def verify(self, public_key, a_tally):
         """
         Verifies a tally.
         TODO: Add general verification        

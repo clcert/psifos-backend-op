@@ -47,7 +47,6 @@ class Election(Base):
     description = Column(Text)
 
     public_key = Column(PublicKeyField, nullable=True)
-    private_key = Column(Text, nullable=True)  # PsifosObject: EGSecretKey
     questions = Column(QuestionsField, nullable=True)
 
     obscure_voter_names = Column(Boolean, default=False, nullable=False)
@@ -58,7 +57,6 @@ class Election(Base):
     total_voters = Column(Integer, default=0)
     total_trustees = Column(Integer, default=0)
 
-    cast_url = Column(String(500))
     encrypted_tally = Column(TallyManagerField, nullable=True)
     encrypted_tally_hash = Column(Text, nullable=True)
 
@@ -134,16 +132,19 @@ class Election(Base):
     def compute_tally(self, encrypted_votes: list[EncryptedVote], weights: list[int]):
         # First we instantiate the TallyManager class.
         question_list = Questions.serialize(self.questions, to_json=False)
-        pk_dict = PublicKey.serialize(self.public_key, to_json=False)
         tally_params = [
-            {"tally_type": q_dict["tally_type"], "question": q_dict, "public_key": pk_dict} for q_dict in question_list
+            {
+                "tally_type": q_dict["tally_type"],
+                "computed": False,
+                "num_tallied": 0,
+                "q_num": q_num,
+                "num_options": q_dict["total_closed_options"],
+            } for q_num, q_dict in enumerate(question_list)
         ]
-
         enc_tally = TallyManager(*tally_params)
 
         # Then we compute the encrypted_tally
-        enc_tally.compute(encrypted_votes=encrypted_votes, weights=weights, public_key=self.public_key,
-                          election_name=self.short_name, election_uuid=self.uuid)
+        enc_tally.compute(encrypted_votes=encrypted_votes, weights=weights, election=self)
 
         return {
             "election_status": ElectionStatusEnum.tally_computed,
@@ -167,7 +168,10 @@ class Election(Base):
         ]
 
         return {
-            "result": self.encrypted_tally.decrypt(partial_decryptions, self.total_trustees // 2, self.max_weight, self.questions),
+            "result": self.encrypted_tally.decrypt(
+                partial_decryptions=partial_decryptions,
+                election=self
+            ),
             "election_status": ElectionStatusEnum.decryptions_combined,
         }
 
@@ -268,15 +272,11 @@ class Trustee(Base):
     name = Column(String(200), nullable=False)
     trustee_login_id = Column(String(100), nullable=False)
     email = Column(Text, nullable=False)
-    secret = Column(String(100))
 
     current_step = Column(Integer, default=0)
 
     public_key = Column(PublicKeyField, nullable=True)
     public_key_hash = Column(String(100), nullable=True)
-    secret_key = Column(Text, nullable=True)  # PsifosObject: EGSecretKey
-    pok = Column(Text, nullable=True)  # PsifosObject: DLogProof
-
     decryptions = Column(TrusteeDecryptionsField, nullable=True)
 
     certificate = Column(CertificateField, nullable=True)

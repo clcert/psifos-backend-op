@@ -30,29 +30,36 @@ class TallyManager(SerializableList):
         for tally_dict in args:
             self.instances.append(TallyFactory.create(**tally_dict))
     
-    def compute(self, encrypted_votes, weights, public_key, election_name, election_uuid):
+    def compute(self, encrypted_votes, weights, election):
+        public_key = election.public_key    # TODO: replace this when multiple pk gets added
+
         for q_num, tally in enumerate(self.instances):
             encrypted_answers = [
                 enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes
             ]
 
-            tally.compute(encrypted_answers=encrypted_answers, weights=weights, public_key=public_key, 
-                          election_name=election_name, election_uuid=election_uuid)
+            tally.compute(
+                public_key=public_key,
+                encrypted_answers=encrypted_answers,
+                weights=weights,
+                election=election
+            )
     
-    def decryption_factors_and_proofs(self, sk):
-        decryption_factors, decryption_proofs = [], []
-        for tally in self.instances:
-            q_dec_f, q_dec_p = tally.decryption_factors_and_proofs(sk)
-            decryption_factors.append(q_dec_f)
-            decryption_proofs.append(q_dec_p)
-        return decryption_factors, decryption_proofs
-    
-    def decrypt(self, partial_decryptions, t, max_weight=1, questions=[]):
-        return ElectionResult(*[
-            tally.decrypt(partial_decryptions[q_num], t, max_weight=max_weight, 
-            total_closed_options=questions.instances[q_num].total_closed_options)
-            for q_num, tally in enumerate(self.instances)
-        ])
+    def decrypt(self, partial_decryptions, election):
+        public_key = election.public_key    # TODO: replace this when multiple pk gets added
+        
+        decrypted_tally = []
+        for q_num, tally in enumerate(self.instances):
+            decrypted_tally.append(
+                tally.decrypt(
+                    public_key=public_key,
+                    decryption_factors=partial_decryptions[q_num],
+                    t=election.total_trustees//2,
+                    max_weight=election.max_weight
+                )
+            )
+        
+        return ElectionResult(*decrypted_tally)
     
     def get_tallies(self):
         return self.instances

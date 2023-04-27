@@ -5,7 +5,7 @@ Encrypted answer for Psifos vote.
 """
 
 from app.database.serialization import SerializableObject
-from app.psifos.crypto.elgamal import ListOfCipherTexts, Plaintext, disjunctive_challenge_generator
+from app.psifos.crypto.elgamal import ListOfCipherTexts
 
 class AbstractEncryptedAnswer(SerializableObject):
     def __init__(self, **kwargs) -> None:
