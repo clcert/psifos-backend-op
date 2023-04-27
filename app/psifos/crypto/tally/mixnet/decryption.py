@@ -53,7 +53,6 @@ class MixnetDecryption(AbstractDecryption):
                 if not proof.verify(**verify_params):
                     return False
 
-        print("DECRYPTION VERIFIED!")
         return True
     
     def verify(self, public_key, mixnet_tally : MixnetTally):

@@ -138,9 +138,7 @@ class CASAuth(AbstractAuth):
 
         # If no user, return error
         
-        print(f"\n\n-{user}-\n\n")
         if not user:
-            print("\n\nAAAA\n\n")
             raise HTTPException(status_code=401, detail="ERROR")
 
         # If user, set session and redirect to election page
@@ -188,7 +186,6 @@ class CASAuth(AbstractAuth):
 
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
         if not user:
-            print("\n\nBBBB\n\n")
             raise HTTPException(status_code=401, detail="ERROR")
         else:
             request.session["user"] = user

@@ -44,9 +44,7 @@ async def get_auth_voter_and_election(short_name: str, voter_login_id: str, sess
 
 async def get_auth_trustee_and_election(short_name:str, trustee_uuid: str, login_id: str, session: Session | AsyncSession, status: str = None):
     election = await crud.get_election_by_short_name(session=session, short_name=short_name)
-    print(short_name, election)
     trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
-    print(trustee_uuid, trustee)
     if not trustee:
         raise HTTPException(status_code=400, detail="Trustee not found")
     if trustee.trustee_login_id != login_id:

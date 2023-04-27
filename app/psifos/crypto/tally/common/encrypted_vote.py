@@ -46,9 +46,7 @@ class EncryptedVote(SerializableObject):
         # check proofs on all of answers
         for question_num in range(len(election.questions.instances)):
             ea = self.answers.instances[question_num]
-
             q = election.questions.instances[question_num]
-
             if not ea.verify(pk=election.public_key, min_ptxt=q.min_answers, max_ptxt=q.max_answers):
                 return False
 

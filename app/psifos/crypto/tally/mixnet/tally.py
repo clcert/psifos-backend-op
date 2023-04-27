@@ -44,8 +44,8 @@ class MixnetTally(AbstractTally):
             ])
         
         election = kwargs.get("election")
-        election_name = election.election_name
-        election_uuid = election.election_uuid
+        election_name = election.short_name
+        election_uuid = election.uuid
         
         server_names = [MIXNET_01_NAME, MIXNET_02_NAME, MIXNET_03_NAME]
         server_urls = [MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL]
@@ -66,13 +66,11 @@ class MixnetTally(AbstractTally):
                 "token": TOKEN, 
                 "ciphertexts": ciphertexts
             }
-            print(f"\n{PAYLOAD}\n")
             requests.post(url=f"{url}/init", json=PAYLOAD)
         
         # once each mixnet sv has been initialized, 
         # we retrieve the encrypted texts if available
         sv_idx = random.randint(0, len(server_urls)-1)
-        print(f"\n\nMIXSERVER{sv_idx+1} SELECCIONADO!\n\n")
         while True:
             r = requests.get(f"{server_urls[sv_idx]}/get-ciphertexts?token={TOKEN}").json()
             if r["status"] == "CIPHERTEXTS_COMPUTED":
