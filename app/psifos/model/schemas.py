@@ -50,7 +50,6 @@ class PsifosSchema(BaseModel):
         }
 
 
-
 # ------------------ model-related schemas ------------------
 
 
@@ -75,7 +74,7 @@ class TrusteeIn(TrusteeBase):
     pass
 
 
-# model (sqla) ModelElection -> SchemaElection  
+# model (sqla) ModelElection -> SchemaElection
 class TrusteeOut(TrusteeBase):
     """
     Schema for reading/returning trustee data.
@@ -106,11 +105,12 @@ class CastVoteBase(PsifosSchema):
 
     encrypted_vote: str | None
 
+
 class CastVoteIn(CastVoteBase):
     """
     Schema for creating an castvote.
     """
-    
+
     pass
 
 
@@ -122,11 +122,11 @@ class CastVoteOut(CastVoteBase):
     id: int
     vote_hash: str
     # vote_tinyhash: str | None
-    
+
     cast_ip: str
     cast_ip_hash: str
     is_valid: bool
-    
+
     cast_at: datetime
 
     class Config:
@@ -216,7 +216,6 @@ class ElectionOut(ElectionBase):
     voters_by_weight_init: str | None
     voters_by_weight_end: str | None
 
-    voters: list[VoterOut] = []
     trustees: list[TrusteeOut] = []
 
     class Config:
@@ -224,18 +223,28 @@ class ElectionOut(ElectionBase):
 
 
 # ------------------ response-related schemas ------------------
+
+
 class PublicKeyData(PsifosSchema):
     public_key_json: str
+
+
 class KeyGenStep1Data(PsifosSchema):
     coefficients: str
     points: str
+
+
 class KeyGenStep2Data(PsifosSchema):
     acknowledgements: str
+
+
 class KeyGenStep3Data(PsifosSchema):
     verification_key: str
 
+
 class DecryptionIn(PsifosSchema):
     decryptions: object
+
 
 class TrusteeHome(PsifosSchema):
     trustee: TrusteeOut
