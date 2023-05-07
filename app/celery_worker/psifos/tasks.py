@@ -36,11 +36,9 @@ def process_cast_vote(private_p: bool, election_uuid: str, serialized_encrypted_
             voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
         else:
             voter_login_id = kwargs.get("voter_login_id")
-            voter = crud.get_voter_by_login_id_and_election_id(session=session, voter_login_id=voter_login_id, election_id=election.id)
-            if not voter:
-                voter_in = schemas.VoterIn(voter_login_id=voter_login_id, voter_name=voter_login_id, voter_weight=1)
-                voter = crud.create_voter(session=session, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter_in)
-                crud.update_election(session=session, election_id=election.id, fields={"total_voters": election.total_voters + 1})
+            voter_in = schemas.VoterIn(voter_login_id=voter_login_id, voter_name=voter_login_id, voter_weight=1)
+            voter = crud.create_voter(session=session, election_id=election.id, uuid=str(uuid.uuid1()), voter=voter_in)
+            crud.update_election(session=session, election_id=election.id, fields={"total_voters": election.total_voters + 1})
 
         enc_vote_data = psifos_utils.from_json(serialized_encrypted_vote)
         encrypted_vote = EncryptedVote(**enc_vote_data)
