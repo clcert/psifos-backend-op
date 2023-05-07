@@ -8,6 +8,7 @@ CRUD utils for Psifos
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from sqlalchemy.sql.expression import not_
 
 from app.psifos import utils
 from app.psifos.crypto.sharedpoint import Point
@@ -282,7 +283,7 @@ async def format_points_sent_by(session: Session | AsyncSession, election_id: in
 
 
 async def get_election_by_short_name(session: Session | AsyncSession, short_name: str):
-    query = select(models.Election).where(models.Election.short_name == short_name).options(
+    query = select(models.Election).where(models.Election.short_name == short_name, not_(models.Election.field_to_exclude)).options(
         *ELECTION_QUERY_OPTIONS
     )
     result = await db_handler.execute(session, query)
