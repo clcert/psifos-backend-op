@@ -382,8 +382,9 @@ async def cast_vote(request: Request, short_name: str, cast_vote: schemas.CastVo
     task_params["private_p"] = election.private_p
     task_params["election_uuid"] = election.uuid
 
-    task = tasks.process_cast_vote.delay(**task_params)
-    verified, vote_fingerprint = task.get()
+    for i in range(100):
+        task = tasks.process_cast_vote.delay(**task_params)
+        verified, vote_fingerprint = task.get()
 
     if verified:
         return {
