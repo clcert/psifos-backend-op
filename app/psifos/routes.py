@@ -204,7 +204,7 @@ async def start_election(short_name: str, current_user: models.User = Depends(Au
         short_name=short_name,
         current_user=current_user,
         session=session,
-        status=ElectionStatusEnum.setting_up
+        status=ElectionStatusEnum.setting_up,
     )
     await crud.update_election(session=session, election_id=election.id, fields=election.start())
 
@@ -417,7 +417,7 @@ async def get_trustee_home(short_name: str, trustee_uuid: str, trustee_login_id:
     """
     Trustee's route for getting his home
     """
-    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id)
+    trustee, election = await get_auth_trustee_and_election(session=session, short_name=short_name, trustee_uuid=trustee_uuid, login_id=trustee_login_id, simple=True)
 
     return schemas.TrusteeHome(trustee=schemas.TrusteeOut.from_orm(trustee), election=schemas.ElectionOut.from_orm(election))
 
@@ -770,7 +770,7 @@ async def trustee_decrypt_and_prove(short_name: str, trustee_uuid: str, trustee_
         trustee_id=trustee.trustee_id,
     )
     return {
-        "election": schemas.ElectionOut.from_orm(election),
+        "election": schemas.CompleteElectionOut.from_orm(election),
         "trustee": schemas.TrusteeOut.from_orm(trustee),
         "certificates": psifos_utils.to_json(certificates),
         "points": psifos_utils.to_json(points),

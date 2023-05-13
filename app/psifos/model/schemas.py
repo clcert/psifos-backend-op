@@ -210,7 +210,6 @@ class ElectionOut(ElectionBase):
     questions: object | None
     total_voters: int
     total_trustees: int
-    encrypted_tally: object | None
     encrypted_tally_hash: str | None
     result: object | None
     voters_by_weight_init: str | None
@@ -221,6 +220,12 @@ class ElectionOut(ElectionBase):
     class Config:
         orm_mode = True
 
+class CompleteElectionOut(ElectionOut):
+
+    encrypted_tally: object | None
+
+    class Config:
+        orm_mode = True
 
 # ------------------ response-related schemas ------------------
 
