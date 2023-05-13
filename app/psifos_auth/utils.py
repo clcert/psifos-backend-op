@@ -15,8 +15,8 @@ from requests_oauthlib import OAuth2Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def get_auth_election(short_name: str, current_user: auth_models.User, session: Session | AsyncSession, status: str = None):
-    election = await crud.get_election_by_short_name(session=session, short_name=short_name)
+async def get_auth_election(short_name: str, current_user: auth_models.User, session: Session | AsyncSession, status: str = None, simple: bool = False):
+    election = await crud.get_election_by_short_name(session=session, short_name=short_name, simple=simple)
     if not election:
         raise HTTPException(status_code=404, detail="Election not found")
     if election.admin_id != current_user.id:
@@ -42,8 +42,8 @@ async def get_auth_voter_and_election(short_name: str, voter_login_id: str, sess
     return voter, election
 
 
-async def get_auth_trustee_and_election(short_name:str, trustee_uuid: str, login_id: str, session: Session | AsyncSession, status: str = None):
-    election = await crud.get_election_by_short_name(session=session, short_name=short_name)
+async def get_auth_trustee_and_election(short_name:str, trustee_uuid: str, login_id: str, session: Session | AsyncSession, status: str = None, simple: bool = False):
+    election = await crud.get_election_by_short_name(session=session, short_name=short_name, simple=simple)
     trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
     if not trustee:
         raise HTTPException(status_code=400, detail="Trustee not found")
