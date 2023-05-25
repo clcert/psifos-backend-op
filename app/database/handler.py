@@ -93,6 +93,10 @@ class Database(object):
     and the db handler.
     """
 
+    engine_options = {
+        "pool_recycle": 3600
+    }
+
     @staticmethod
     def init_db(db_user, db_pass, db_host, db_name):
         Base = declarative_base()
@@ -101,11 +105,11 @@ class Database(object):
 
         if USE_ASYNC_ENGINE:
             db_url = "mysql+asyncmy" + url_suffix
-            engine = create_async_engine(db_url)
+            engine = create_async_engine(db_url, **Database.engine_options)
             session_class = AsyncSession
         else:
             db_url = "mysql" + url_suffix
-            engine = create_engine(db_url)
+            engine = create_engine(db_url, **Database.engine_options)
             session_class = Session
 
         SessionLocal = sessionmaker(
