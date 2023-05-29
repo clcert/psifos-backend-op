@@ -45,10 +45,6 @@ def format_points(points):
 
 
 def generate_election_pk(trustees):
-    a_combined_pk = trustees[0].coefficients.instances[0].coefficient
-    for t in trustees[1:]:
-        a_combined_pk = combined_pk * t.coefficients.instances[0].coefficient
-
     t_first_coefficients = [t.coefficients.instances[0].coefficient for t in trustees]
 
     combined_pk = reduce((lambda x, y: x * y), t_first_coefficients)
