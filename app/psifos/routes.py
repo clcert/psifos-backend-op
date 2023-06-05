@@ -718,7 +718,7 @@ async def trustee_decrypt_and_prove(short_name: str, trustee_uuid: str, trustee_
     answers_decryptions: TrusteeDecryptions = TrusteeDecryptions(
         *decryption_list)
 
-    if answers_decryptions.verify(public_key=election.public_key, encrypted_tally=election.encrypted_tally):
+    if answers_decryptions.verify(public_key=trustee.public_key, encrypted_tally=election.encrypted_tally):
         trustee = await crud.update_trustee(session=session, trustee_id=trustee.id, fields={"decryptions": answers_decryptions})
         dec_num = election.decryptions_uploaded + 1
         election = await crud.update_election(session=session, election_id=election.id, fields={"decryptions_uploaded": dec_num})
