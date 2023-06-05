@@ -7,6 +7,7 @@ from app.config import (
     OAUTH_CLIENT_ID,
     OAUTH_CLIENT_SECRET,
     OAUTH_AUTHORIZE_URL,
+    OAUTH_LOGOUT_URL,
     OAUTH_TOKEN_URL,
     OAUTH_USER_INFO_URL,
 )
@@ -237,7 +238,22 @@ class OAuth2Auth(AbstractAuth):
         return RedirectResponse(authorization_url)
 
     def logout_voter(self, short_name: str, request: Request):
-        pass
+ 
+        # Eliminar las variables de sesión relevantes
+        del request.session["short_name"]
+        del request.session["type_logout"]
+        del request.session["oauth_state"]
+
+        # Realizar el cierre de sesión en el proveedor OAuth
+        client = OAuth2Session(
+            client_id=self.client_id,
+            redirect_uri=APP_FRONTEND_URL,
+            scope=self.scope,
+        )
+        client.logout_url = OAUTH_LOGOUT_URL
+        logout_url = client.logout_url
+
+        return RedirectResponse(logout_url)
 
     @db_handler.method_with_session
     async def login_trustee(
@@ -258,7 +274,22 @@ class OAuth2Auth(AbstractAuth):
         return RedirectResponse(authorization_url)
 
     def logout_trustee(self, short_name: str, request: Request):
-        pass
+        
+        # Eliminar las variables de sesión relevantes
+        del request.session["short_name"]
+        del request.session["type_logout"]
+        del request.session["oauth_state"]
+
+        # Realizar el cierre de sesión en el proveedor OAuth
+        client = OAuth2Session(
+            client_id=self.client_id,
+            redirect_uri=APP_FRONTEND_URL,
+            scope=self.scope,
+        )
+        client.logout_url = OAUTH_LOGOUT_URL
+        logout_url = client.logout_url
+
+        return RedirectResponse(logout_url)
 
     @db_handler.method_with_session
     async def authorized(self, db_session, request: Request, session: str = None):
