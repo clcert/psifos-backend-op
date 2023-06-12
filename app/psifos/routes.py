@@ -512,7 +512,7 @@ async def post_trustee_step_1(short_name: str, trustee_uuid: str, trustee_data: 
     points = [sharedpoint.Point(**params) for params in points_data]
 
     # TODO: perform server-side checks here!
-    await crud.delete_shared_points_by_sender(session=session, sender=trustee.trustee_id)
+    await crud.delete_shared_points_by_sender_and_election_id(session=session, sender=trustee.trustee_id, election_id=election.id)
     await crud.create_shared_points(session=session, election_id=election.id, sender=trustee.trustee_id, points=points)
 
     await crud.update_trustee(session=session, trustee_id=trustee.id, fields={"coefficients": coefficients, "current_step": 2})

@@ -285,9 +285,11 @@ async def format_points_sent_to(session: Session | AsyncSession, election_id: in
     return utils.format_points(points)
 
 
-async def delete_shared_points_by_sender(session: Session | AsyncSession, sender: int):
+async def delete_shared_points_by_sender_and_election_id(session: Session | AsyncSession, sender: int, election_id: int):
     query = delete(models.SharedPoint).where(
-        models.SharedPoint.sender == sender)
+        models.SharedPoint.sender == sender,
+        models.SharedPoint.election_id == election_id
+    )
     await db_handler.execute(session, query)
     await db_handler.commit(session)
 
