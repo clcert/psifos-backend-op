@@ -39,6 +39,7 @@ USE_ASYNC_ENGINE = bool(int(os.environ.get("USE_ASYNC_ENGINE", False)))
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND")
 TIMEZONE = os.environ.get("TIMEZONE", "Chile/Continental")
+TOKEN_ANALYTICS_OP = os.environ.get("TOKEN_ANALYTICS_OP")
 
 ORIGINS: list = [
     "*"

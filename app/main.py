@@ -1,7 +1,7 @@
 from datetime import timedelta
 from fastapi import FastAPI
 
-from app.config import SECRET_KEY, ORIGINS
+from app.config import SECRET_KEY, ORIGINS, TOKEN_ANALYTICS_OP
 
 from .database import Base, engine
 from .psifos.routes import api_router
@@ -12,11 +12,15 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from starlette_context import middleware, plugins
 
+from api_analytics.fastapi import Analytics
+
+
 import os
 
 app = FastAPI()
 
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+app.add_middleware(Analytics, api_key=TOKEN_ANALYTICS_OP)  # Add middleware
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
