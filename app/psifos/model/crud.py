@@ -415,3 +415,13 @@ async def count_logs_by_date(session: Session | AsyncSession, election_id: int, 
              models.ElectionLog.created_at <= end_date))
     result = await db_handler.execute(session, query)
     return result.all()
+
+
+async def get_logs_by_type(session: Session | AsyncSession, election_id: int, type_log):
+
+    query = select(models.ElectionLog.created_at, models.ElectionLog.event_params).where(
+        models.ElectionLog.election_id == election_id,
+        models.ElectionLog.event == type_log,
+    )
+    result = await db_handler.execute(session, query)
+    return result.all()
