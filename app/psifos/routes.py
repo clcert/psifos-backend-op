@@ -232,8 +232,10 @@ async def end_election(short_name: str, current_user: models.User = Depends(Auth
     not_null_voters = [v for v in voters if v.valid_cast_votes >= 1]
 
     if len(not_null_voters) < 1:
-        raise HTTPException(
-            status_code=400, detail="There must be at least 1 vote casted to end an election.")
+        await crud.update_election(session=session, election_id=election.id, fields=election.end_without_votes())
+        return {
+            "message": "The election was succesfully ended"
+        }
 
     await crud.update_election(session=session, election_id=election.id, fields=election.end())
 
@@ -883,4 +885,25 @@ async def get_count_logs_by_date(short_name: str, data: dict = {}, current_user:
         "count_logs": count_logs,
         "total_logs": total
     }
+
+@api_router.get("/{short_name}/logs/invalid-voters-logging", status_code=200)
+async def get_invalid_voters_logging(short_name: str, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+    """
+    Return the logs from invalid logging 
+    
+    """
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
+  
+    logs = await crud.get_logs_by_type(session=session, election_id=election.id, type_log='voter_login_fail')
+    results = {}
+    for log in logs:
+        json_data = psifos_utils.from_json(log[1])
+        user = json_data["user"]
+        date = log[0]
+        if date in results:
+            results[date].append(user)
+        else:
+            results[date] = user
+
+    return results
 # <<<

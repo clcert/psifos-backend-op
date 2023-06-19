@@ -16,6 +16,7 @@ from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime
 
 from app.psifos import utils
 from app.psifos.psifos_object.questions import Questions
+from app.psifos.psifos_object.result import ElectionResult
 
 import app.psifos.crypto.utils as crypto_utils
 from datetime import datetime
@@ -172,6 +173,21 @@ class Election(Base):
                 partial_decryptions=partial_decryptions,
                 election=self
             ),
+            "election_status": ElectionStatusEnum.decryptions_combined,
+        }
+
+    def end_without_votes(self):
+        question_list = Questions.serialize(self.questions, to_json=False)
+        results = []
+        for question in question_list:
+            results.append({
+                "tally_type": question["tally_type"],
+                "ans_results": ["0"] * int(question["total_closed_options"])
+            })
+
+        election_result = ElectionResult(*results)
+        return {
+            "result": election_result,
             "election_status": ElectionStatusEnum.decryptions_combined,
         }
 

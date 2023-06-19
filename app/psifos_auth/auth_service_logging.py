@@ -78,10 +78,10 @@ class AbstractAuth(object):
 
         
         if (voter is not None) or (not election.private_p):
-            await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.VOTER_LOGIN)
+            await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.VOTER_LOGIN, user=user_id)
 
         else:
-            await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.VOTER_LOGIN_FAIL)
+            await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.VOTER_LOGIN_FAIL, user=user_id)
 
         return RedirectResponse(
                 url=APP_FRONTEND_URL + "psifos/booth/" + short_name
