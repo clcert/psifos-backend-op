@@ -906,4 +906,24 @@ async def get_invalid_voters_logging(short_name: str, current_user: models.User 
         })
 
     return results
+
+
+@api_router.post("/{short_name}/set-status-election", status_code=200)
+async def set_status_election(short_name: str, data: dict = {}, current_user: models.User = Depends(AuthAdmin()), session: Session | AsyncSession = Depends(get_session)):
+    """
+    Return the logs from invalid logging 
+    
+    """
+    status = data["status"]
+    election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
+  
+    await crud.update_election(
+        session=session,
+        election_id=election.id,
+        fields={
+            "election_status": status
+        }
+    )
+
+    return 'Success'
 # <<<
