@@ -895,15 +895,15 @@ async def get_invalid_voters_logging(short_name: str, current_user: models.User 
     election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
   
     logs = await crud.get_logs_by_type(session=session, election_id=election.id, type_log='voter_login_fail')
-    results = {}
+    results = []
     for log in logs:
         json_data = psifos_utils.from_json(log[1])
         user = json_data["user"]
         date = log[0]
-        if date in results:
-            results[date].append(user)
-        else:
-            results[date] = user
+        results.append({
+            "time": date,
+            "user": user
+        })
 
     return results
 # <<<
