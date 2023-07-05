@@ -6,6 +6,7 @@ import qrcode
 import urllib.parse
 import app.celery_worker.psifos.tasks as tasks
 import datetime
+import threading
 
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request, Response
 from app.psifos.model.enums import ElectionStatusEnum, ElectionPublicEventEnum
@@ -288,8 +289,10 @@ async def combine_decryptions(short_name: str, current_user: models.User = Depen
         short_name=short_name,
         current_user=current_user,
         session=session,
-        status=ElectionStatusEnum.decryptions_uploaded
     )
+    if election.decryptions_uploaded < (election.total_trustees // 2) + 1:
+        return HTTPException(
+            status_code=400, detail="Insuficientes desencriptaciones")
 
     task_params = {
         "election_uuid": election.uuid,
@@ -703,6 +706,9 @@ async def trustee_check_sk(short_name: str, trustee_uuid: str, trustee_login_id:
     return sharedpoint.Certificate.serialize(trustee.certificate, to_json=False)
 
 
+# Crear un bloqueo global
+dec_num_lock = threading.Lock()
+
 @api_router.post("/{short_name}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200)
 async def trustee_decrypt_and_prove(short_name: str, trustee_uuid: str, trustee_data: schemas.DecryptionIn, trustee_login_id: str = Depends(AuthUser()), session: Session | AsyncSession = Depends(get_session)):
     """
@@ -721,9 +727,14 @@ async def trustee_decrypt_and_prove(short_name: str, trustee_uuid: str, trustee_
         *decryption_list)
 
     if answers_decryptions.verify(public_key=trustee.public_key, encrypted_tally=election.encrypted_tally):
-        trustee = await crud.update_trustee(session=session, trustee_id=trustee.id, fields={"decryptions": answers_decryptions})
-        dec_num = election.decryptions_uploaded + 1
-        election = await crud.update_election(session=session, election_id=election.id, fields={"decryptions_uploaded": dec_num})
+
+        # Zona critica, solo un custodio puede entrar y cambiar las desencriptaciones
+        with dec_num_lock:
+            # Sacamos la elección denuevo por si ha recibido algún cambio de otro custodio
+            election = await crud.get_election_by_short_name(session=session, short_name=short_name)
+            trustee = await crud.update_trustee(session=session, trustee_id=trustee.id, fields={"decryptions": answers_decryptions})
+            dec_num = election.decryptions_uploaded + 1
+            election = await crud.update_election(session=session, election_id=election.id, fields={"decryptions_uploaded": dec_num})
 
         if election.decryptions_uploaded == election.total_trustees:  # TODO: Fix
             await crud.update_election(
@@ -916,7 +927,7 @@ async def set_status_election(short_name: str, data: dict = {}, current_user: mo
     """
     status = data["status"]
     election = await get_auth_election(short_name=short_name, current_user=current_user, session=session)
-  
+
     await crud.update_election(
         session=session,
         election_id=election.id,

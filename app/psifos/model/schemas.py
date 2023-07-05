@@ -206,6 +206,7 @@ class ElectionOut(ElectionBase):
     id: int
     uuid: str
     election_status: ElectionStatusEnum
+    decryptions_uploaded: int
     public_key: object | None
     questions: object | None
     total_voters: int
