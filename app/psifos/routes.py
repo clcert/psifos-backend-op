@@ -736,6 +736,14 @@ async def trustee_decrypt_and_prove(short_name: str, trustee_uuid: str, trustee_
             dec_num = election.decryptions_uploaded + 1
             election = await crud.update_election(session=session, election_id=election.id, fields={"decryptions_uploaded": dec_num})
 
+            await psifos_logger.info(
+                election_id=election.id,
+                event=ElectionPublicEventEnum.DECRYPTION_RECIEVED,
+                name=trustee.name,
+                trustee_login_id=trustee.trustee_login_id,
+                trustee_email=trustee.email
+            )
+
         if election.decryptions_uploaded == election.total_trustees:  # TODO: Fix
             await crud.update_election(
                 session=session,
@@ -753,13 +761,7 @@ async def trustee_decrypt_and_prove(short_name: str, trustee_uuid: str, trustee_
             return {
                 "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
             }
-
-        await psifos_logger.info(
-            election_id=election.id,
-            event=ElectionPublicEventEnum.DECRYPTION_RECIEVED,
-            trustee_login_id=trustee.trustee_login_id,
-            trustee_email=trustee.email
-        )
+        
         return {"message": "Trustee's stage 3 completed successfully"}
 
     else:
