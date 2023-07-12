@@ -20,11 +20,11 @@ depends_on = None
 
 def upgrade():
     # Enum 'OldStatus'
-    old_status = sa.Enum('setting_up', 'started', 'ended', 'computing_tally', 'tally_computed', 'decryptions_uploaded', 'decryptions_combined', 'results_released', name='electionstatusenum')
+    old_status = sa.Enum('setting_up', 'started', 'ended', 'tally_computed', 'decryptions_uploaded', 'decryptions_combined', 'results_released', name='electionstatusenum')
     old_status.drop(op.get_bind(), checkfirst=False)
 
     # Enum 'NewStatus'
-    new_status = sa.Enum('setting_up', 'started', 'ended', 'tally_computed', 'decryptions_uploaded', 'decryptions_combined', 'results_released', name='electionstatusenum')
+    new_status = sa.Enum('setting_up', 'started', 'ended', 'computing_tally', 'tally_computed', 'decryptions_uploaded', 'decryptions_combined', 'results_released', name='electionstatusenum')
     new_status.create(op.get_bind(), checkfirst=False)
 
     # Alter column
