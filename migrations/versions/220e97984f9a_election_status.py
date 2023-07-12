@@ -28,8 +28,8 @@ def upgrade():
     new_status.create(op.get_bind(), checkfirst=False)
 
     # Alter column
-    with op.batch_alter_table('psifos_dev', schema=None) as batch_op:
-        batch_op.alter_column('electionstatusenum', type_=new_status, existing_type=old_status)
+    with op.batch_alter_table('psifos_election', schema=None) as batch_op:
+        batch_op.alter_column('election_status', type_=new_status, existing_type=old_status)
 
 def downgrade():
     # Enum 'NewStatus'
@@ -41,5 +41,5 @@ def downgrade():
     old_status.create(op.get_bind(), checkfirst=False)
 
     # Alter column
-    with op.batch_alter_table('psifos_dev', schema=None) as batch_op:
-        batch_op.alter_column('electionstatusenum', type_=old_status, existing_type=new_status)
+    with op.batch_alter_table('psifos_election', schema=None) as batch_op:
+        batch_op.alter_column('election_status', type_=old_status, existing_type=new_status)
