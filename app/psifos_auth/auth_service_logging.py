@@ -229,7 +229,7 @@ class OAuth2Auth(AbstractAuth):
         self.client_secret = OAUTH_CLIENT_SECRET
         self.scope = (
             "openid"
-            if OAUTH_GOOGLE
+            if not OAUTH_GOOGLE
             else [
                 "https://www.googleapis.com/auth/userinfo.email",
                 "https://www.googleapis.com/auth/userinfo.profile",
