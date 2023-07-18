@@ -9,6 +9,7 @@ from app.config import (
     OAUTH_AUTHORIZE_URL,
     OAUTH_TOKEN_URL,
     OAUTH_USER_INFO_URL,
+    OAUTH_GOOGLE,
 )
 from app.psifos.model import crud
 from requests_oauthlib import OAuth2Session
@@ -20,8 +21,7 @@ from app.logger import psifos_logger
 from app.psifos.model.enums import ElectionAdminEventEnum
 
 
-class AuthFactory():
-
+class AuthFactory:
     @staticmethod
     def get_auth(type_auth: str = "cas") -> object:
         """
@@ -43,7 +43,6 @@ class AbstractAuth(object):
     """
 
     async def check_trustee(self, db_session, short_name: str, request: Request):
-
         """
         Check if the trustee that logs in exists and redirects
         """
@@ -57,35 +56,51 @@ class AbstractAuth(object):
             election_id=election.id,
         )
         if not trustee:
-            await psifos_logger.warning(election_id=election.id, event=ElectionAdminEventEnum.TRUSTEE_LOGIN_FAIL, user=request.session["user"])
+            await psifos_logger.warning(
+                election_id=election.id,
+                event=ElectionAdminEventEnum.TRUSTEE_LOGIN_FAIL,
+                user=request.session["user"],
+            )
             return RedirectResponse(
                 url=APP_FRONTEND_URL + f"psifos/{short_name}/trustee/home"
             )
         else:
-            await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.TRUSTEE_LOGIN, user=request.session["user"])
+            await psifos_logger.info(
+                election_id=election.id,
+                event=ElectionAdminEventEnum.TRUSTEE_LOGIN,
+                user=request.session["user"],
+            )
             return RedirectResponse(
                 APP_FRONTEND_URL + f"psifos/{short_name}/trustee/{trustee.uuid}/home",
             )
 
     async def check_voter(self, db_session, short_name: str, user_id: str):
-
         """
         Check if the voter that logs in exists and redirects
         """
 
-        election = await crud.get_election_by_short_name(short_name=short_name, session=db_session)
-        voter = await crud.get_voter_by_login_id_and_election_id(db_session, user_id, election.id)
+        election = await crud.get_election_by_short_name(
+            short_name=short_name, session=db_session
+        )
+        voter = await crud.get_voter_by_login_id_and_election_id(
+            db_session, user_id, election.id
+        )
 
-        
         if (voter is not None) or (not election.private_p):
-            await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.VOTER_LOGIN, user=user_id)
+            await psifos_logger.info(
+                election_id=election.id,
+                event=ElectionAdminEventEnum.VOTER_LOGIN,
+                user=user_id,
+            )
 
         else:
-            await psifos_logger.info(election_id=election.id, event=ElectionAdminEventEnum.VOTER_LOGIN_FAIL, user=user_id)
-
-        return RedirectResponse(
-                url=APP_FRONTEND_URL + "psifos/booth/" + short_name
+            await psifos_logger.info(
+                election_id=election.id,
+                event=ElectionAdminEventEnum.VOTER_LOGIN_FAIL,
+                user=user_id,
             )
+
+        return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name)
 
 
 class CASAuth(AbstractAuth):
@@ -137,7 +152,7 @@ class CASAuth(AbstractAuth):
         user, attributes, pgtiou = self.cas_client.verify_ticket(ticket)
 
         # If no user, return error
-        
+
         if not user:
             raise HTTPException(status_code=401, detail="ERROR")
 
@@ -146,7 +161,6 @@ class CASAuth(AbstractAuth):
         return await self.check_voter(db_session, short_name, user)
 
     def logout_voter(self, short_name: str, request: Request):
-
         """
         Voter logout by CAS method
         """
@@ -165,7 +179,6 @@ class CASAuth(AbstractAuth):
     async def login_trustee(
         self, db_session, short_name: str, request: Request, session: str
     ):
-
         """
         Trustee login by CAS method
         """
@@ -192,7 +205,6 @@ class CASAuth(AbstractAuth):
             return await self.check_trustee(db_session, short_name, request)
 
     def logout_trustee(self, short_name: str, request: Request):
-
         """
         Trustee logout by CAS method
         """
@@ -215,7 +227,14 @@ class OAuth2Auth(AbstractAuth):
         """
         self.client_id = OAUTH_CLIENT_ID
         self.client_secret = OAUTH_CLIENT_SECRET
-        self.scope = "openid"
+        self.scope = (
+            "openid"
+            if OAUTH_GOOGLE
+            else [
+                "https://www.googleapis.com/auth/userinfo.email",
+                "https://www.googleapis.com/auth/userinfo.profile",
+            ]
+        )
         self.short_name = ""
         self.type_logout = ""
 
@@ -223,7 +242,6 @@ class OAuth2Auth(AbstractAuth):
     async def login_voter(
         self, db_session, short_name: str, request: Request = None, session: str = None
     ):
-
         request.session["short_name"] = short_name
         request.session["type_logout"] = "voter"
         client = OAuth2Session(
@@ -277,11 +295,15 @@ class OAuth2Auth(AbstractAuth):
 
         login = OAuth2Session(OAUTH_CLIENT_ID, token=request.session["oauth_token"])
         user = login.get(OAUTH_USER_INFO_URL).json()
-        user = user["fields"]["username"]
+
+        if OAUTH_GOOGLE:
+            user = user.get("email", "")
+        else:
+            user = user["fields"]["username"]
+
         request.session["user"] = user
 
         if request.session["type_logout"] == "voter":
-
             return await self.check_voter(db_session, short_name, user)
 
         elif request.session["type_logout"] == "trustee":
