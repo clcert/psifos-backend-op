@@ -133,11 +133,11 @@ class MixnetTally(AbstractTally):
 
             # check null vote
             if null_vote in vote:
-                q_result[null_vote - 1] += 1
+                q_result[null_vote - 2] += 1
 
             # check blank vote
             elif len(set_vote) == 1 and blank_vote in set_vote:
-                q_result[blank_vote - 1] += 1
+                q_result[blank_vote - 2] += 1
 
             # count normal counts
             else:   

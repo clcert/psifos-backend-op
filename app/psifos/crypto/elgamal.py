@@ -52,7 +52,7 @@ class PublicKey(SerializableObject):
             "p": self.p,
             "q": self.q,
             "g": self.g,
-            "y": y
+            "y": y % self.p
         }
         return PublicKey(**params)
 

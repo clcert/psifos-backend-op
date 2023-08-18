@@ -29,6 +29,8 @@ TYPE_AUTH = os.environ.get("TYPE_AUTH")
 
 CAS_URL = os.environ.get("CAS_URL")
 
+OAUTH_GOOGLE = bool(int(os.environ.get("OAUTH_GOOGLE", False)))
+
 OAUTH_TOKEN_URL = os.environ.get("OAUTH_TOKEN_URL")
 OAUTH_AUTHORIZE_URL = os.environ.get("OAUTH_AUTHORIZE_URL")
 OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID")
