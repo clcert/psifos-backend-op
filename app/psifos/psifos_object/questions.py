@@ -16,13 +16,15 @@ class QuestionFactory():
 
     @staticmethod
     def create(**kwargs):
+        q_type_list = {
+            "closed_question": ClosedQuestion,
+            "mixnet_question": MixnetQuestion,
+            "stvnc_question": STVNCQuestion,
+        }
         q_type = kwargs.get("q_type", None)
-        if q_type == "closed_question":
-            return ClosedQuestion(**kwargs)
-        elif q_type == "mixnet_question":
-            return MixnetQuestion(**kwargs)
-        else:
-            return None
+        if q_type in q_type_list.keys():
+            return q_type_list[q_type](**kwargs)
+        return None
 
 
 class Questions(SerializableList):
@@ -82,3 +84,13 @@ class MixnetQuestion(AbstractQuestion):
         super(MixnetQuestion, self).__init__(**kwargs)
         self.tally_type = "mixnet"
         self.group_votes: str = str(kwargs["group_votes"])
+
+class STVNCQuestion(AbstractQuestion):
+    """
+    Allows a voter to select a permutation of options.
+    Is the no coersion case.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        super(STVNCQuestion, self).__init__(**kwargs)
+        self.tally_type = "stvnc"     
