@@ -54,7 +54,6 @@ class HomomorphicTally(AbstractTally):
         The decryption factors are a list of decryption factor sets, for each trustee.
         Each decryption factor set is a list of lists of decryption factors (questions/answers).
         """
-
         # pre-compute a dlog table
         dlog_table = DLogTable(base=public_key.g, modulus=public_key.p)
         dlog_table.precompute(self.num_tallied * max_weight)

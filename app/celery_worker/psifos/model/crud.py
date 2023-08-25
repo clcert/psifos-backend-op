@@ -52,6 +52,36 @@ def update_election(session: Session, election_id: int, fields: dict):
     session.commit()
     return get_election_by_id(session=session, election_id=election_id)
 
+def update_election_tally(session: Session, election_id: int, key: str, new_value):
+    query = select(models.Election).where(models.Election.id == election_id)
+    election = session.execute(query).scalars().first()
+    data = {
+        key: new_value
+    }
+    if election.encrypted_tally:
+        encrypted_tally = election.encrypted_tally
+        encrypted_tally.update(data)
+        data = encrypted_tally
+
+    query = update(models.Election).where(
+    models.Election.id == election_id
+    ).values(encrypted_tally=data)
+    session.execute(query)
+    session.commit()
+
+def get_voters_by_election_id_and_group(session: Session, election_id: int, group: str, page=0, page_size=None):
+    query = select(models.Voter).where(models.Voter.election_id == election_id, models.Voter.group == group).offset(page).limit(page_size)
+    result = session.execute(query)
+    return result.scalars().all()
+
+def get_groups_voters(session: Session, election_id: int):
+    query = select(models.Voter.group).where(
+        models.Voter.election_id == election_id
+    ).distinct()
+    result = session.execute(query)
+    return result.fetchall()
+
+
 def get_voter_by_login_id_and_election_id(session: Session, voter_login_id: int, election_id: int):
     query = select(models.Voter).where(
         models.Voter.voter_login_id == voter_login_id,
