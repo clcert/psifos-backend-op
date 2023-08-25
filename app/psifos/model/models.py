@@ -214,7 +214,6 @@ class Election(Base):
         for tally in self.encrypted_tally.get_tallys():
             with_votes = tally.get("with_votes", False) == "True"
             group = tally.get("group", "")
-            group = group if group else "Sin grupo"
             tally_dict = tally.get("tally")
             total_questions = len(tally_dict)
             if with_votes:
@@ -234,6 +233,7 @@ class Election(Base):
                     for q_num in range(total_questions)
                 ]
                 tally = TallyWrapper(*tally_dict, group=group, with_votes=True)
+                group = group if group else "Sin grupo"
                 result_per_group.append(
                     tally.decrypt(
                         partial_decryptions=partial_decryptions,
@@ -245,6 +245,7 @@ class Election(Base):
                 result_dict = list(
                     map(lambda dic: {"ans_results": dic["tally"]}, tally_dict)
                 )
+                group = group if group else "Sin grupo"
                 result_per_group.append(
                     ElectionResultGroup(
                         *result_dict, group=group, with_votes=with_votes
