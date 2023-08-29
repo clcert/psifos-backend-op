@@ -459,6 +459,31 @@ async def combine_decryptions(
     }
 
 
+@api_router.post("/{short_name}/results-release", status_code=200)
+async def results_release(
+    short_name: str,
+    current_user: models.User = Depends(AuthAdmin()),
+    session: Session | AsyncSession = Depends(get_session),
+):
+    """
+    Route for release results
+    """
+    election = await get_auth_election(
+        short_name=short_name,
+        current_user=current_user,
+        session=session,
+        status=ElectionStatusEnum.decryptions_combined
+    )
+    await crud.update_election(
+        session=session, election_id=election.id, fields=election.results_released()
+    )
+
+    await psifos_logger.info(
+        election_id=election.id, event=ElectionPublicEventEnum.RESULTS_RELEASED
+    )
+
+    return {"message": "The election has released the results"}
+
 @api_router.get(
     "/{short_name}/get-trustees",
     status_code=200,
