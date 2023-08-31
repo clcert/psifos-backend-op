@@ -221,6 +221,19 @@ class ElectionOut(ElectionBase):
     class Config:
         orm_mode = True
 
+class SimpleElection(ElectionBase):
+
+    id: int
+    uuid: str
+    election_status: ElectionStatusEnum
+    decryptions_uploaded: int
+    total_voters: int
+    total_trustees: int
+
+
+    class Config:
+        orm_mode = True
+
 class CompleteElectionOut(ElectionOut):
 
     encrypted_tally: object | None

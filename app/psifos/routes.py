@@ -110,7 +110,7 @@ async def get_election(
 
 
 @api_router.get(
-    "/get-elections", response_model=list[schemas.ElectionOut], status_code=200
+    "/get-elections", response_model=list[schemas.SimpleElection], status_code=200
 )
 async def get_elections(
     current_user: models.User = Depends(AuthAdmin()),
