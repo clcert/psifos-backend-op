@@ -10,11 +10,14 @@ from .mixnet.tally import MixnetTally
 class TallyFactory():
     @staticmethod
     def create(**kwargs):
+        tally_to_mn_tally = {
+            "homomorphic":HomomorphicTally,
+            "mixnet":MixnetTally,
+            "stvnc":MixnetTally,
+        }
         tally_type = kwargs.get("tally_type")
-        if tally_type == "homomorphic":
-            return HomomorphicTally(**kwargs)
-        elif tally_type == "mixnet":
-            return MixnetTally(**kwargs)
+        if tally_type in tally_to_mn_tally.keys():
+            return tally_to_mn_tally[tally_type](**kwargs)
           
 class TallyManager(SerializableList):
     """
