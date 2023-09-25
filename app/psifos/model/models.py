@@ -273,6 +273,12 @@ class Election(Base):
             "result": election_result,
             "election_status": ElectionStatusEnum.decryptions_combined,
         }
+    
+    def results_released(self):
+        released_data = {
+            "election_status": ElectionStatusEnum.results_released,
+        }
+        return released_data
 
     def voting_has_started(self):
         return True if self.voting_started_at is not None else False
