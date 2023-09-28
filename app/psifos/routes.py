@@ -13,9 +13,11 @@ from app.psifos.model.enums import ElectionStatusEnum, ElectionPublicEventEnum
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.psifos.crypto.tally.common.decryption.trustee_decryption import (
-    TrusteeDecryptions,
+    TrusteeDecryptionsManager,
+    TrusteeDecryptionsGroup,
 )
-from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
+from app.psifos.crypto.tally.tally import TallyWrapper
+
 from app.config import APP_FRONTEND_URL
 
 from app.psifos.model import crud, schemas, models
@@ -393,20 +395,8 @@ async def compute_tally(
                 "election_status": ElectionStatusEnum.computing_tally,
             },
         )
-        voters = await crud.get_voters_by_election_id(
-            session=session, election_id=election.id
-        )
-
-        not_null_voters = [v for v in voters if v.valid_cast_votes >= 1]
-        serialized_encrypted_votes = [
-            EncryptedVote.serialize(v.cast_vote.vote) for v in not_null_voters
-        ]
-        weights = [v.voter_weight for v in not_null_voters]
-
         task_params = {
             "election_uuid": election.uuid,
-            "serialized_encrypted_votes": serialized_encrypted_votes,
-            "weights": weights,
         }
 
         tasks.compute_tally.delay(**task_params)
@@ -418,7 +408,6 @@ async def compute_tally(
         return {"message": "The encrypted tally was succesfully computed"}
 
     except Exception as e:
-        print(e)
         await crud.update_election(
             session=session,
             election_id=election.id,
@@ -1100,7 +1089,7 @@ dec_num_lock = threading.Lock()
 async def trustee_decrypt_and_prove(
     short_name: str,
     trustee_uuid: str,
-    trustee_data: schemas.DecryptionIn,
+    trustee_data: list[schemas.DecryptionIn],
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
 ):
@@ -1115,65 +1104,77 @@ async def trustee_decrypt_and_prove(
         status=ElectionStatusEnum.tally_computed,
     )
 
-    decryption_list = psifos_utils.from_json(trustee_data.decryptions)
-    answers_decryptions: TrusteeDecryptions = TrusteeDecryptions(*decryption_list)
-
-    if answers_decryptions.verify(
-        public_key=trustee.public_key, encrypted_tally=election.encrypted_tally
-    ):
-        # Zona critica, solo un custodio puede entrar y cambiar las desencriptaciones
-        with dec_num_lock:
-            # Sacamos la elección denuevo por si ha recibido algún cambio de otro custodio
-            election = await crud.get_election_by_short_name(
-                session=session, short_name=short_name
-            )
-            trustee = await crud.update_trustee(
-                session=session,
-                trustee_id=trustee.id,
-                fields={"decryptions": answers_decryptions},
-            )
-            dec_num = election.decryptions_uploaded + 1
-            election = await crud.update_election(
-                session=session,
-                election_id=election.id,
-                fields={"decryptions_uploaded": dec_num},
-            )
-
-            await psifos_logger.info(
-                election_id=election.id,
-                event=ElectionPublicEventEnum.DECRYPTION_RECIEVED,
-                name=trustee.name,
-                trustee_login_id=trustee.trustee_login_id,
-                trustee_email=trustee.email,
+    decryption_list = psifos_utils.from_json(trustee_data)
+    answers_decryptions_list = []
+    for decryption in decryption_list:
+        answers_decryptions: TrusteeDecryptionsGroup = TrusteeDecryptionsGroup(
+            decryption
+        )
+        encrypted_tally_group = election.encrypted_tally.get_by_group(decryption.group)
+        election_tally_group = TallyWrapper(
+            *encrypted_tally_group["tally"],
+            group=decryption.group,
+            with_votes=decryption.with_votes,
+        )
+        if answers_decryptions.decryptions.verify(
+            public_key=trustee.public_key,
+            encrypted_tally=election_tally_group,
+        ):
+            answers_decryptions_list.append(answers_decryptions)
+        
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="An error was found during the verification of the proofs",
             )
 
-        if election.decryptions_uploaded == election.total_trustees:  # TODO: Fix
-            await crud.update_election(
-                session=session,
-                election_id=election.id,
-                fields={"election_status": ElectionStatusEnum.decryptions_uploaded},
-            )
-            task_params = {
-                "election_uuid": election.uuid,
-            }
-            tasks.combine_decryptions.delay(**task_params)
-            await psifos_logger.info(
-                election_id=election.id,
-                event=ElectionPublicEventEnum.DECRYPTIONS_COMBINED,
-            )
-
-            return {
-                "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
-            }
-
-        return {"message": "Trustee's stage 3 completed successfully"}
-
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="An error was found during the verification of the proofs",
+    decryptions = TrusteeDecryptionsManager(*answers_decryptions_list)
+    # Zona critica, solo un custodio puede entrar y cambiar las desencriptaciones
+    with dec_num_lock:
+        # Sacamos la elección denuevo por si ha recibido algún cambio de otro custodio
+        election = await crud.get_election_by_short_name(
+            session=session, short_name=short_name
+        )
+        trustee = await crud.update_trustee(
+            session=session,
+            trustee_id=trustee.id,
+            fields={"decryptions": decryptions},
+        )
+        dec_num = election.decryptions_uploaded + 1
+        election = await crud.update_election(
+            session=session,
+            election_id=election.id,
+            fields={"decryptions_uploaded": dec_num},
         )
 
+        await psifos_logger.info(
+            election_id=election.id,
+            event=ElectionPublicEventEnum.DECRYPTION_RECIEVED,
+            name=trustee.name,
+            trustee_login_id=trustee.trustee_login_id,
+            trustee_email=trustee.email,
+        )
+
+    if election.decryptions_uploaded == election.total_trustees:  # TODO: Fix
+        await crud.update_election(
+            session=session,
+            election_id=election.id,
+            fields={"election_status": ElectionStatusEnum.decryptions_uploaded},
+        )
+        task_params = {
+            "election_uuid": election.uuid,
+        }
+        tasks.combine_decryptions.delay(**task_params)
+        await psifos_logger.info(
+            election_id=election.id,
+            event=ElectionPublicEventEnum.DECRYPTIONS_COMBINED,
+        )
+
+        return {
+            "message": "Se han combinado las desencriptaciones parciales y el resultado ha sido calculado"
+        }
+
+    return {"message": "Trustee's stage 3 completed successfully"}
 
 @api_router.get(
     "/{short_name}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200
@@ -1206,6 +1207,7 @@ async def trustee_decrypt_and_prove(
         election_id=election.id,
         trustee_id=trustee.trustee_id,
     )
+    election.encrypted_tally = psifos_utils.to_json(election.encrypted_tally.instances)
     return {
         "election": schemas.CompleteElectionOut.from_orm(election),
         "trustee": schemas.TrusteeOut.from_orm(trustee),

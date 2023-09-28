@@ -144,6 +144,7 @@ class VoterBase(PsifosSchema):
     voter_login_id: str
     voter_weight: int
     voter_name: str
+    group: str | None
 
 
 class VoterIn(VoterBase):
@@ -188,6 +189,7 @@ class ElectionBase(PsifosSchema):
     randomize_answer_order: bool | None
     private_p: bool | None
     normalization: bool | None
+    grouped: bool | None
 
 
 class ElectionIn(ElectionBase):
@@ -235,11 +237,11 @@ class SimpleElection(ElectionBase):
         orm_mode = True
 
 class CompleteElectionOut(ElectionOut):
-
     encrypted_tally: object | None
 
     class Config:
         orm_mode = True
+
 
 # ------------------ response-related schemas ------------------
 
@@ -262,6 +264,8 @@ class KeyGenStep3Data(PsifosSchema):
 
 
 class DecryptionIn(PsifosSchema):
+    group: str
+    with_votes: bool
     decryptions: object
 
 
