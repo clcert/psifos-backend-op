@@ -5,18 +5,22 @@ Tally module for Psifos.
 from app.database.serialization import SerializableList, SerializableObject
 from app.psifos.psifos_object.result import ElectionResultGroup
 from .homomorphic.tally import HomomorphicTally
-from .mixnet.tally import MixnetTally
+from .mixnet.close_massive_tally import CloseMassiveTally
+from .mixnet.stv_tally import STVTally
 
 
 class TallyFactory:
     @staticmethod
     def create(**kwargs):
+        tally_to_mn_tally = {
+            "homomorphic":HomomorphicTally,
+            "mixnet":CloseMassiveTally,
+            "stvnc":STVTally,
+        }
         tally_type = kwargs.get("tally_type")
-        if tally_type == "homomorphic":
-            return HomomorphicTally(**kwargs)
-        elif tally_type == "mixnet":
-            return MixnetTally(**kwargs)
-
+        if tally_type in tally_to_mn_tally.keys():
+            return tally_to_mn_tally[tally_type](**kwargs)
+          
 class TallyManager(SerializableList):
     """
     A election's tally manager that allows each question to have

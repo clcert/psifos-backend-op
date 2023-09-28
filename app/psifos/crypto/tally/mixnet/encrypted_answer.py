@@ -20,4 +20,14 @@ class EncryptedMixnetAnswer(AbstractEncryptedAnswer):
     
     def verify(self, **kwargs):
         return len(self.get_choices()) == MIXNET_WIDTH
+
+class EncryptedStvncAnswer(AbstractEncryptedAnswer):
+    """
+    An encrypted mixnet answer to a single election question.
+    """
+    def __init__(self, **kwargs) -> None:
+        super(EncryptedStvncAnswer, self).__init__(**kwargs)
+    
+    def verify(self, **kwargs):
+        return len(self.get_choices()) == MIXNET_WIDTH
     
