@@ -76,6 +76,11 @@ async def get_voters_by_election_id(session: Session | AsyncSession, election_id
     return result.scalars().all()
 
 
+async def get_voters_with_valid_vote(session: Session | AsyncSession, election_id: int):
+    voters = await get_voters_by_election_id(session=session, election_id=election_id)
+    return [v for v in voters if v.valid_cast_votes >= 1]
+
+
 async def get_voter_by_uuid_and_election_id(voter_uuid: str, session: Session | AsyncSession, election_id: int):
     query = select(models.Voter).where(
         models.Voter.election_id == election_id,

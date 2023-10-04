@@ -461,7 +461,7 @@ async def results_release(
         short_name=short_name,
         current_user=current_user,
         session=session,
-        status=ElectionStatusEnum.decryptions_combined
+        status=ElectionStatusEnum.decryptions_combined,
     )
     await crud.update_election(
         session=session, election_id=election.id, fields=election.results_released()
@@ -472,6 +472,7 @@ async def results_release(
     )
 
     return {"message": "The election has released the results"}
+
 
 @api_router.get(
     "/{short_name}/get-trustees",
@@ -1121,7 +1122,7 @@ async def trustee_decrypt_and_prove(
             encrypted_tally=election_tally_group,
         ):
             answers_decryptions_list.append(answers_decryptions)
-        
+
         else:
             raise HTTPException(
                 status_code=400,
@@ -1175,6 +1176,7 @@ async def trustee_decrypt_and_prove(
         }
 
     return {"message": "Trustee's stage 3 completed successfully"}
+
 
 @api_router.get(
     "/{short_name}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200
@@ -1394,6 +1396,35 @@ async def get_invalid_voters_logging(
         results.append({"time": date, "user": user})
 
     return results
+
+
+@api_router.get("/{short_name}/logs/voters-valid-vote", status_code=200)
+async def get_voters_valid_vote(
+    short_name: str,
+    current_user: models.User = Depends(AuthAdmin()),
+    session: Session | AsyncSession = Depends(get_session),
+):
+    """
+    Return info of voters with valid votes
+
+    """
+    election = await get_auth_election(
+        short_name=short_name, current_user=current_user, session=session
+    )
+    voters_with_valid_votes = await crud.get_voters_with_valid_vote(
+        session=session, election_id=election.id
+    )
+    result = []
+    for voter in voters_with_valid_votes:
+        print(voter)
+        result.append(
+            {
+                "voter_id": voter.voter_login_id,
+                "name": voter.voter_name,
+                "cast_at": voter.cast_vote.cast_at,
+            }
+        )
+    return result
 
 
 @api_router.post("/{short_name}/set-status-election", status_code=200)
