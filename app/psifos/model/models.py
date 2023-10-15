@@ -257,23 +257,28 @@ class Election(Base):
             "election_status": ElectionStatusEnum.decryptions_combined,
         }
 
-    def end_without_votes(self):
+    def end_without_votes(self, groups):
         question_list = Questions.serialize(self.questions, to_json=False)
+        groups.append("Sin grupo")
         results = []
-        for question in question_list:
+        for group in groups:
+            group_results = []
+            for question in question_list:
+                group_results.append(
+                    {
+                        "tally_type": question["tally_type"],
+                        "ans_results": ["0"] * int(question["total_closed_options"]),
+                    }
+                )
             results.append(
-                {
-                    "tally_type": question["tally_type"],
-                    "ans_results": ["0"] * int(question["total_closed_options"]),
-                }
+                ElectionResultGroup(*group_results, group=group, with_votes=False)
             )
-
-        election_result = ElectionResult(*results)
+        election_result = ElectionResultManager(*results)
         return {
             "result": election_result,
             "election_status": ElectionStatusEnum.decryptions_combined,
         }
-    
+
     def results_released(self):
         released_data = {
             "election_status": ElectionStatusEnum.results_released,
@@ -309,6 +314,7 @@ class Voter(Base):
     cast_vote = relationship(
         "CastVote", cascade="all, delete", backref="psifos_voter", uselist=False
     )
+    count_vote = Column(Boolean, nullable=False)
 
     @staticmethod
     def upload_voters(voter_file_content: str, grouped: bool):
@@ -323,6 +329,7 @@ class Voter(Base):
                     "voter_name": voter[1],
                     "voter_weight": voter[2],
                     "group": voter[3] if add_group else "",
+                    "count_vote": True
                 }
             )
         return voters
