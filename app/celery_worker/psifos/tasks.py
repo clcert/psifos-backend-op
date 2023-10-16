@@ -53,6 +53,7 @@ def process_cast_vote(
                     voter_name=voter_login_id,
                     voter_weight=1,
                     group="",
+                    count_vote=True
                 )
                 voter = crud.create_voter(
                     session=session,
