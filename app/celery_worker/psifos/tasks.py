@@ -53,6 +53,7 @@ def process_cast_vote(
                     voter_name=voter_login_id,
                     voter_weight=1,
                     group="",
+                    count_vote=True
                 )
                 voter = crud.create_voter(
                     session=session,
@@ -100,7 +101,9 @@ def compute_tally(election_uuid: str):
             voters = crud.get_voters_by_election_id_and_group(
                 session=session, election_id=election.id, group=group
             )
-            not_null_voters = [v for v in voters if v.valid_cast_votes >= 1]
+            not_null_voters = [
+                v for v in voters if (v.valid_cast_votes >= 1 and v.count_vote)
+            ]
             serialized_encrypted_votes = [
                 EncryptedVote.serialize(v.cast_vote.vote) for v in not_null_voters
             ]
@@ -144,7 +147,9 @@ def upload_voters(election_uuid: str, voter_file_content: str):
         try:
             voters = [
                 schemas.VoterIn(**v)
-                for v in models.Voter.upload_voters(voter_file_content, grouped=election.grouped)
+                for v in models.Voter.upload_voters(
+                    voter_file_content, grouped=election.grouped
+                )
             ]
         except Exception:
             return False, 0, 0

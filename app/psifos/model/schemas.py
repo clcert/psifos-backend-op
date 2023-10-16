@@ -145,6 +145,7 @@ class VoterBase(PsifosSchema):
     voter_weight: int
     voter_name: str
     group: str | None
+    count_vote: bool
 
 
 class VoterIn(VoterBase):

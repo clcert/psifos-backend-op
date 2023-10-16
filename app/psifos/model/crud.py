@@ -132,6 +132,12 @@ async def delete_election_voter(session: Session | AsyncSession,  election_id, v
 
 # ----- CastVote CRUD Utils -----
 
+async def get_groups_voters(session: Session, election_id: int):
+    query = select(models.Voter.group).where(
+        models.Voter.election_id == election_id
+    ).distinct()
+    result = await db_handler.execute(session, query)
+    return result.fetchall()
 
 async def get_cast_vote_by_voter_id(session: Session | AsyncSession, voter_id: int):
     query = select(models.CastVote).where(
