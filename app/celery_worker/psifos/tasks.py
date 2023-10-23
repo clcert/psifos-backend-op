@@ -100,7 +100,9 @@ def compute_tally(election_uuid: str):
             voters = crud.get_voters_by_election_id_and_group(
                 session=session, election_id=election.id, group=group
             )
-            not_null_voters = [v for v in voters if v.valid_cast_votes >= 1]
+            not_null_voters = [
+                v for v in voters if (v.valid_cast_votes >= 1)
+            ]
             serialized_encrypted_votes = [
                 EncryptedVote.serialize(v.cast_vote.vote) for v in not_null_voters
             ]

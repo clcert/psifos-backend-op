@@ -88,8 +88,10 @@ class Election(Base):
     voters_by_weight_end = Column(Text, nullable=True)
 
     # One-to-many relationships
-    voters = relationship("Voter", cascade="all, delete", backref="psifos_election")
-    trustees = relationship("Trustee", cascade="all, delete", backref="psifos_election")
+    voters = relationship("Voter", cascade="all, delete",
+                          backref="psifos_election")
+    trustees = relationship(
+        "Trustee", cascade="all, delete", backref="psifos_election")
     sharedpoints = relationship(
         "SharedPoint", cascade="all, delete", backref="psifos_election"
     )
@@ -134,51 +136,56 @@ class Election(Base):
 
     def start(self):
         normalized_weights = {}
+        voters_by_weight_init = {}
         for v in self.voters:
-            v_w = v.voter_weight / self.max_weight
             v_g = v.group
-            if v_g in normalized_weights:
-                normalized_weights[v_g].append(v_w)
-            else:
-                normalized_weights[v_g] = [v_w]
+            v_w = v.voter_weight / self.max_weight
+            normalized_weights.setdefault(v_g, []).append(v_w)
+            voters_by_weight_init[v_w] = voters_by_weight_init.get(v_w, 0) + 1
 
-        voters_by_weight_init = []
-        for group, weights_group in normalized_weights.items():
-            weight_counter = {str(w): weights_group.count(w) for w in weights_group}
-            voters_by_weight_init.append({"group": group, "weights": weight_counter})
+        voters_by_weight_init_grouped = [
+            {"group": group, "weights": {
+                str(w): weights_group.count(w) for w in weights_group}}
+            for group, weights_group in normalized_weights.items()
+        ]
 
-        voters_by_weight_init = json.dumps(voters_by_weight_init)
+        weight_init = json.dumps({
+            "voters_by_weight_init": voters_by_weight_init,
+            "voters_by_weight_init_grouped": voters_by_weight_init_grouped
+        })
 
-        start_data = {
+        return {
             "voting_started_at": utils.tz_now(),
             "election_status": ElectionStatusEnum.started,
             "public_key": utils.generate_election_pk(self.trustees),
-            "voters_by_weight_init": voters_by_weight_init,
+            "voters_by_weight_init": weight_init,
         }
-        return start_data
 
     def end(self):
         voters = [v for v in self.voters if v.valid_cast_votes >= 1]
+        voters_by_weight_end = {}
         normalized_weights = {}
         for v in voters:
             v_w = v.voter_weight / self.max_weight
             v_g = v.group
-            if v_g in normalized_weights:
-                normalized_weights[v_g].append(v_w)
-            else:
-                normalized_weights[v_g] = [v_w]
+            normalized_weights.setdefault(v_g, []).append(v_w)
+            voters_by_weight_end[v_w] = voters_by_weight_end.get(v_w, 0) + 1
 
-        voters_by_weight_end = []
-        for group, weights_group in normalized_weights.items():
-            weight_counter = {str(w): weights_group.count(w) for w in weights_group}
-            voters_by_weight_end.append({"group": group, "weights": weight_counter})
+        voters_by_weight_end_grouped = [
+            {"group": group, "weights": {
+                str(w): weights_group.count(w) for w in weights_group}}
+            for group, weights_group in normalized_weights.items()
+        ]
 
-        voters_by_weight_end = json.dumps(voters_by_weight_end)
+        weight_end = json.dumps({
+            "voters_by_weight_end": voters_by_weight_end,
+            "voters_by_weight_end_grouped": voters_by_weight_end_grouped
+        })
 
         return {
             "voting_ended_at": utils.tz_now(),
             "election_status": ElectionStatusEnum.ended,
-            "voters_by_weight_end": voters_by_weight_end,
+            "voters_by_weight_end": weight_end,
         }
 
     def compute_tally(
@@ -197,7 +204,8 @@ class Election(Base):
             for q_num, q_dict in enumerate(question_list)
         ]
         with_votes = len(encrypted_votes) > 0
-        enc_tally = TallyWrapper(*tally_params, group=group, with_votes=with_votes)
+        enc_tally = TallyWrapper(
+            *tally_params, group=group, with_votes=with_votes)
 
         # Then we compute the encrypted_tally
         enc_tally.compute(
@@ -211,6 +219,7 @@ class Election(Base):
         combine all of the decryption results
         """
         result_per_group = []
+        results_total = []
         for tally in self.encrypted_tally.get_tallys():
             with_votes = tally.get("with_votes", False) == "True"
             group = tally.get("group", "")
@@ -234,46 +243,55 @@ class Election(Base):
                 ]
                 tally = TallyWrapper(*tally_dict, group=group, with_votes=True)
                 group = group if group else "Sin grupo"
-                result_per_group.append(
-                    tally.decrypt(
-                        partial_decryptions=partial_decryptions,
-                        election=self,
-                        group=group,
-                    )
+                results_grouped = tally.decrypt(
+                    partial_decryptions=partial_decryptions,
+                    election=self,
+                    group=group,
                 )
+                result_per_group.append(results_grouped)
+                for index, result in enumerate(results_grouped.result.instances):
+                    if len(results_total) == index:
+                        results_total.append(
+                            {"ans_results": result.ans_results.instances})
+                    else:
+                        results_total[index]["ans_results"] = [
+                            a + b for a, b in zip(result.ans_results.instances, results_total[index]["ans_results"])
+                        ]
             else:
-                result_dict = list(
-                    map(lambda dic: {"ans_results": dic["tally"]}, tally_dict)
-                )
+                result_dict = [{"ans_results": dic["tally"]}
+                               for dic in tally_dict]
+                if len(results_total) == 0:
+                    results_total = [{"ans_results": [
+                        int(value) for value in array_result["tally"]]} for array_result in tally_dict]
                 group = group if group else "Sin grupo"
-                result_per_group.append(
-                    ElectionResultGroup(
-                        *result_dict, group=group, with_votes=with_votes
-                    )
-                )
+                result_per_group.append(ElectionResultGroup(
+                    *result_dict, group=group, with_votes=with_votes))
 
-        return {
-            "result": ElectionResultManager(*result_per_group),
-            "election_status": ElectionStatusEnum.decryptions_combined,
-        }
+        return {"result": ElectionResultManager(results_total=results_total, results_grouped=result_per_group), "election_status": ElectionStatusEnum.decryptions_combined}
 
-    def end_without_votes(self):
+    def end_without_votes(self, groups):
         question_list = Questions.serialize(self.questions, to_json=False)
+        groups.append("Sin grupo")
         results = []
-        for question in question_list:
+        for group in groups:
+            group_results = []
+            for question in question_list:
+                group_results.append(
+                    {
+                        "tally_type": question["tally_type"],
+                        "ans_results": ["0"] * int(question["total_closed_options"]),
+                    }
+                )
             results.append(
-                {
-                    "tally_type": question["tally_type"],
-                    "ans_results": ["0"] * int(question["total_closed_options"]),
-                }
+                ElectionResultGroup(
+                    *group_results, group=group, with_votes=False)
             )
-
-        election_result = ElectionResult(*results)
+        election_result = ElectionResultManager(results_grouped=results)
         return {
             "result": election_result,
             "election_status": ElectionStatusEnum.decryptions_combined,
         }
-    
+
     def results_released(self):
         released_data = {
             "election_status": ElectionStatusEnum.results_released,
@@ -293,7 +311,8 @@ class Voter(Base):
     id = Column(Integer, primary_key=True, index=True)
     election_id = Column(
         Integer,
-        ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKey("psifos_election.id",
+                   onupdate="CASCADE", ondelete="CASCADE"),
     )
     uuid = Column(String(50), nullable=False, unique=True)
 
@@ -322,7 +341,7 @@ class Voter(Base):
                     "voter_login_id": voter[0],
                     "voter_name": voter[1],
                     "voter_weight": voter[2],
-                    "group": voter[3] if add_group else "",
+                    "group": voter[3] if add_group else ""
                 }
             )
         return voters
@@ -377,7 +396,8 @@ class AuditedBallot(Base):
     id = Column(Integer, primary_key=True, index=True)
     election_id = Column(
         Integer,
-        ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKey("psifos_election.id",
+                   onupdate="CASCADE", ondelete="CASCADE"),
     )
 
     raw_vote = Column(Text)
@@ -391,7 +411,8 @@ class Trustee(Base):
     id = Column(Integer, primary_key=True, index=True)
     election_id = Column(
         Integer,
-        ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKey("psifos_election.id",
+                   onupdate="CASCADE", ondelete="CASCADE"),
     )
     trustee_id = Column(
         Integer, nullable=False
@@ -415,7 +436,8 @@ class Trustee(Base):
     def get_decryptions_group(self, group):
         if self.decryptions:
             decryptions_group = filter(
-                lambda dic: dic.get("group") == group, self.decryptions.instances
+                lambda dic: dic.get(
+                    "group") == group, self.decryptions.instances
             )
             return next(decryptions_group)
         return None
@@ -427,7 +449,8 @@ class SharedPoint(Base):
     id = Column(Integer, primary_key=True, index=True)
     election_id = Column(
         Integer,
-        ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKey("psifos_election.id",
+                   onupdate="CASCADE", ondelete="CASCADE"),
     )
 
     sender = Column(Integer, nullable=False)
@@ -441,7 +464,8 @@ class ElectionLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     election_id = Column(
         Integer,
-        ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"),
+        ForeignKey("psifos_election.id",
+                   onupdate="CASCADE", ondelete="CASCADE"),
     )
 
     log_level = Column(String(200), nullable=False)
