@@ -215,6 +215,9 @@ class Election(Base):
         return enc_tally
 
     def combine_decryptions(self):
+        """
+        combine all of the decryption results
+        """
         result_per_group = []
         results_total = []
         for tally in self.encrypted_tally.get_tallys():
