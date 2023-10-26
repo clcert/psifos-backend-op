@@ -39,7 +39,7 @@ oauthlib==3.2.2
 packaging==21.3
 pathspec==0.9.0
 pdfkit==1.0.0
-Pillow==9.3.0
+Pillow==10.0.1
 platformdirs==2.5.2
 prometheus-client==0.14.1
 prompt-toolkit==3.0.31
@@ -71,13 +71,13 @@ tomli==2.0.1
 tornado==6.3.3
 tqdm==4.64.0
 typing_extensions==4.3.0
-urllib3==1.26.9
+urllib3==1.26.18
 uuid==1.30
 uvicorn==0.18.3
 vdf==3.4
 vine==5.0.0
 wcwidth==0.2.5
-Werkzeug==2.2.3
+Werkzeug==3.0.1
 wrapt==1.14.1
 WTForms==2.3.3
 WTForms-JSON==0.3.4
