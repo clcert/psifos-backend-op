@@ -18,12 +18,32 @@ class ResultFactory:
         else:
             return None
 
+class GenericResults(SerializableObject):
+    def __init__(self, result) -> None:
+        super(GenericResults, self).__init__()
+        self.ans_results = ListOfIntegers(*result["ans_results"])
 
-class ElectionResultManager(SerializableList):
+class ResultListTotal(SerializableList):
     def __init__(self, *args) -> None:
-        super(ElectionResultManager, self).__init__()
+        super(ResultListTotal, self).__init__()
+        for result in args:
+            self.instances.append(GenericResults(result))
+
+
+class ResultListGrouped(SerializableList):
+    def __init__(self, *args) -> None:
+        super(ResultListGrouped, self).__init__()
         for result in args:
             self.instances.append(result)
+
+
+class ElectionResultManager(SerializableObject):
+    def __init__(self, **kwargs) -> None:
+        super(ElectionResultManager, self).__init__()
+        results_total = kwargs.get('results_total')
+        results_grouped = kwargs.get('results_grouped')
+        self.results_total = ResultListTotal(*results_total)
+        self.results_grouped = ResultListGrouped(*results_grouped)
 
 
 class ElectionResultGroup(SerializableObject):
