@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from app.psifos_auth.model import models, schemas
 from app.database import db_handler
@@ -21,3 +21,12 @@ async def create_user(session: Session | AsyncSession, user: schemas.UserIn):
     await db_handler.commit(session) 
     await db_handler.refresh(session, db_user)
     return db_user
+
+async def update_user(session: Session | AsyncSession, username: str, fields: dict):
+    query = update(models.User).where(
+        models.User.username == username
+    ).values(fields)
+    await db_handler.execute(session, query)
+    await db_handler.commit(session)
+
+    return await get_user_by_name(session=session, name=username)
