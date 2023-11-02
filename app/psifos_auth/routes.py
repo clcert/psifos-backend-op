@@ -26,7 +26,7 @@ async def login_user(request: Request, credentials: HTTPBasicCredentials = Depen
     """
 
     if not credentials or not credentials.username or not credentials.password:
-        raise HTTPException(status_code = 401, detail="an error occurred, please try again")
+        raise HTTPException(status_code = 401, detail="an error occurred, please try again")    
 
     user = await crud.get_user_by_name(session=session, name=credentials.username)
 
