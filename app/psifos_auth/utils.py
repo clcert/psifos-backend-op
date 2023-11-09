@@ -65,7 +65,18 @@ async def create_user(session, username: str, password: str) -> str:
     :param username: username of the user
     :param password: password of the user
     """
-    hashed_password = generate_password_hash(password, method="sha256")
+    hashed_password = generate_password_hash(password, method="scrypt:32768:8:1")
     user = auth_schemas.UserIn(username=username, password=hashed_password, public_id=str(uuid.uuid4()))
     await auth_crud.create_user(session=session, user=user)
     logging.log(msg="User created successfully!", level=logging.INFO)
+
+@db_handler.func_with_session
+async def update_user(session, username: str, password: str) -> str:
+    """
+    Update the password of a user
+    :param username: username of the user
+    :param password: password of the user
+    """
+    hashed_password = generate_password_hash(password, method="scrypt:32768:8:1")
+    await auth_crud.update_user(session=session, username=username, fields={"password": hashed_password})
+    logging.log(msg="User updated successfully!", level=logging.INFO)
