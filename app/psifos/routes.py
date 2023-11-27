@@ -353,10 +353,11 @@ async def end_election(
     not_null_voters = [v for v in voters if v.valid_cast_votes >= 1]
 
     if len(not_null_voters) < 1:
+        groups = await crud.get_groups_by_election_id(session=session, election_id=election.id)
         await crud.update_election(
             session=session,
             election_id=election.id,
-            fields=election.end_without_votes(),
+            fields=election.end_without_votes(groups=groups),
         )
         return {"message": "The election was succesfully ended"}
 

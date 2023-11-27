@@ -273,20 +273,23 @@ class Election(Base):
         question_list = Questions.serialize(self.questions, to_json=False)
         groups.append("Sin grupo")
         results = []
+        results_group = []
         for group in groups:
-            group_results = []
+            aux_group_results = []
             for question in question_list:
-                group_results.append(
-                    {
+                result_question = {
                         "tally_type": question["tally_type"],
                         "ans_results": ["0"] * int(question["total_closed_options"]),
                     }
+                aux_group_results.append(
+                    result_question
                 )
-            results.append(
+            results = aux_group_results
+            results_group.append(
                 ElectionResultGroup(
-                    *group_results, group=group, with_votes=False)
+                    *aux_group_results, group=group, with_votes=False)
             )
-        election_result = ElectionResultManager(results_grouped=results)
+        election_result = ElectionResultManager(results_total=results, results_grouped=results_group)
         return {
             "result": election_result,
             "election_status": ElectionStatusEnum.decryptions_combined,
