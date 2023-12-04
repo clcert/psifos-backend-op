@@ -34,7 +34,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.database.serialization import SerializableList, SerializableObject
-from app.psifos.model.enums import ElectionTypeEnum, ElectionStatusEnum
+from app.psifos.model.enums import ElectionTypeEnum, ElectionStatusEnum, ElectionLoginTypeEnum
 
 
 class PsifosSchema(BaseModel):
@@ -187,7 +187,7 @@ class ElectionBase(PsifosSchema):
     max_weight: int
     obscure_voter_names: bool | None
     randomize_answer_order: bool | None
-    private_p: bool | None
+    election_login_type: ElectionLoginTypeEnum =Field(max_length=100)
     normalization: bool | None
     grouped: bool | None
 

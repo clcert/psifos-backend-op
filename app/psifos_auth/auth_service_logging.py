@@ -18,7 +18,7 @@ from app.database import db_handler
 from fastapi import Request, HTTPException
 from starlette.responses import RedirectResponse
 from app.logger import psifos_logger
-from app.psifos.model.enums import ElectionAdminEventEnum
+from app.psifos.model.enums import ElectionAdminEventEnum, ElectionLoginTypeEnum
 
 
 class AuthFactory:
@@ -86,7 +86,9 @@ class AbstractAuth(object):
             db_session, user_id, election.id
         )
 
-        if (voter is not None) or (not election.private_p):
+        if (voter is not None) or (
+            not election.election_login_type == ElectionLoginTypeEnum.close_p
+        ):
             await psifos_logger.info(
                 election_id=election.id,
                 event=ElectionAdminEventEnum.VOTER_LOGIN,

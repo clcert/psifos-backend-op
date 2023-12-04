@@ -18,6 +18,9 @@ class AuthUser:
         Returns an instance of Auth.
         """
 
+        public_election = request.session.get("public_election", None)
+        if public_election:
+            return request.session.get("user", None)
         if self.type_auth == "cas":
             return self.cas.get_login_id(request)
         elif self.type_auth == "oauth":

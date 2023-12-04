@@ -9,7 +9,7 @@ import datetime
 import threading
 
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request, Response
-from app.psifos.model.enums import ElectionStatusEnum, ElectionPublicEventEnum
+from app.psifos.model.enums import ElectionStatusEnum, ElectionPublicEventEnum, ElectionLoginTypeEnum
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.psifos.crypto.tally.common.decryption.trustee_decryption import (
@@ -584,7 +584,7 @@ async def cast_vote(
         "cast_ip": request.client.host,
     }
 
-    if election.private_p:
+    if election.election_login_type == ElectionLoginTypeEnum.close_p:
         task_params["voter_id"] = voter.id
 
     else:
@@ -595,7 +595,7 @@ async def cast_vote(
     # if not allowed:
     #    return make_response(jsonify({"message": f"{msg}"}), 400)
 
-    task_params["private_p"] = election.private_p
+    task_params["election_login_type"] = election.election_login_type
     task_params["election_uuid"] = election.uuid
 
     task = tasks.process_cast_vote.delay(**task_params)
