@@ -31,7 +31,7 @@ from app.psifos.crypto.elgamal import ElGamal
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyWrapper
 
-from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum
+from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum, ElectionLoginTypeEnum
 
 from app.database.custom_fields import (
     PublicKeyField,
@@ -60,7 +60,7 @@ class Election(Base):
     name = Column(String(250), nullable=False)
     election_type = Column(Enum(ElectionTypeEnum), nullable=False)
     election_status = Column(Enum(ElectionStatusEnum), default="setting_up")
-    private_p = Column(Boolean, default=False, nullable=False)
+    election_login_type =  Column(Enum(ElectionLoginTypeEnum), default="close_p")
     description = Column(Text)
 
     public_key = Column(PublicKeyField, nullable=True)

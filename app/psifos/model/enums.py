@@ -47,3 +47,9 @@ class ElectionAdminEventEnum(ElectionEventEnum):
     TRUSTEE_LOGIN = "trustee_login"
     VOTER_LOGIN_FAIL = "voter_login_fail"
     TRUSTEE_LOGIN_FAIL = "trustee_login_fail"
+
+
+class ElectionLoginTypeEnum(str, enum.Enum):
+    close_p = "Close"
+    open_p = "Open"
+    semi_close_p = "Semi Public"
