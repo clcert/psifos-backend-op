@@ -2,7 +2,7 @@ import jwt
 import uuid
 
 from werkzeug.security import check_password_hash
-from fastapi import HTTPException, Request, APIRouter, Depends, Cookie
+from fastapi import HTTPException, Request, APIRouter, Depends, Cookie, Query
 
 from app.dependencies import get_session
 from app.config import SECRET_KEY, TYPE_AUTH, APP_FRONTEND_URL
@@ -49,7 +49,7 @@ async def login_user(request: Request, credentials: HTTPBasicCredentials = Depen
 
 
 @auth_router.get("/{short_name}/vote", status_code=200)
-async def login_voter(short_name: str, request: Request, session_cookie: str | None = Cookie(default=None), session = Depends(get_session)):
+async def login_voter(short_name: str, request: Request, redirect: bool = Query(True), session_cookie: str | None = Cookie(default=None), session = Depends(get_session)):
     """
     Make the connection and verification with the CAS service
     """
@@ -57,7 +57,7 @@ async def login_voter(short_name: str, request: Request, session_cookie: str | N
     if election.election_login_type == ElectionLoginTypeEnum.open_p:
         request.session["public_election"] = True
         request.session["user"] = str(uuid.uuid4())
-        return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name)
+        return RedirectResponse(url=f"{APP_FRONTEND_URL}/elections/{short_name}/vote") if redirect else {"message": "success"}
 
     auth = auth_factory.get_auth(protocol)
     return await auth.login_voter(short_name=short_name, request=request, session=session_cookie)
