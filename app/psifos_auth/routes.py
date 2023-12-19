@@ -57,7 +57,7 @@ async def login_voter(short_name: str, request: Request, redirect: bool = Query(
     if election.election_login_type == ElectionLoginTypeEnum.open_p:
         request.session["public_election"] = True
         request.session["user"] = str(uuid.uuid4())
-        return RedirectResponse(url=f"{APP_FRONTEND_URL}/elections/{short_name}/vote") if redirect else {"message": "success"}
+        return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}
 
     auth = auth_factory.get_auth(protocol)
     return await auth.login_voter(short_name=short_name, request=request, session=session_cookie)
