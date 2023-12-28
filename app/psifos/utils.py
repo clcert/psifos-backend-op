@@ -8,6 +8,8 @@ import json
 
 from tkinter.messagebox import RETRY
 import pytz
+
+from app.psifos.model.enums import ElectionLoginTypeEnum
 from app.psifos.crypto.sharedpoint import Point
 from datetime import datetime
 from app.config import TIMEZONE
@@ -64,7 +66,7 @@ def do_cast_vote_checks(request, election, voter):
     if request.get_json().get("encrypted_vote") is None:
         return False, "Error al enviar el voto: no se envio el encrypted vote"
 
-    if election.private_p:
+    if election.election_login_type == ElectionLoginTypeEnum.close_p:
         if voter is None:
             return False, "Error al enviar el voto: votante no encontrado"
     return True, None

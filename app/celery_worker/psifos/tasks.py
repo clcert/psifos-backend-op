@@ -21,12 +21,12 @@ from app.psifos import utils as psifos_utils
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyManager
 from app.psifos.crypto.utils import hash_b64
-from app.psifos.model.enums import ElectionStatusEnum
+from app.psifos.model.enums import ElectionStatusEnum, ElectionLoginTypeEnum
 
 
 @celery.task(name="process_castvote")
 def process_cast_vote(
-    private_p: bool,
+    election_login_type: str,
     election_uuid: str,
     serialized_encrypted_vote: str,
     cast_ip: str,
@@ -39,7 +39,7 @@ def process_cast_vote(
 
     with SessionLocal() as session:
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
-        if private_p:
+        if election_login_type == ElectionLoginTypeEnum.close_p:
             voter_id = kwargs.get("voter_id")
             voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
         else:

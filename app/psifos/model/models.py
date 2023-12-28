@@ -31,7 +31,7 @@ from app.psifos.crypto.elgamal import ElGamal
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyWrapper
 
-from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum
+from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum, ElectionLoginTypeEnum
 
 from app.database.custom_fields import (
     PublicKeyField,
@@ -60,7 +60,7 @@ class Election(Base):
     name = Column(String(250), nullable=False)
     election_type = Column(Enum(ElectionTypeEnum), nullable=False)
     election_status = Column(Enum(ElectionStatusEnum), default="setting_up")
-    private_p = Column(Boolean, default=False, nullable=False)
+    election_login_type =  Column(Enum(ElectionLoginTypeEnum), default="close_p")
     description = Column(Text)
 
     public_key = Column(PublicKeyField, nullable=True)
@@ -273,20 +273,23 @@ class Election(Base):
         question_list = Questions.serialize(self.questions, to_json=False)
         groups.append("Sin grupo")
         results = []
+        results_group = []
         for group in groups:
-            group_results = []
+            aux_group_results = []
             for question in question_list:
-                group_results.append(
-                    {
+                result_question = {
                         "tally_type": question["tally_type"],
                         "ans_results": ["0"] * int(question["total_closed_options"]),
                     }
+                aux_group_results.append(
+                    result_question
                 )
-            results.append(
+            results = aux_group_results
+            results_group.append(
                 ElectionResultGroup(
-                    *group_results, group=group, with_votes=False)
+                    *aux_group_results, group=group, with_votes=False)
             )
-        election_result = ElectionResultManager(results_grouped=results)
+        election_result = ElectionResultManager(results_total=results, results_grouped=results_group)
         return {
             "result": election_result,
             "election_status": ElectionStatusEnum.decryptions_combined,

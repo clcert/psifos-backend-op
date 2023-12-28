@@ -395,6 +395,12 @@ async def edit_questions(session: Session | AsyncSession, db_election: models.El
     return db_election
 
 
+async def get_groups_by_election_id(session: Session | AsyncSession, election_id: int):
+    query = select(models.Voter.group).where(models.Voter.election_id == election_id).distinct()
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
+
+
 # --- PsifosLog CRUD Utils ---
 
 async def log_to_db(session: Session | AsyncSession, election_id: int, log_level: str, event: str, event_params: str, created_at: str):

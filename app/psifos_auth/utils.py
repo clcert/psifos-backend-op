@@ -7,6 +7,7 @@ from app.database import db_handler
 from app.psifos_auth.model import models as auth_models
 from app.psifos_auth.model import crud as auth_crud
 from app.psifos_auth.model import schemas as auth_schemas
+from app.psifos.model.enums import ElectionLoginTypeEnum
 
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -30,7 +31,7 @@ async def get_auth_voter_and_election(short_name: str, voter_login_id: str, sess
     election = await crud.get_election_by_short_name(session=session, short_name=short_name)
     voter = await crud.get_voter_by_login_id_and_election_id(session=session, voter_login_id=voter_login_id, election_id=election.id)
     
-    if election.private_p:
+    if election.election_login_type == ElectionLoginTypeEnum.close_p:
         if not voter:
             raise HTTPException(status_code=400, detail="voter not found")
         if voter.voter_login_id != voter_login_id:
