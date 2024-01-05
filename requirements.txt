@@ -44,7 +44,7 @@ platformdirs==3.11.0
 prometheus-client==0.14.1
 prompt-toolkit==3.0.31
 pycodestyle==2.8.0
-pycryptodome==3.14.1
+pycryptodome==3.19.1
 pydantic==1.10.12
 PyJWT==2.4.0
 pyparsing==3.0.9
