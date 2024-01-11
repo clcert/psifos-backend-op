@@ -46,11 +46,18 @@ class MixnetTally(AbstractTally):
         election = kwargs.get("election")
         election_name = election.short_name
         election_uuid = election.uuid
-        
+
+        mixnet_width = kwargs.get("width")
         server_names = [MIXNET_01_NAME, MIXNET_02_NAME, MIXNET_03_NAME]
         server_urls = [MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL]
 
         TOKEN = re.sub(r'[^a-zA-Z0-9]+', '', f'{election_name}{election_uuid}{time.time()}')
+
+        for name, url in zip(server_names, server_urls):
+            requests.post(url=f"{url}/configure-mixnet", json={
+                'mixnet_width': mixnet_width,
+                'token' : TOKEN
+            })
 
         # then we create the payload and send it to each mixnet sv
         for name, url in zip(server_names, server_urls):

@@ -19,7 +19,8 @@ class EncryptedMixnetAnswer(AbstractEncryptedAnswer):
         super(EncryptedMixnetAnswer, self).__init__(**kwargs)
     
     def verify(self, **kwargs):
-        return len(self.get_choices()) == MIXNET_WIDTH
+        max_ptxt = kwargs.get('max_ptxt')
+        return len(self.get_choices()) == max_ptxt
 
 class EncryptedStvncAnswer(AbstractEncryptedAnswer):
     """
