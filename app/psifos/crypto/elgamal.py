@@ -211,17 +211,24 @@ class ZKProof(SerializableObject):
 
         return (first_check and second_check and third_check)
 
-class ListOfIntegers(SerializableList):
+class ListOfNestedIntegers(SerializableList):
     def __init__(self, *args) -> None:
-        super(ListOfIntegers, self).__init__()
+        super(ListOfNestedIntegers, self).__init__()
+        
+        def parseValue(value):
+            if type(value) == list:
+                for el in value:
+                    return parseValue(el)
+            return int(value)
+        
         for value in args:
-            self.instances.append(int(value))
+            self.instances.append(parseValue(value))
 
 class ListOfVotes(SerializableList):
     def __init__(self, *args) -> None:
         super(ListOfVotes, self).__init__()
         for value in args:
-            self.instances.append(ListOfIntegers(*value))
+            self.instances.append(ListOfNestedIntegers(*value))
 
 class ListOfZKProofs(SerializableList):
     def __init__(self, *args) -> None:
