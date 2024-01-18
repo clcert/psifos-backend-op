@@ -66,12 +66,13 @@ class TallyWrapper(SerializableObject):
             encrypted_answers = [
                 enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes
             ]
-
+            width = election.questions.instances[q_num].max_answers
             tally.compute(
                 public_key=public_key,
                 encrypted_answers=encrypted_answers,
                 weights=weights,
                 election=election,
+                width=width
             )
 
     def decrypt(self, partial_decryptions, election, group):
