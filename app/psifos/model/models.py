@@ -17,7 +17,6 @@ from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime
 from app.psifos import utils
 from app.psifos.psifos_object.questions import Questions
 from app.psifos.psifos_object.result import (
-    ElectionResult,
     ElectionResultManager,
     ElectionResultGroup,
 )

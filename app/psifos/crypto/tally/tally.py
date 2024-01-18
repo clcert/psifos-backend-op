@@ -55,7 +55,7 @@ class TallyWrapper(SerializableObject):
         super(TallyWrapper, self).__init__()
         self.group: str = kwargs.get("group", "")
         self.with_votes: bool = kwargs.get("with_votes")
-        self.tally = ListOfTallys(*args)
+        self.tally = ListOfTallies(*args)
 
     def compute(self, encrypted_votes, weights, election):
         public_key = (
@@ -96,8 +96,8 @@ class TallyWrapper(SerializableObject):
         return self.tally.instances
 
 
-class ListOfTallys(SerializableList):
+class ListOfTallies(SerializableList):
     def __init__(self, *args) -> None:
-        super(ListOfTallys, self).__init__()
+        super(ListOfTallies, self).__init__()
         for tally_dict in args:
             self.instances.append(TallyFactory.create(**tally_dict))
