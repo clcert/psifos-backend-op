@@ -1,66 +1,59 @@
 """
 Mixnet tally for STV psifos questions.
 
-16-11-2023
+18-01-2024
 """
 
 from app.psifos.crypto.tally.mixnet.tally import MixnetTally
-from stvpoll.scottish_stv import ScottishSTV
+from app.psifos.crypto.tally.mixnet.utils import is_blank_ballot, is_null_ballot, is_invalid_ballot
+from app.psifos.crypto.tally.mixnet.utils import parseRoundResumes, parseTalliesResumes
+from psifospoll import STVElection
 
 class STVTally(MixnetTally):
+    def __init__(self, tally=None, **kwargs) -> None:
+        MixnetTally.__init__(self, tally, **kwargs)
+        self.tally_type = "stvnc"
+
     def count_votes(self, votes, total_closed_options):
         # All ballots have the same length
-        formal_options = len(votes[0])
-        null_index = formal_options + 1
-        blank_index = formal_options
-        null_id = total_closed_options + 1
-        blank_id = total_closed_options
-        null_vote = [null_id]*formal_options
-        blank_vote = [blank_id]*formal_options
-        
-        # Some aux functions
-        def is_blank_vote(vote):
-            return vote == blank_vote
-        def is_null_vote(vote):
-            return vote == null_vote
-        def is_invalid_vote(vote):
-            for el in vote:
-                closed_options = list(range(formal_options)) + [null_id, blank_id]
-                isValid = el in closed_options
-                if vote.count(el) > 1 or not isValid:
-                    return True
-            return False
+        total_formal_options = len(votes[0])
+        includes_informal_options = total_formal_options != total_closed_options
+        candidates_list = list(range(total_formal_options))
 
-        # Analyzes each vote
-        poll = ScottishSTV(seats=1, candidates=list(range(formal_options)))
         blank_count = 0
         null_count = 0
-        for vote in votes:
-            if is_blank_vote(vote):
+        ballot_list = []
+        for ballot in votes:
+            is_blank = is_blank_ballot(ballot, total_closed_options)
+            is_null = is_null_ballot(ballot, total_closed_options)
+            is_invalid = is_invalid_ballot(
+                ballot, total_closed_options, total_formal_options
+            )
+            if includes_informal_options and is_blank:
                 blank_count += 1
-            elif is_null_vote(vote) or is_invalid_vote(vote):
+            elif is_null or is_invalid or (
+                not includes_informal_options and is_blank
+            ):
                 null_count += 1
             else:
-                candidates = list(range(formal_options))
-                final_vote = []
-                for candidate in vote:
-                    if candidate in candidates:
-                        final_vote += [candidate]
-                    else:
-                        break
-
-                ## lo agrego al calculo de stv
-                poll.add_ballot(final_vote, 1)
+                ballot_list.append(list(filter(
+                    lambda candidate: candidate in candidates_list,
+                    ballot)
+                ))
 
         # Calculates the stv result
-        stv_result = list(poll.calculate())
-
-        # Forms the final result 
-        results = [0] * total_closed_options
-        for winner_id in stv_result:
-            results[winner_id] = 1
-        if total_closed_options != formal_options:
-            results[null_index] = null_count
-            results[blank_index] = blank_count
+        seats = 3
+        election = STVElection()
+        election.runElection(seats, candidates_list, ballot_list)
+        stv_results = [
+            parseRoundResumes(election.getRoundResumes()),
+            parseTalliesResumes(election.getTalliesResumes()),
+            election.getWinnersList(),
+        ]
+        
+        results = [
+            stv_results,
+            [blank_count, null_count]
+        ]
 
         return results
