@@ -199,6 +199,7 @@ class Election(Base):
                 "num_tallied": 0,
                 "q_num": q_num,
                 "num_options": q_dict["total_closed_options"],
+                "num_of_winners": "num_of_winners" in q_dict.keys() and q_dict["num_of_winners"],
             }
             for q_num, q_dict in enumerate(question_list)
         ]

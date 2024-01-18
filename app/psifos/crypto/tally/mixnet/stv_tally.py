@@ -13,6 +13,7 @@ class STVTally(MixnetTally):
     def __init__(self, tally=None, **kwargs) -> None:
         MixnetTally.__init__(self, tally, **kwargs)
         self.tally_type = "stvnc"
+        self.num_of_winners = int(kwargs["num_of_winners"])
 
     def count_votes(self, votes, total_closed_options):
         # All ballots have the same length
@@ -42,7 +43,7 @@ class STVTally(MixnetTally):
                 ))
 
         # Calculates the stv result
-        seats = 3
+        seats = self.num_of_winners
         election = STVElection()
         election.runElection(seats, candidates_list, ballot_list)
         stv_results = [
