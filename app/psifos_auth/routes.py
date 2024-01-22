@@ -54,6 +54,9 @@ async def login_voter(short_name: str, request: Request, redirect: bool = Query(
     Make the connection and verification with the CAS service
     """
     election = await crud.get_election_by_short_name(session=session, short_name=short_name)
+    if not election:
+        return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}
+
     if election.election_login_type == ElectionLoginTypeEnum.open_p:
         request.session["public_election"] = True
         request.session["user"] = str(uuid.uuid4())
