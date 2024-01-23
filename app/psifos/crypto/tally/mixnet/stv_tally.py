@@ -46,15 +46,10 @@ class STVTally(MixnetTally):
         seats = self.num_of_winners
         election = STVElection()
         election.runElection(seats, candidates_list, ballot_list)
-        stv_results = [
-            parseRoundResumes(election.getRoundResumes()),
-            parseTalliesResumes(election.getTalliesResumes()),
-            election.getWinnersList(),
-        ]
-        
-        results = [
-            stv_results,
-            [blank_count, null_count]
-        ]
 
-        return results
+        return str({
+            "roundresumes": election.getRoundResumes(),
+            "talliesresumes": election.getTalliesResumes(),
+            "winnerslist": election.getWinnersList(),
+            "quota": election.getQuota(),
+        })

@@ -36,7 +36,7 @@ class SerializableList(object):
             if isinstance(obj, SerializableObject) or isinstance(obj, SerializableList):
                 obj_class = obj.__class__
                 serialized_instances.append(obj_class.serialize(obj, to_json=False))
-            elif isinstance(obj, int):
+            elif isinstance(obj, int) or isinstance(obj, str):
                 serialized_instances.append(str(obj))
 
         return json.dumps(serialized_instances) if to_json else serialized_instances

@@ -1,4 +1,4 @@
-from app.psifos.crypto.elgamal import ListOfZKProofs, ListOfNestedIntegers, fiatshamir_challenge_generator
+from app.psifos.crypto.elgamal import ListOfZKProofs, ListOfIntegers, fiatshamir_challenge_generator
 from app.psifos.crypto.tally.common.decryption.abstract_decryption import AbstractDecryption
 from app.psifos.crypto.tally.homomorphic.tally import HomomorphicTally
 
@@ -10,7 +10,7 @@ class HomomorphicDecryption(AbstractDecryption):
     """
     def __init__(self, decryption_factors, decryption_proofs, **kwargs) -> None:
         super(HomomorphicDecryption, self).__init__(**kwargs)
-        self.decryption_factors = ListOfNestedIntegers(*decryption_factors)
+        self.decryption_factors = ListOfIntegers(*decryption_factors)
         self.decryption_proofs = ListOfZKProofs(*decryption_proofs)
 
     

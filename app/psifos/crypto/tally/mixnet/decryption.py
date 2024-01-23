@@ -1,13 +1,13 @@
 from app.database.serialization import SerializableList
 from app.psifos.crypto.tally.common.decryption.abstract_decryption import AbstractDecryption
 from app.psifos.crypto.tally.mixnet.tally import MixnetTally
-from app.psifos.crypto.elgamal import ListOfNestedIntegers, ListOfZKProofs, fiatshamir_challenge_generator
+from app.psifos.crypto.elgamal import ListOfIntegers, ListOfZKProofs, fiatshamir_challenge_generator
 
 class ListOfDecryptionFactors(SerializableList):
     def __init__(self, *args) -> None:
         super(ListOfDecryptionFactors, self).__init__()
         for factors_list in args:
-            self.instances.append(ListOfNestedIntegers(*factors_list))
+            self.instances.append(ListOfIntegers(*factors_list))
 
 
 class ListOfDecryptionProofs(SerializableList):
