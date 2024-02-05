@@ -17,7 +17,7 @@ colorama==0.4.4
 databases==0.8.0
 Deprecated==1.2.13
 dnspython==2.2.1
-fastapi==0.103.2
+fastapi==0.109.1
 flower==2.0.1
 greenlet==3.0.1
 h11==0.13.0
