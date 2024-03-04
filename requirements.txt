@@ -51,7 +51,7 @@ pyparsing==3.0.9
 pyrsistent==0.18.1
 python-cas==1.6.0
 python-dotenv==1.0.0
-python-multipart==0.0.5
+python-multipart==0.0.7
 pytz==2023.3.post1
 PyYAML==6.0
 qrcode==7.3.1
