@@ -50,6 +50,11 @@ class AbstractAuth(object):
         election = await crud.get_election_by_short_name(
             short_name=short_name, session=db_session
         )
+        if not election:
+            return RedirectResponse(
+                url=APP_FRONTEND_URL + f"psifos/{short_name}/trustee/home"
+            )
+
         trustee = await crud.get_by_login_id_and_election_id(
             session=db_session,
             trustee_login_id=request.session["user"],

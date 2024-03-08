@@ -21,7 +21,14 @@ class ListOfEncryptedTexts(SerializableList):
         super(ListOfEncryptedTexts, self).__init__()
         for ctxts_list in args:
             self.instances.append(ListOfCipherTexts(*ctxts_list))
-    
+
+
+def get_key_params_for_mixnet(public_key):
+    p_hex = hex(public_key.p)[2:]
+    g_hex = hex(public_key.g)[2:]
+    q_hex = hex(public_key.q)[2:]
+    return p_hex + " " + g_hex + " " + q_hex
+
 
 class MixnetTally(AbstractTally):
     """
@@ -46,11 +53,20 @@ class MixnetTally(AbstractTally):
         election = kwargs.get("election")
         election_name = election.short_name
         election_uuid = election.uuid
-        
+
+        mixnet_width = kwargs.get("width")
         server_names = [MIXNET_01_NAME, MIXNET_02_NAME, MIXNET_03_NAME]
         server_urls = [MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL]
 
         TOKEN = re.sub(r'[^a-zA-Z0-9]+', '', f'{election_name}{election_uuid}{time.time()}')
+
+        for name, url in zip(server_names, server_urls):
+            requests.post(url=f"{url}/configure-mixnet", json={
+                'mixnet_width': mixnet_width,
+                'mixnet_num_servers': str(len(server_names)),
+                'key_params': get_key_params_for_mixnet(public_key),
+                'token' : TOKEN
+            })
 
         # then we create the payload and send it to each mixnet sv
         for name, url in zip(server_names, server_urls):
@@ -62,6 +78,9 @@ class MixnetTally(AbstractTally):
                     }
                     for a_name, a_url in zip(server_names, server_urls) if name != a_name and url != a_url 
                 ],
+                "public_key_g": public_key.g,
+                "public_key_p": public_key.p,
+                "public_key_q": public_key.q,
                 "public_key_y": public_key.y,
                 "token": TOKEN, 
                 "ciphertexts": ciphertexts
