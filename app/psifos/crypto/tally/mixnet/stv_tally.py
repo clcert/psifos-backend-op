@@ -31,10 +31,10 @@ class STVTally(MixnetTally):
         if len(ballot_list) > 0:
             election = STVElection()
             election.runElection(self.num_of_winners, candidates_list, ballot_list)
-            result["roundresumes"] = election.getRoundResumes(),
-            result["talliesresumes"] = election.getTalliesResumes(),
-            result["winnerslist"] = election.getWinnersList(),
-            result["quota"] = election.getQuota(),
+            result["roundresumes"] = election.getRoundResumes()
+            result["talliesresumes"] = election.getTalliesResumes()
+            result["winnerslist"] = election.getWinnersList()
+            result["quota"] = election.getQuota()
 
         return result
 
