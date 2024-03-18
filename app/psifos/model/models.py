@@ -17,7 +17,6 @@ from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime
 from app.psifos import utils
 from app.psifos.psifos_object.questions import Questions
 from app.psifos.psifos_object.result import (
-    ElectionResult,
     ElectionResultManager,
     ElectionResultGroup,
 )
@@ -200,6 +199,8 @@ class Election(Base):
                 "num_tallied": 0,
                 "q_num": q_num,
                 "num_options": q_dict["total_closed_options"],
+                "num_of_winners": q_dict.get("num_of_winners", None),
+                "include_blank_null": q_dict["include_blank_null"] == "True",
             }
             for q_num, q_dict in enumerate(question_list)
         ]
