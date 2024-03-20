@@ -5,7 +5,7 @@ async-timeout==4.0.2
 asyncmy==0.2.7
 attrs==23.1.0
 billiard==4.2.0
-black==23.11.0
+black==24.3.0
 celery==5.3.4
 certifi==2023.7.22
 charset-normalizer==3.3.2
