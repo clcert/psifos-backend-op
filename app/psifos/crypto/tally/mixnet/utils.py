@@ -4,23 +4,26 @@ def get_blank_id(total_closed_options):
 def get_null_id(total_closed_options):
     return total_closed_options + 1
 
-def get_blank_ballot(total_closed_options):
+def get_blank_ballot(total_closed_options, len_ballot):
     blank_id = get_blank_id(total_closed_options)
-    return [blank_id]*(total_closed_options-2)
+    return [blank_id]*len_ballot
 
-def get_null_ballot(total_closed_options):
+def get_null_ballot(total_closed_options, len_ballot):
     null_id = get_null_id(total_closed_options)
-    return [null_id]*(total_closed_options-2)
+    return [null_id]*len_ballot
 
-def is_blank_ballot(ballot, total_closed_options):
-    return ballot == get_blank_ballot(total_closed_options)
+def is_blank_ballot(ballot, total_closed_options, max_len_ballot):
+    return ballot == get_blank_ballot(total_closed_options, max_len_ballot)
 
-def is_null_ballot(ballot, total_closed_options):
-    return ballot == get_null_ballot(total_closed_options)
+def is_null_ballot(ballot, total_closed_options, max_len_ballot):
+    return ballot == get_null_ballot(total_closed_options, max_len_ballot)
 
 def is_invalid_ballot(
-    ballot, total_closed_options, total_formal_options
-):
+    ballot, total_closed_options, total_formal_options, max_len_ballot,
+):  
+    if len(ballot) > max_len_ballot:
+        return True
+
     blank_id = get_blank_id(total_closed_options)
     for candidate in ballot:
         is_formal = (
