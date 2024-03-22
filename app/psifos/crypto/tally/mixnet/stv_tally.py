@@ -15,6 +15,7 @@ class STVTally(MixnetTally):
         self.tally_type = "stvnc"
         self.num_of_winners = int(kwargs["num_of_winners"])
         self.include_blank_null = kwargs["include_blank_null"]
+        self.max_answers = int(kwargs["max_answers"])
         
     def stv(
         self, blank_count, null_count, ballot_list, candidates_list,
@@ -47,10 +48,10 @@ class STVTally(MixnetTally):
         null_count = 0
         ballot_list = []
         for ballot in votes:
-            is_blank = is_blank_ballot(ballot, total_closed_options)
-            is_null = is_null_ballot(ballot, total_closed_options)
+            is_blank = is_blank_ballot(ballot, total_closed_options, self.max_answers)
+            is_null = is_null_ballot(ballot, total_closed_options, self.max_answers)
             is_invalid = is_invalid_ballot(
-                ballot, total_closed_options, num_of_formal_options
+                ballot, total_closed_options, num_of_formal_options, self.max_answers
             )
             if self.include_blank_null and is_blank:
                 blank_count += 1
