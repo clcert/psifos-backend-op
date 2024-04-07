@@ -11,6 +11,9 @@ class EncryptedClosedAnswer(AbstractEncryptedAnswer):
     def __init__(self, **kwargs):
         super(EncryptedClosedAnswer, self).__init__(**kwargs)
         self.individual_proofs : ListOfZKDisjunctiveProofs = ListOfZKDisjunctiveProofs(*kwargs["individual_proofs"])
+
+        excluded_proofs = kwargs.get("excluded_proofs")
+        self.excluded_proofs : ListOfZKDisjunctiveProofs = ListOfZKDisjunctiveProofs(*excluded_proofs) if excluded_proofs else None
         self.overall_proof : ZKDisjunctiveProof = ZKDisjunctiveProof(*kwargs["overall_proof"])
     
     @classmethod
@@ -30,7 +33,7 @@ class EncryptedClosedAnswer(AbstractEncryptedAnswer):
         return plaintexts
 
 
-    def verify(self, pk, min_ptxt=0, max_ptxt=1):
+    def verify(self, pk, min_ptxt=0, max_ptxt=1, groups=None):
         possible_plaintexts = self.generate_plaintexts(pk)
         homomorphic_sum = 0
 
@@ -56,6 +59,18 @@ class EncryptedClosedAnswer(AbstractEncryptedAnswer):
             # compute homomorphic sum if needed
             if max_ptxt is not None:
                 homomorphic_sum = choice * homomorphic_sum
+
+            # verify excluded proofs
+        if groups is not None:
+            for j, group in enumerate(groups):
+                excluded_proof = self.excluded_proofs.instances[j]
+                group_product = 1
+                for i in groups[group]:
+                    choice = self.choices.instances[i]
+                    choice.pk = self.choices.instances[0]._pk
+                    group_product = choice * group_product
+                if not group_product.verify_disjunctive_encryption_proof(possible_plaintexts, excluded_proof, disjunctive_challenge_generator):
+                    return False
 
         if max_ptxt is not None:
             # determine possible plaintexts for the sum
