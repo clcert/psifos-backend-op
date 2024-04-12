@@ -16,7 +16,7 @@ click-repl==0.2.0
 colorama==0.4.4
 databases==0.8.0
 Deprecated==1.2.13
-dnspython==2.2.1
+dnspython==2.6.1
 fastapi==0.109.2
 flower==2.0.1
 greenlet==3.0.1
