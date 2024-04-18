@@ -14,15 +14,13 @@ from starlette_context import middleware, plugins
 
 from api_analytics.fastapi import Analytics
 
-from .logger import CustomizeLogger
+from app.logger import logger
 
 import os
 from pathlib import Path
 
 app = FastAPI()
 
-logger_config_path = Path(__file__).with_name("logger_config.json")
-logger = CustomizeLogger.make_logger(logger_config_path)
 app.logger = logger
 
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)

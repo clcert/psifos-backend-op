@@ -152,3 +152,6 @@ class ElectionLogger(object):
 
         
 psifos_logger = ElectionLogger()
+
+logger_config_path = Path(__file__).with_name("logger_config.json")
+logger = CustomizeLogger.make_logger(logger_config_path)
