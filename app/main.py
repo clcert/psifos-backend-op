@@ -17,7 +17,6 @@ from api_analytics.fastapi import Analytics
 from app.logger import logger
 
 import os
-from pathlib import Path
 
 app = FastAPI()
 
