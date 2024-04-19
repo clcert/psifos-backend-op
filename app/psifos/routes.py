@@ -38,8 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from datetime import timedelta
 
-from app.logger import psifos_logger
-
+from app.logger import psifos_logger, logger
 from io import BytesIO
 from base64 import b64encode
 
@@ -602,12 +601,14 @@ async def cast_vote(
     verified, vote_fingerprint = task.get()
 
     if verified:
+        logger.info("%s:%s - Valid Cast Vote: %s (%s)" % (request.client.host, request.client.port, voter_login_id, election.short_name))
         return {
-            "message": "Encrypted vote recieved succesfully",
+            "message": "Encrypted vote received succesfully",
             "verified": verified,
             "vote_hash": vote_fingerprint,
         }
     else:
+        logger.error("Invalid Cast Vote: %s (%s)" % (voter_login_id, election.short_name))
         return {"message": "Invalid encrypted vote", "verified": verified}
 
 
@@ -1224,6 +1225,7 @@ async def trustee_decrypt_and_prove(
     "/{short_name}/questions", status_code=200, response_model=schemas.ElectionOut
 )
 async def get_questions(
+    request: Request,
     short_name: str,
     voter_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
@@ -1231,15 +1233,19 @@ async def get_questions(
     """
     Route for get questions
     """
-
-    _, election = await get_auth_voter_and_election(
-        session=session,
-        short_name=short_name,
-        voter_login_id=voter_login_id,
-        status="Started",
-    )
-
-    return election
+    try:
+        _, election = await get_auth_voter_and_election(
+            session=session,
+            short_name=short_name,
+            voter_login_id=voter_login_id,
+            status="Started",
+        )
+    except HTTPException: 
+        logger.error("Invalid Voter Access: %s (%s)" % (voter_login_id, short_name))
+        raise HTTPException(status_code=400, detail="voter not found")
+    else:
+        logger.info("%s:%s - Valid Voter Access: %s (%s)" % (request.client.host, request.client.port, voter_login_id, election.short_name))
+        return election
 
 
 @api_router.get("/{short_name}/questions", status_code=200)

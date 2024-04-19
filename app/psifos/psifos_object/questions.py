@@ -94,3 +94,4 @@ class STVNCQuestion(AbstractQuestion):
     def __init__(self, **kwargs) -> None:
         super(STVNCQuestion, self).__init__(**kwargs)
         self.tally_type = "stvnc"
+        self.num_of_winners: int = int(kwargs["num_of_winners"])

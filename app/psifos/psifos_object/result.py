@@ -3,25 +3,27 @@ Election result classes for Psifos.
 
 14-04-2022
 """
-from app.psifos.crypto.elgamal import ListOfIntegers
+from app.psifos.crypto.elgamal import ListOfIntegers, ListOfStrings, GenericList
 from app.database.serialization import SerializableList, SerializableObject
 
 
 class ResultFactory:
     @staticmethod
     def create(**kwargs):
+        tally_types_and_results = {
+            "homomorphic": HomomorphicResult,
+            "mixnet": MixnetResult,
+            "stvnc": STVncResult,
+        }
         tally_type = kwargs.get("tally_type")
-        if tally_type == "homomorphic":
-            return HomomorphicResult(**kwargs)
-        elif tally_type == "mixnet":
-            return MixnetResult(**kwargs)
-        else:
-            return None
+        if tally_type in tally_types_and_results.keys():
+            return tally_types_and_results[tally_type](**kwargs)
+        return None
 
 class GenericResults(SerializableObject):
     def __init__(self, result) -> None:
         super(GenericResults, self).__init__()
-        self.ans_results = ListOfIntegers(*result["ans_results"])
+        self.ans_results = GenericList(*result["ans_results"])
 
 class ResultListTotal(SerializableList):
     def __init__(self, *args) -> None:
@@ -78,3 +80,8 @@ class MixnetResult(AbstractResult):
     def __init__(self, **kwargs) -> None:
         super(MixnetResult, self).__init__(**kwargs)
         self.ans_results = ListOfIntegers(*kwargs["ans_results"])
+
+class STVncResult(AbstractResult):
+    def __init__(self, **kwargs) -> None:
+        super(STVncResult, self).__init__(**kwargs)
+        self.ans_results = ListOfStrings(kwargs["ans_results"])

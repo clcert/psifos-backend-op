@@ -14,10 +14,13 @@ from starlette_context import middleware, plugins
 
 from api_analytics.fastapi import Analytics
 
+from app.logger import logger
 
 import os
 
 app = FastAPI()
+
+app.logger = logger
 
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.add_middleware(Analytics, api_key=TOKEN_ANALYTICS_OP)  # Add middleware

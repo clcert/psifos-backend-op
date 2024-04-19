@@ -37,6 +37,7 @@ class MixnetTally(AbstractTally):
     def __init__(self, tally=None, **kwargs) -> None:
         super(MixnetTally, self).__init__(**kwargs)
         self.tally = ListOfEncryptedTexts(*tally) if self.computed else []
+        self.tally_type = "mixnet"
 
     def get_tally(self):
         return [x.instances for x in self.tally.instances]
@@ -133,7 +134,7 @@ class MixnetTally(AbstractTally):
 
         count_vote = self.count_votes(q_result, self.num_options)
         result = {
-            "tally_type": "mixnet",
+            "tally_type": self.tally_type,
             "ans_results": count_vote
         }
 

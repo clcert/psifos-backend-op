@@ -217,6 +217,18 @@ class ListOfIntegers(SerializableList):
         for value in args:
             self.instances.append(int(value))
 
+class ListOfStrings(SerializableList):
+    def __init__(self, *args) -> None:
+        super(ListOfStrings, self).__init__()
+        for value in args:
+            self.instances.append(str(value))
+
+class GenericList(SerializableList):
+    def __init__(self, *args) -> None:
+        super(GenericList, self).__init__()
+        for value in args:
+            self.instances.append(value)
+
 class ListOfVotes(SerializableList):
     def __init__(self, *args) -> None:
         super(ListOfVotes, self).__init__()
