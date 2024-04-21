@@ -320,6 +320,7 @@ class Voter(Base):
                    onupdate="CASCADE", ondelete="CASCADE"),
     )
     uuid = Column(String(50), nullable=False, unique=True)
+    login_id_election_id = Column(String(50), nullable=False, unique=True)
 
     voter_login_id = Column(String(100), nullable=False)
     voter_name = Column(String(200), nullable=False)

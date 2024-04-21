@@ -151,7 +151,6 @@ def upload_voters(election_uuid: str, voter_file_content: str):
             grouped = election.grouped
             buffer = StringIO(voter_file_content)
             csv_reader = csv.reader(buffer, delimiter=",")
-            voters: list[dict] = []
             k = 0  # voter counter
             n = 0 # total voters
             for voter in csv_reader:
@@ -161,16 +160,10 @@ def upload_voters(election_uuid: str, voter_file_content: str):
                         "voter_login_id": voter[0],
                         "voter_name": voter[1],
                         "voter_weight": voter[2],
+                        "login_id_election_id": f"{voter[0]}_{election.id}",
                         "group": voter[3] if add_group else ""
                     }
                 v_in = schemas.VoterIn(**v_in)
-
-                if crud.get_voter_by_login_id_and_election_id(
-                    session=session,
-                    voter_login_id=v_in.voter_login_id,
-                    election_id=election.id,
-                ):
-                    continue
 
                 # add the voter to the database
                 crud.create_voter(
@@ -187,7 +180,7 @@ def upload_voters(election_uuid: str, voter_file_content: str):
                 election_id=election.id,
                 fields={"total_voters": election.total_voters + k},
             )
-        except Exception:
+        except Exception as e:
             return False, 0, 0
         
     return True, k, n

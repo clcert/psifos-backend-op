@@ -144,6 +144,7 @@ class VoterBase(PsifosSchema):
     voter_login_id: str
     voter_weight: int
     voter_name: str
+    login_id_election_id: str
     group: str | None
 
 

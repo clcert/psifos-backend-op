@@ -91,17 +91,22 @@ def get_voter_by_login_id_and_election_id(session: Session, voter_login_id: int,
     return result.scalars().first()
 
 def create_voter(session: Session, election_id: int, uuid: str, voter: schemas.VoterIn):
-    db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
-    session.add(db_voter)
-    session.commit()
-    session.refresh(db_voter)
 
-    # db_cast_vote = models.CastVote(voter_id=db_voter.id)
-    # session.add(db_cast_vote)
-    # session.commit()
-    # session.refresh(db_cast_vote)
-    
-    return db_voter #, db_cast_vote
+    try:
+        db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
+        session.add(db_voter)
+        session.commit()
+        session.refresh(db_voter)
+
+        # db_cast_vote = models.CastVote(voter_id=db_voter.id)
+        # session.add(db_cast_vote)
+        # session.commit()
+        # session.refresh(db_cast_vote)
+        return db_voter #, db_cast_vote
+
+    except Exception as e:
+        session.rollback()
+        return None
 
 def update_voter(session: Session, voter_id: int, fields: dict):
     query = update(models.Voter).where(
