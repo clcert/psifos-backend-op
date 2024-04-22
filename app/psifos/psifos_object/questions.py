@@ -64,6 +64,7 @@ class AbstractQuestion(SerializableObject):
         self.min_answers: int = int(kwargs["min_answers"])
 
         self.include_blank_null: str = str(kwargs["include_blank_null"])
+        self.excluding_groups: str = str(kwargs["excluding_groups"])
 
 class ClosedQuestion(AbstractQuestion):
     """

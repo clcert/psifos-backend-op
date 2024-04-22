@@ -45,9 +45,17 @@ class EncryptedVote(SerializableObject):
 
         # check proofs on all of answers
         for question_num in range(len(election.questions.instances)):
+            question = election.questions.instances[question_num]
+            groups = None
+            excluding_groups = question.excluding_groups == "True"
+            if excluding_groups:
+                groups = {}
+                for index_ans, answer in enumerate(question.closed_options):
+                    group = answer[answer.find("(")+1:-1]
+                    if not 'Voto' in group:
+                        groups.setdefault(group, []).append(index_ans)
             ea = self.answers.instances[question_num]
-            q = election.questions.instances[question_num]
-            if not ea.verify(pk=election.public_key, min_ptxt=q.min_answers, max_ptxt=q.max_answers):
+            if not ea.verify(pk=election.public_key, min_ptxt=question.min_answers, max_ptxt=question.max_answers, groups=groups):
                 return False
 
         return True
