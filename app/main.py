@@ -16,6 +16,10 @@ from api_analytics.fastapi import Analytics
 
 from app.logger import logger
 
+from sqladmin import Admin
+from app.admin.auth import AdminAuth
+from app.admin.models import ElectionAdmin
+
 import os
 
 app = FastAPI()
@@ -46,3 +50,9 @@ app.add_middleware(
 # Routes
 app.include_router(api_router)
 app.include_router(auth_router)
+
+# Admin
+
+authentication_backend = AdminAuth(secret_key=SECRET_KEY)
+admin = Admin(app, engine, authentication_backend=authentication_backend)
+admin.add_view(ElectionAdmin)
