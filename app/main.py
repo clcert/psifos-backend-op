@@ -18,7 +18,7 @@ from app.logger import logger
 
 from sqladmin import Admin
 from app.admin.auth import AdminAuth
-from app.admin.models import ElectionAdmin
+from app.admin.models import ElectionAdmin, VoterAdmin, TrusteeAdmin, CastVoteAdmin
 
 import os
 
@@ -56,3 +56,7 @@ app.include_router(auth_router)
 authentication_backend = AdminAuth(secret_key=SECRET_KEY)
 admin = Admin(app, engine, authentication_backend=authentication_backend)
 admin.add_view(ElectionAdmin)
+admin.add_view(VoterAdmin)
+admin.add_view(TrusteeAdmin)
+admin.add_view(CastVoteAdmin)
+
