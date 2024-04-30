@@ -54,7 +54,7 @@ app.include_router(auth_router)
 # Admin
 
 authentication_backend = AdminAuth(secret_key=SECRET_KEY)
-admin = Admin(app, engine, authentication_backend=authentication_backend)
+admin = Admin(app, engine, authentication_backend=authentication_backend, base_url='/psifos/api/app/admin')
 admin.add_view(ElectionAdmin)
 admin.add_view(VoterAdmin)
 admin.add_view(TrusteeAdmin)
