@@ -86,4 +86,4 @@ zipp==3.8.0
 fastapi-analytics==1.1.4
 loguru==0.7.2
 gunicorn==22.0.0
-sqladmin
+starlette-admin

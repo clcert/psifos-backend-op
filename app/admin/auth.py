@@ -1,4 +1,4 @@
-from sqladmin.authentication import AuthenticationBackend
+from starlette_admin.auth import AdminConfig, AdminUser, AuthProvider
 from fastapi import HTTPException
 from app.config import SECRET_KEY, TYPE_AUTH, APP_FRONTEND_URL
 from app.psifos_auth.model import crud as auth_crud
@@ -10,7 +10,7 @@ import jwt
 from werkzeug.security import check_password_hash
 from fastapi import HTTPException, Request
 
-class AdminAuth(AuthenticationBackend):
+class AdminAuth(AuthProvider):
     async def login(self, request: Request) -> bool:
         form = await request.form()
         username, password = form["username"], form["password"]

@@ -1,31 +1,14 @@
 from app.psifos.model.models import Election, Voter, Trustee, CastVote
 from app.admin.fields import JSONField
-from sqladmin import ModelView
+from starlette_admin.contrib.sqla import ModelView
 
 
-class ElectionAdmin(ModelView, model=Election):
+class ElectionAdmin(ModelView):
 
-    column_list = [Election.short_name, Election.name, Election.election_status]
-    form_columns = [
-        Election.short_name,
-        Election.name,
-        Election.election_status,
-        Election.public_key,
-        Election.questions,
-        Election.encrypted_tally,
-        Election.election_login_type,
-    ]
-
-    form_overrides = dict(
-        public_key=JSONField,
-        questions=JSONField,
-        encrypted_tally=JSONField,
-        result=JSONField,
-        grouped=JSONField,
-    )
+    fields = ['id']
 
 
-class VoterAdmin(ModelView, model=Voter):
+class VoterAdmin(ModelView):
 
     column_list = [
         Voter.voter_login_id,
@@ -48,7 +31,7 @@ class VoterAdmin(ModelView, model=Voter):
     )
 
 
-class TrusteeAdmin(ModelView, model=Trustee):
+class TrusteeAdmin(ModelView):
 
     column_list = [
         Trustee.id,
@@ -70,7 +53,7 @@ class TrusteeAdmin(ModelView, model=Trustee):
         public_key=JSONField,
     )
 
-class CastVoteAdmin(ModelView, model=CastVote):
+class CastVoteAdmin(ModelView):
 
     column_list = [
         CastVote.id,

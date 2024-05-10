@@ -16,8 +16,7 @@ from api_analytics.fastapi import Analytics
 
 from app.logger import logger
 
-from sqladmin import Admin
-from app.admin.auth import AdminAuth
+from starlette_admin.contrib.sqla import Admin, ModelView
 from app.admin.models import ElectionAdmin, VoterAdmin, TrusteeAdmin, CastVoteAdmin
 
 import os
@@ -52,11 +51,15 @@ app.include_router(api_router)
 app.include_router(auth_router)
 
 # Admin
+from app.psifos.model.models import Election
 
-authentication_backend = AdminAuth(secret_key=SECRET_KEY)
-admin = Admin(app, engine, authentication_backend=authentication_backend)
-admin.add_view(ElectionAdmin)
-admin.add_view(VoterAdmin)
-admin.add_view(TrusteeAdmin)
-admin.add_view(CastVoteAdmin)
+# Create admin
+admin = Admin(engine, title="Example: SQLAlchemy")
+
+# Add view
+admin.add_view(ElectionAdmin(Election))
+
+# Mount admin to your app
+admin.mount_to(app)
+
 
