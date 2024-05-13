@@ -55,6 +55,7 @@ def process_cast_vote(
                 voter_in = schemas.VoterIn(
                     voter_login_id=voter_login_id,
                     voter_name=voter_login_id,
+                    login_id_election_id=f"{voter_login_id}_{election.id}",
                     voter_weight=1,
                     group="",
                 )
