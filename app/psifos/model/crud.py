@@ -13,7 +13,7 @@ from app.psifos import utils
 from app.psifos.crypto.sharedpoint import Point
 from app.psifos.model import models, schemas
 from sqlalchemy import select, update, delete
-from sqlalchemy.orm import selectinload, defer
+from sqlalchemy.orm import selectinload, defer, joinedload
 from app.database import db_handler
 
 ELECTION_QUERY_OPTIONS = [
@@ -33,6 +33,10 @@ COMPLETE_ELECTION_QUERY_OPTIONS = [
 
 VOTER_QUERY_OPTIONS = selectinload(
     models.Voter.cast_vote
+)
+
+TRUSTEE_QUERY_OPTIONS = selectinload(
+    models.Trustee.trustee_crypto
 )
 
 # ----- Voter CRUD Utils -----
@@ -192,45 +196,75 @@ async def get_trustee_by_id(session: Session | AsyncSession, id: int):
 
 
 async def get_trustee_by_uuid(session: Session | AsyncSession, uuid: str):
-    query = select(models.Trustee).where(
+    query = select(models.Trustee, models.TrusteeCrypto).join(
+        models.TrusteeCrypto, models.TrusteeCrypto.trustee_id == models.Trustee.id).where(
         models.Trustee.uuid == uuid,
+    ).options(
+        TRUSTEE_QUERY_OPTIONS
     )
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
 
+async def get_trustee_panel(session: Session | AsyncSession, trustee_id: int):
+    query = select(models.TrusteeCrypto, models.Election.short_name).join(
+        models.Election, models.TrusteeCrypto.election_id == models.Election.id).where(
+        models.TrusteeCrypto.trustee_id == trustee_id
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
+
+
 async def get_by_login_id_and_election_id(session: Session | AsyncSession, trustee_login_id: str, election_id: int):
-    query = select(models.Trustee).where(
+    query = select(models.Trustee).join(
+        models.TrusteeCrypto, models.TrusteeCrypto.trustee_id == models.Trustee.id).where(
         models.Trustee.trustee_login_id == trustee_login_id,
-        models.Trustee.election_id == election_id
+        models.TrusteeCrypto.election_id == election_id
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().first()
+
+async def get_trustee_by_login_id(session: Session | AsyncSession, trustee_login_id: str):
+    query = select(models.Trustee).where(
+        models.Trustee.trustee_login_id == trustee_login_id
     )
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
 
 async def get_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
-    query = select(models.Trustee).where(
-        models.Trustee.election_id == election_id)
+    query = select(models.Trustee).join(
+        models.TrusteeCrypto, models.TrusteeCrypto.trustee_id == models.Trustee.id).where(
+        models.TrusteeCrypto.election_id == election_id
+    ).options(
+        TRUSTEE_QUERY_OPTIONS
+    )
+
+    result = await db_handler.execute(session, query)
+    result = result.scalars().all()
+    return result
+
+async def get_crypto_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
+    query = select(models.TrusteeCrypto).where(
+        models.TrusteeCrypto.election_id == election_id)
     result = await db_handler.execute(session, query)
     return result.scalars().all()
 
 
 async def get_next_trustee_id(session: Session | AsyncSession, election_id: int):
-    trustees = await get_trustees_by_election_id(session=session, election_id=election_id)
+    trustees = await get_crypto_trustees_by_election_id(session=session, election_id=election_id)
     return 1 if len(trustees) == 0 else max(trustees, key=(lambda t: t.trustee_id)).trustee_id + 1
 
 
 async def get_global_trustee_step(session: Session | AsyncSession, election_id: int):
-    trustees = await get_trustees_by_election_id(session=session, election_id=election_id)
+    trustees = await get_trustees_crypto_by_election_id(session=session, election_id=election_id)
     trustee_steps = [t.current_step for t in trustees]
     return 0 if len(trustee_steps) == 0 else min(trustee_steps)
 
 
-async def create_trustee(session: Session | AsyncSession, election_id: int, uuid: str, trustee_id: int, trustee: schemas.TrusteeIn):
+async def create_trustee(session: Session | AsyncSession, uuid: str, trustee: schemas.TrusteeIn):
     db_trustee = models.Trustee(
-        election_id=election_id,
         uuid=uuid,
-        trustee_id=trustee_id,
         **trustee.dict()
     )
     db_handler.add(session, db_trustee)
@@ -257,6 +291,43 @@ async def delete_trustee(session: Session | AsyncSession, election_id: int, uuid
     await db_handler.execute(session, query)
     await db_handler.commit(session)
 
+# ----- TrusteeCrypto CRUD Utils -----
+
+async def create_trustee_crypto(session: Session | AsyncSession, election_id: int, trustee_id: int, trustee_election_id: int):
+    db_trustee_crypto = models.TrusteeCrypto(
+        election_id=election_id,
+        trustee_id=trustee_id,
+        trustee_election_id=trustee_election_id
+    )
+    db_handler.add(session, db_trustee_crypto)
+    await db_handler.commit(session)
+    await db_handler.refresh(session, db_trustee_crypto)
+    return db_trustee_crypto
+
+async def get_trustee_crypto_by_trustee_id_election_id(session: Session | AsyncSession, trustee_id: int, election_id: int):
+    query = select(models.TrusteeCrypto).where(
+        models.TrusteeCrypto.trustee_id == trustee_id,
+        models.TrusteeCrypto.election_id == election_id
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().first()
+
+async def get_trustees_crypto_by_election_id(session: Session | AsyncSession, election_id: int):
+    query = select(models.TrusteeCrypto).where(
+        models.TrusteeCrypto.election_id == election_id
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
+
+async def update_trustee_crypto(session: Session | AsyncSession, trustee_id: int, election_id: int, fields: dict):
+    query = update(models.TrusteeCrypto).where(
+        models.TrusteeCrypto.trustee_id == trustee_id,
+        models.TrusteeCrypto.election_id == election_id
+    ).values(fields)
+    await db_handler.execute(session, query)
+    await db_handler.commit(session)
+
+    return await get_trustee_crypto_by_trustee_id_election_id(session=session, trustee_id=trustee_id, election_id=election_id)
 
 # ----- SharedPoint CRUD Utils -----
 

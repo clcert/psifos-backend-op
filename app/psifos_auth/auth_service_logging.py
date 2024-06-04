@@ -266,10 +266,12 @@ class OAuth2Auth(AbstractAuth):
 
     @db_handler.method_with_session
     async def login_trustee(
-        self, db_session, short_name: str, request: Request, session: str
+        self, db_session, request: Request, session: str, panel: bool = False, short_name: str = None
     ):
         request.session["short_name"] = short_name
         request.session["type_logout"] = "trustee"
+        request.session["panel"] = panel
+
         self.type_logout = "trustee"
         client = OAuth2Session(
             client_id=self.client_id,
@@ -288,6 +290,7 @@ class OAuth2Auth(AbstractAuth):
     @db_handler.method_with_session
     async def authorized(self, db_session, request: Request, session: str = None):
         short_name = request.session["short_name"]
+        isPanel = request.session.get("panel", False)
         login = OAuth2Session(
             self.client_id,
             state=request.session["oauth_state"],
@@ -313,5 +316,9 @@ class OAuth2Auth(AbstractAuth):
         if request.session["type_logout"] == "voter":
             return await self.check_voter(db_session, short_name, user)
 
-        elif request.session["type_logout"] == "trustee":
+        elif request.session["type_logout"] == "trustee" and not isPanel:
             return await self.check_trustee(db_session, short_name, request)
+        
+        elif isPanel:
+            trustee = await crud.get_trustee_by_login_id(session=db_session, trustee_login_id=user)
+            return RedirectResponse(url=APP_FRONTEND_URL + f"psifos/trustee/{trustee.uuid}/panel")

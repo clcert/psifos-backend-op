@@ -52,8 +52,39 @@ class PsifosSchema(BaseModel):
 
 # ------------------ model-related schemas ------------------
 
+class DecryptionIn(PsifosSchema):
+    group: str
+    with_votes: bool
+    decryptions: object
 
 #  Trustee-related schemas
+
+class TrusteeCryptoBase(PsifosSchema):
+    """
+    Basic trustee schema.
+    """
+    trustee_election_id: int | None
+    current_step: int | None
+    public_key: str | object | None
+    public_key_hash: str | None
+    decryptions: str | object | None
+    certificate: str | object | None
+    coefficients: str | object | None
+    acknowledgements: str | object | None
+    election_id: int | None
+
+    class Config:
+        orm_mode = True
+
+
+class TrusteeCryptoPanel(TrusteeCryptoBase):
+    """
+    Basic trustee schema.
+    """
+    election_name: str | None
+
+    class Config:
+        orm_mode = True
 
 
 class TrusteeBase(PsifosSchema):
@@ -64,6 +95,9 @@ class TrusteeBase(PsifosSchema):
     name: str
     email: str
     trustee_login_id: str
+
+    class Config:
+        orm_mode = True
 
 
 class TrusteeIn(TrusteeBase):
@@ -81,15 +115,8 @@ class TrusteeOut(TrusteeBase):
     """
 
     id: int
-    trustee_id: int
     uuid: str
-    current_step: int
-    public_key: object | None
-    public_key_hash: str | None
-    decryptions: object | None
-    certificate: object | None
-    coefficients: object | None
-    acknowledgements: object | None
+    trustee_crypto: list[TrusteeCryptoBase] = []
 
     class Config:
         orm_mode = True
@@ -218,8 +245,6 @@ class ElectionOut(ElectionBase):
     voters_by_weight_init: str | None
     voters_by_weight_end: str | None
 
-    trustees: list[TrusteeOut] = []
-
     class Config:
         orm_mode = True
 
@@ -263,12 +288,6 @@ class KeyGenStep3Data(PsifosSchema):
     verification_key: str
 
 
-class DecryptionIn(PsifosSchema):
-    group: str
-    with_votes: bool
-    decryptions: object
-
-
-class TrusteeHome(PsifosSchema):
-    trustee: TrusteeOut
-    election: ElectionOut
+class TrusteePanel(PsifosSchema):
+    trustee: TrusteeBase
+    trustee_crypto: list[TrusteeCryptoPanel] = []

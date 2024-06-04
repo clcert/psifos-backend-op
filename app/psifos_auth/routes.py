@@ -88,6 +88,14 @@ async def login_trustee(short_name: str, request: Request, session_cookie: str |
     auth = auth_factory.get_auth(protocol)
     return await auth.login_trustee(short_name=short_name, request=request, session=session_cookie)
 
+@auth_router.get("/trustee/login/panel", status_code=200)
+async def login_trustee_panel(request: Request, session_cookie: str | None = Cookie(default=None)):
+    """
+    Make the connection and verification with the CAS service
+    """
+    
+    auth = auth_factory.get_auth(protocol)
+    return await auth.login_trustee(request=request, session=session_cookie, panel=True)
 
 
 @auth_router.get("/{short_name}/trustee/logout", status_code=200)

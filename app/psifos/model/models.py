@@ -90,7 +90,7 @@ class Election(Base):
     voters = relationship("Voter", cascade="all, delete",
                           backref="psifos_election")
     trustees = relationship(
-        "Trustee", cascade="all, delete", backref="psifos_election")
+        "TrusteeCrypto", cascade="all, delete", backref="psifos_election")
     sharedpoints = relationship(
         "SharedPoint", cascade="all, delete", backref="psifos_election"
     )
@@ -414,19 +414,34 @@ class Trustee(Base):
     __tablename__ = "psifos_trustee"
 
     id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(50), nullable=False, unique=True)
+
+    name = Column(String(200), nullable=False)
+    trustee_login_id = Column(String(100), nullable=False, unique=True)
+    email = Column(Text, nullable=False)
+    trustee_crypto = relationship(
+        "TrusteeCrypto", cascade="all, delete",
+        back_populates="trustee"
+    ) 
+
+class TrusteeCrypto(Base):
+    __tablename__ = "psifos_trustee_crypto"
+
+    id = Column(Integer, primary_key=True, index=True)
     election_id = Column(
         Integer,
         ForeignKey("psifos_election.id",
                    onupdate="CASCADE", ondelete="CASCADE"),
     )
     trustee_id = Column(
+        Integer,
+        ForeignKey("psifos_trustee.id",
+                   onupdate="CASCADE", ondelete="CASCADE"),
+    )
+
+    trustee_election_id = Column(
         Integer, nullable=False
     )  # TODO: rename to index for deambiguation with trustee_id func. param at await crud.py
-    uuid = Column(String(50), nullable=False, unique=True)
-
-    name = Column(String(200), nullable=False)
-    trustee_login_id = Column(String(100), nullable=False)
-    email = Column(Text, nullable=False)
 
     current_step = Column(Integer, default=0)
 
@@ -438,6 +453,8 @@ class Trustee(Base):
     coefficients = Column(CoefficientsField, nullable=True)
     acknowledgements = Column(AcknowledgementsField, nullable=True)
 
+    trustee = relationship("Trustee", back_populates="trustee_crypto")
+
     def get_decryptions_group(self, group):
         if self.decryptions:
             decryptions_group = filter(
@@ -446,7 +463,6 @@ class Trustee(Base):
             )
             return next(decryptions_group)
         return None
-
 
 class SharedPoint(Base):
     __tablename__ = "psifos_shared_point"

@@ -52,11 +52,14 @@ async def get_auth_trustee_and_election(short_name:str, trustee_uuid: str, login
         raise HTTPException(status_code=404, detail="Election not found")
     
     trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
+
     if not trustee:
         raise HTTPException(status_code=400, detail="Trustee not found")
     if trustee.trustee_login_id != login_id:
         raise HTTPException(status_code=401, detail="You are not allowed to access this trustee")
-    if trustee.election_id != election.id:
+    
+    trustee_in_election = filter(lambda x: x.election_id == election.id, trustee.trustee_crypto)
+    if not trustee_in_election:
         raise HTTPException(status_code=401, detail="This trustee doesn't belong to this election")
     if status is not None and election.election_status != status:
         raise HTTPException(status_code=400, detail="Election status check failed")
