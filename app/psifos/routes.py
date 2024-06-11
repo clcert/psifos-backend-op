@@ -664,7 +664,7 @@ async def get_trustee_panel(
     for trustee_crypto in trustee.trustee_crypto:
         election = await crud.get_election_by_id(session=session, election_id=trustee_crypto.election_id)
         crypto = schemas.TrusteeCryptoPanel.from_orm(trustee_crypto)
-        crypto.election_name = election.name
+        crypto.election_short_name = election.short_name
         final.append(
             crypto
         )
