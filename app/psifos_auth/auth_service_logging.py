@@ -321,4 +321,7 @@ class OAuth2Auth(AbstractAuth):
         
         elif isPanel:
             trustee = await crud.get_trustee_by_login_id(session=db_session, trustee_login_id=user)
-            return RedirectResponse(url=APP_FRONTEND_URL + f"psifos/trustee/{trustee.uuid}/panel")
+            if trustee:
+                request.session["trustee_uuid"] = trustee.uuid
+
+            return RedirectResponse(url=APP_FRONTEND_URL + f"psifos/trustee/panel")

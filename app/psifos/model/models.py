@@ -31,6 +31,7 @@ from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyWrapper
 
 from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum, ElectionLoginTypeEnum
+from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptionsGroup
 
 from app.database.custom_fields import (
     PublicKeyField,
@@ -233,7 +234,7 @@ class Election(Base):
                         (
                             t.trustee_id,
                             DecryptionFactory.create(
-                                **t.get_decryptions_group(group).get("decryptions")[
+                                **utils.from_json(TrusteeDecryptionsGroup.serialize(t.get_decryptions_group(group))).get("decryptions")[
                                     q_num
                                 ]
                             ).get_decryption_factors(),
@@ -458,8 +459,7 @@ class TrusteeCrypto(Base):
     def get_decryptions_group(self, group):
         if self.decryptions:
             decryptions_group = filter(
-                lambda dic: dic.get(
-                    "group") == group, self.decryptions.instances
+                lambda dic: dic.group == group, self.decryptions.instances
             )
             return next(decryptions_group)
         return None

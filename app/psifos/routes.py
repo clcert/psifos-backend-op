@@ -642,12 +642,12 @@ async def get_trustee(
 
 
 @api_router.get(
-    "/trustee/panel/{trustee_uuid}",
+    "/trustee/panel",
     status_code=200,
     response_model=schemas.TrusteePanel,
 )
 async def get_trustee_panel(
-    trustee_uuid: str,
+    request: Request,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
 ):
@@ -655,6 +655,7 @@ async def get_trustee_panel(
     Trustee's route for getting his home
     """
 
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
     if trustee.trustee_login_id != trustee_login_id:
         raise HTTPException(status_code=400, detail="No autorizado")
@@ -675,16 +676,17 @@ async def get_trustee_panel(
     )
     
 
-@api_router.get("/{short_name}/trustee/{trustee_uuid}/crypto", status_code=200)
+@api_router.get("/{short_name}/trustee/crypto", status_code=200)
 async def get_trustee_crypto(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
     Trustee's route for getting his crypto data
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -715,16 +717,17 @@ async def get_randomness(short_name: str, _: str = Depends(AuthUser())):
 # Routes for keygenerator trustee (Trustee Stage 1)
 
 
-@api_router.get("/{short_name}/trustee/{trustee_uuid}/get-step", status_code=200)
+@api_router.get("/{short_name}/trustee/get-step", status_code=200)
 async def get_step(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
     Get the step of the trustee
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     _, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -760,10 +763,10 @@ async def election_get_eg_params(
         )
 
 
-@api_router.post("/{short_name}/trustee/{trustee_uuid}/upload-pk", status_code=200)
+@api_router.post("/{short_name}/trustee/upload-pk", status_code=200)
 async def trustee_upload_pk(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_data: schemas.PublicKeyData,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
@@ -771,6 +774,7 @@ async def trustee_upload_pk(
     """
     Upload public key of trustee
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -806,10 +810,10 @@ async def trustee_upload_pk(
     return {"message": "The certificate of the trustee was uploaded successfully"}
 
 
-@api_router.post("/{short_name}/trustee/{trustee_uuid}/step-1", status_code=200)
+@api_router.post("/{short_name}/trustee/step-1", status_code=200)
 async def post_trustee_step_1(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_data: schemas.KeyGenStep1Data,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
@@ -817,6 +821,7 @@ async def post_trustee_step_1(
     """
     Step 1 of the keygenerator trustee
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -864,16 +869,17 @@ async def post_trustee_step_1(
     return {"message": "Keygenerator step 1 completed successfully"}
 
 
-@api_router.get("/{short_name}/trustee/{trustee_uuid}/step-1", status_code=200)
+@api_router.get("/{short_name}/trustee/step-1", status_code=200)
 async def get_trustee_step_1(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
     Step 1 of the keygenerator trustee
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     _, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -908,10 +914,10 @@ async def get_trustee_step_1(
         )
 
 
-@api_router.post("/{short_name}/trustee/{trustee_uuid}/step-2", status_code=200)
+@api_router.post("/{short_name}/trustee/step-2", status_code=200)
 async def post_trustee_step_2(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_data: schemas.KeyGenStep2Data,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
@@ -919,6 +925,7 @@ async def post_trustee_step_2(
     """
     Step 2 of the keygenerator trustee
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -947,16 +954,17 @@ async def post_trustee_step_2(
     return {"message": "Keygenerator step 2 completed successfully"}
 
 
-@api_router.get("/{short_name}/trustee/{trustee_uuid}/step-2", status_code=200)
+@api_router.get("/{short_name}/trustee/step-2", status_code=200)
 async def get_trustee_step_2(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
     Step 2 of the keygenerator trustee
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -1011,10 +1019,10 @@ async def get_trustee_step_2(
         )
 
 
-@api_router.post("/{short_name}/trustee/{trustee_uuid}/step-3", status_code=200)
+@api_router.post("/{short_name}/trustee/step-3", status_code=200)
 async def post_trustee_step_3(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_data: schemas.KeyGenStep3Data,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
@@ -1022,6 +1030,7 @@ async def post_trustee_step_3(
     """
     Step 3 of the keygenerator trustee
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -1050,16 +1059,17 @@ async def post_trustee_step_3(
     return {"message": "Keygenerator step 3 completed successfully"}
 
 
-@api_router.get("/{short_name}/trustee/{trustee_uuid}/step-3", status_code=200)
+@api_router.get("/{short_name}/trustee/step-3", status_code=200)
 async def post_trustee_step_3(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
     Step 3 of the keygenerator trustee
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -1131,16 +1141,17 @@ async def post_trustee_step_3(
         )
 
 
-@api_router.get("/{short_name}/trustee/{trustee_uuid}/check-sk", status_code=200)
+@api_router.get("/{short_name}/trustee/check-sk", status_code=200)
 async def trustee_check_sk(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
     Trustee Stage 2
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -1160,11 +1171,11 @@ dec_num_lock = threading.Lock()
 
 
 @api_router.post(
-    "/{short_name}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200
+    "/{short_name}/trustee/decrypt-and-prove", status_code=200
 )
 async def trustee_decrypt_and_prove(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_data: list[schemas.DecryptionIn],
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
@@ -1172,6 +1183,7 @@ async def trustee_decrypt_and_prove(
     """
     Trustee Stage 3
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
@@ -1262,17 +1274,18 @@ async def trustee_decrypt_and_prove(
 
 
 @api_router.get(
-    "/{short_name}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200
+    "/{short_name}/trustee/decrypt-and-prove", status_code=200
 )
 async def trustee_decrypt_and_prove(
+    request: Request,
     short_name: str,
-    trustee_uuid: str,
     trustee_login_id: str = Depends(AuthUser()),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
     Trustee Stage 3
     """
+    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
