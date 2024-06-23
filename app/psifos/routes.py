@@ -656,6 +656,9 @@ async def get_trustee_panel(
     """
 
     trustee_uuid = request.session.get("trustee_uuid", None)
+    if not trustee_uuid:
+        raise HTTPException(status_code=400, detail="Custodio sin elecciones")
+
     trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
     if trustee.trustee_login_id != trustee_login_id:
         raise HTTPException(status_code=400, detail="No autorizado")
