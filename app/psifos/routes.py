@@ -556,16 +556,43 @@ async def delete_trustee(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
-    await crud.delete_trustee(
-        session=session, election_id=election.id, uuid=trustee_uuid
-    )
-    await crud.update_election(
-        session=session,
-        election_id=election.id,
-        fields={"total_trustees": election.total_trustees - 1},
-    )
-    return {"message": "The trustee was successfully deleted"}
 
+    trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
+    trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
+        session=session, trustee_id=trustee.id, election_id=election.id
+    )
+
+    if trustee_crypto:
+        await crud.delete_trustee_crypto(session=session, trustee_id=trustee.id, election_id=election.id)
+        cryptos_election = await crud.get_trustees_crypto_by_election_id(
+            session=session, election_id=election.id
+        )
+
+        for index, crypto in enumerate(cryptos_election):
+            await crud.update_trustee_crypto(
+                session=session,
+                trustee_id=crypto.trustee_id,
+                election_id=election.id,
+                fields={"trustee_election_id": index + 1},
+            )
+            
+    other_crypto = await crud.get_trustees_crypto_by_trustee_id(
+        session=session, trustee_id=trustee.id
+    )
+
+    if len(other_crypto) == 0:
+        await crud.delete_trustee(
+            session=session, uuid=trustee_uuid
+        )
+
+        await crud.update_election(
+            session=session,
+            election_id=election.id,
+            fields={"total_trustees": election.total_trustees - 1},
+        )
+
+    return {"message": "The trustee was successfully deleted"}
+    
 
 # ----- Voter Routes -----
 

@@ -253,7 +253,7 @@ async def get_crypto_trustees_by_election_id(session: Session | AsyncSession, el
 
 async def get_next_trustee_id(session: Session | AsyncSession, election_id: int):
     trustees = await get_crypto_trustees_by_election_id(session=session, election_id=election_id)
-    return 1 if len(trustees) == 0 else max(trustees, key=(lambda t: t.trustee_id)).trustee_id + 1
+    return 1 if len(trustees) == 0 else max(trustees, key=(lambda t: t.trustee_election_id)).trustee_election_id + 1
 
 
 async def get_global_trustee_step(session: Session | AsyncSession, election_id: int):
@@ -283,10 +283,9 @@ async def update_trustee(session: Session | AsyncSession, trustee_id: int, field
     return await get_trustee_by_id(session=session, id=trustee_id)
 
 
-async def delete_trustee(session: Session | AsyncSession, election_id: int, uuid: str):
+async def delete_trustee(session: Session | AsyncSession, uuid: str):
     query = delete(models.Trustee).where(
-        models.Trustee.uuid == uuid,
-        models.Trustee.election_id == election_id
+        models.Trustee.uuid == uuid
     )
     await db_handler.execute(session, query)
     await db_handler.commit(session)
@@ -319,6 +318,13 @@ async def get_trustees_crypto_by_election_id(session: Session | AsyncSession, el
     result = await db_handler.execute(session, query)
     return result.scalars().all()
 
+async def get_trustees_crypto_by_trustee_id(session: Session | AsyncSession, trustee_id: int):
+    query = select(models.TrusteeCrypto).where(
+        models.TrusteeCrypto.trustee_id == trustee_id
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
+
 async def update_trustee_crypto(session: Session | AsyncSession, trustee_id: int, election_id: int, fields: dict):
     query = update(models.TrusteeCrypto).where(
         models.TrusteeCrypto.trustee_id == trustee_id,
@@ -328,6 +334,15 @@ async def update_trustee_crypto(session: Session | AsyncSession, trustee_id: int
     await db_handler.commit(session)
 
     return await get_trustee_crypto_by_trustee_id_election_id(session=session, trustee_id=trustee_id, election_id=election_id)
+
+
+async def delete_trustee_crypto(session: Session | AsyncSession, trustee_id: int, election_id: int):
+    query = delete(models.TrusteeCrypto).where(
+        models.TrusteeCrypto.trustee_id == trustee_id,
+        models.TrusteeCrypto.election_id == election_id
+    )
+    await db_handler.execute(session, query)
+    await db_handler.commit(session)
 
 # ----- SharedPoint CRUD Utils -----
 
