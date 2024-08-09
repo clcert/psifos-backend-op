@@ -13,9 +13,9 @@ class TallyFactory:
     @staticmethod
     def create(**kwargs):
         tally_to_mn_tally = {
-            "homomorphic":HomomorphicTally,
-            "mixnet":CloseMassiveTally,
-            "stvnc":STVTally,
+            "CLOSED":HomomorphicTally,
+            "MIXNET":CloseMassiveTally,
+            "STVNC":STVTally,
         }
         tally_type = kwargs.get("tally_type")
         if tally_type in tally_to_mn_tally.keys():
@@ -57,16 +57,13 @@ class TallyWrapper(SerializableObject):
         self.with_votes: bool = kwargs.get("with_votes")
         self.tally = ListOfTallies(*args)
 
-    def compute(self, encrypted_votes, weights, election):
-        public_key = (
-            election.public_key
-        )  # TODO: replace this when multiple pk gets added
+    def compute(self, encrypted_votes, weights, election, public_key):
 
         for q_num, tally in enumerate(self.tally.instances):
             encrypted_answers = [
                 enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes
             ]
-            width = election.questions.instances[q_num].max_answers
+            width = election.questions[q_num].max_answers
             tally.compute(
                 public_key=public_key,
                 encrypted_answers=encrypted_answers,

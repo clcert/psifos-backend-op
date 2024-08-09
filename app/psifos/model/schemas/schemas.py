@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field
 from app.database.serialization import SerializableList, SerializableObject
 from app.psifos.model.enums import ElectionTypeEnum, ElectionStatusEnum, ElectionLoginTypeEnum
 
+from typing import Optional
 
 class PsifosSchema(BaseModel):
     """
@@ -51,6 +52,19 @@ class PsifosSchema(BaseModel):
 
 
 # ------------------ model-related schemas ------------------
+
+class PublicKeyBase(PsifosSchema):
+    """
+    Basic public key schema.
+    """
+
+    y: str
+    p: str
+    g: str
+    q: str
+
+    class Config:
+        orm_mode = True
 
 
 #  Trustee-related schemas
@@ -84,7 +98,7 @@ class TrusteeOut(TrusteeBase):
     trustee_id: int
     uuid: str
     current_step: int
-    public_key: object | None
+    public_key: PublicKeyBase | None
     public_key_hash: str | None
     decryptions: object | None
     certificate: object | None
@@ -205,11 +219,12 @@ class ElectionOut(ElectionBase):
     Schema for reading/returning election data
     """
 
+
     id: int
     uuid: str
     election_status: ElectionStatusEnum
     decryptions_uploaded: int
-    public_key: object | None
+    public_key: PublicKeyBase | None
     questions: object | None
     total_voters: int
     total_trustees: int
@@ -218,7 +233,6 @@ class ElectionOut(ElectionBase):
     voters_by_weight_init: str | None
     voters_by_weight_end: str | None
 
-    trustees: list[TrusteeOut] = []
 
     class Config:
         orm_mode = True

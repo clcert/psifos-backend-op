@@ -11,9 +11,10 @@ from sqlalchemy import and_
 
 from app.psifos import utils
 from app.psifos.crypto.sharedpoint import Point
-from app.psifos.model import models, schemas
+from app.psifos.model import models
+from app.psifos.model.schemas import schemas
 from sqlalchemy import select, update, delete
-from sqlalchemy.orm import selectinload, defer
+from sqlalchemy.orm import selectinload, defer, joinedload
 from app.database import db_handler
 
 ELECTION_QUERY_OPTIONS = [
@@ -21,6 +22,9 @@ ELECTION_QUERY_OPTIONS = [
     selectinload(models.Election.trustees),
     selectinload(models.Election.sharedpoints),
     selectinload(models.Election.audited_ballots),
+    selectinload(models.Election.questions),
+    selectinload(models.Election.result),
+    selectinload(models.Election.public_key),
     defer(models.Election.encrypted_tally)
 ]
 
@@ -28,12 +32,16 @@ COMPLETE_ELECTION_QUERY_OPTIONS = [
     selectinload(models.Election.trustees),
     selectinload(models.Election.sharedpoints),
     selectinload(models.Election.audited_ballots),
-    selectinload(models.Election.voters)
+    selectinload(models.Election.voters),
+    selectinload(models.Election.questions),
+    selectinload(models.Election.result),
+    selectinload(models.Election.public_key),
 ]
 
 VOTER_QUERY_OPTIONS = selectinload(
     models.Voter.cast_vote
 )
+
 
 # ----- Voter CRUD Utils -----
 
@@ -210,7 +218,7 @@ async def get_by_login_id_and_election_id(session: Session | AsyncSession, trust
 
 async def get_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
     query = select(models.Trustee).where(
-        models.Trustee.election_id == election_id)
+        models.Trustee.election_id == election_id).options(joinedload(models.Trustee.public_key))
     result = await db_handler.execute(session, query)
     return result.scalars().all()
 

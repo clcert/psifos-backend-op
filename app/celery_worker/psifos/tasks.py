@@ -13,12 +13,15 @@ import uuid
 
 
 from app.celery_worker import celery
-from app.psifos.model import models, schemas
+from app.psifos.model.schemas import schemas
+from app.psifos.model import models
 from app.database import SessionLocal
 from .model import crud
 
+
 from app.psifos import utils as psifos_utils
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
+from app.psifos.model.crypto_models import PublicKey
 from app.psifos.crypto.tally.tally import TallyManager
 from app.psifos.crypto.utils import hash_b64
 from app.psifos.model.enums import ElectionStatusEnum, ElectionLoginTypeEnum
@@ -39,6 +42,7 @@ def process_cast_vote(
 
     with SessionLocal() as session:
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
+        public_key = crud.get_public_key(session=session, id=election.public_key_id)
         if election_login_type == ElectionLoginTypeEnum.close_p:
             voter_id = kwargs.get("voter_id")
             voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
@@ -69,7 +73,7 @@ def process_cast_vote(
         enc_vote_data = psifos_utils.from_json(serialized_encrypted_vote)
         encrypted_vote = EncryptedVote(**enc_vote_data)
         is_valid, voter_fields, cast_vote_fields = voter.process_cast_vote(
-            encrypted_vote, election, cast_ip
+            encrypted_vote, election, cast_ip, public_key=public_key
         )
         cast_vote = crud.update_or_create_cast_vote(
             session=session,
@@ -87,7 +91,7 @@ def process_cast_vote(
 
 
 @celery.task(name="compute_tally")
-def compute_tally(election_uuid: str):
+def compute_tally(election_uuid: str, public_key: dict):
     """
     Computes the encrypted tally of an election.
     """
@@ -111,7 +115,9 @@ def compute_tally(election_uuid: str):
                 EncryptedVote(**(psifos_utils.from_json(v)))
                 for v in serialized_encrypted_votes
             ]
-            tally = election.compute_tally(encrypted_votes, weights, group)
+            pk = PublicKey(**public_key)
+            print(pk)
+            tally = election.compute_tally(encrypted_votes, weights, group, pk)
             tally_grouped.append(tally)
 
         tally_manager = TallyManager(*tally_grouped)

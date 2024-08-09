@@ -1,7 +1,7 @@
 import logging
 import uuid
 
-from app.psifos.model import crud, models
+from app.psifos.model.cruds import crud
 from app.database import db_handler
 
 from app.psifos_auth.model import models as auth_models

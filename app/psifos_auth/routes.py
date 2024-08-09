@@ -9,7 +9,7 @@ from app.config import SECRET_KEY, TYPE_AUTH, APP_FRONTEND_URL
 
 from app.psifos_auth.auth_service_logging import AuthFactory
 from app.psifos_auth.model import crud as auth_crud
-from app.psifos.model import crud
+from app.psifos.model.cruds import crud
 from app.psifos.model.enums import ElectionLoginTypeEnum
 
 from fastapi.security import HTTPBasic, HTTPBasicCredentials

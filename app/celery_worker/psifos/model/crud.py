@@ -1,9 +1,23 @@
-from app.psifos.model import models, schemas
+from app.psifos.model import models
+from app.psifos.model.schemas import schemas
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import selectinload, defer
+
+ELECTION_QUERY_OPTIONS = [
+
+    selectinload(models.Election.trustees),
+    selectinload(models.Election.sharedpoints),
+    selectinload(models.Election.audited_ballots),
+    selectinload(models.Election.questions),
+    selectinload(models.Election.result),
+    defer(models.Election.encrypted_tally)
+]
 
 def get_election_by_uuid(session: Session, uuid: str):
-    query = select(models.Election).where(models.Election.uuid == uuid)
+    query = select(models.Election).where(models.Election.uuid == uuid).options(
+        *ELECTION_QUERY_OPTIONS
+    )
     result = session.execute(query)
     return result.scalars().first()
 
@@ -112,3 +126,9 @@ def update_voter(session: Session, voter_id: int, fields: dict):
     session.commit()
 
     return get_voter_by_voter_id(session=session, voter_id=voter_id)
+
+
+def get_public_key(session: Session, id: int):
+    query = select(models.PublicKey).where(models.PublicKey.id == id)
+    result = session.execute(query)
+    return result.scalars().first()

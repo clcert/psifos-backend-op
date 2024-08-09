@@ -20,7 +20,12 @@ from app.psifos.crypto.tally.tally import TallyWrapper
 
 from app.config import APP_FRONTEND_URL
 
-from app.psifos.model import crud, schemas, models
+from app.psifos.model import models
+from app.psifos.model.cruds import crud
+from app.psifos.model.cruds import crypto_crud
+from app.psifos.model.schemas import schemas
+from app.psifos.model.schemas import crypto_schemas
+from app.psifos.model.cruds import questions as questions_crud
 from app.dependencies import get_session
 from app.psifos.psifos_object.questions import Questions
 from app.psifos.crypto import elgamal, sharedpoint
@@ -109,7 +114,6 @@ async def get_election(
         short_name=short_name, current_user=current_user, session=session
     )
 
-
 @api_router.get(
     "/get-elections", response_model=list[schemas.SimpleElection], status_code=200
 )
@@ -170,10 +174,26 @@ async def create_questions(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
-    questions = Questions(*data_questions["question"])
-    await crud.edit_questions(
-        session=session, db_election=election, questions=questions
-    )
+
+    for index, question in enumerate(data_questions["question"]):
+        question["q_num"] = index + 1
+        question["closed_options_list"] = question.get("closed_options", [])
+        del question["closed_options"]
+
+        if await questions_crud.get_question_by_q_num(
+            session=session, election_id=election.id, q_num=question["q_num"]
+        ):
+            await questions_crud.edit_question(
+                session=session,
+                election_id=election.id,
+                question_id=question["q_num"],
+                question=question,
+            )
+        else:
+            await questions_crud.create_question(
+                session=session, election_id=election.id, question=question
+            )
+
     return {"message": "Preguntas creadas con exito!"}
 
 
@@ -319,7 +339,7 @@ async def start_election(
         status=ElectionStatusEnum.setting_up,
     )
     await crud.update_election(
-        session=session, election_id=election.id, fields=election.start()
+        session=session, election_id=election.id, fields=await election.start(session=session)
     )
 
     await psifos_logger.info(
@@ -395,8 +415,16 @@ async def compute_tally(
                 "election_status": ElectionStatusEnum.computing_tally,
             },
         )
+
+        pk = await crypto_crud.get_public_key(
+            session=session, id=election.id
+        )
+        print(pk)
+        print(pk.to_dict())
+
         task_params = {
             "election_uuid": election.uuid,
+            "public_key": pk.to_dict(),
         }
 
         tasks.compute_tally.delay(**task_params)
@@ -408,6 +436,7 @@ async def compute_tally(
         return {"message": "The encrypted tally was succesfully computed"}
 
     except Exception as e:
+        print(e)
         await crud.update_election(
             session=session,
             election_id=election.id,
@@ -490,9 +519,11 @@ async def get_trustees(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
-    return await crud.get_trustees_by_election_id(
+    uwu = await crud.get_trustees_by_election_id(
         session=session, election_id=election.id
     )
+    print(uwu)
+    return uwu
 
 
 @api_router.post("/{short_name}/create-trustee", status_code=200)
@@ -633,7 +664,6 @@ async def get_trustee(
 @api_router.get(
     "/{short_name}/trustee/{trustee_uuid}/home",
     status_code=200,
-    response_model=schemas.TrusteeHome,
 )
 async def get_trustee_home(
     short_name: str,
@@ -652,11 +682,10 @@ async def get_trustee_home(
         simple=True,
     )
 
-    return schemas.TrusteeHome(
-        trustee=schemas.TrusteeOut.from_orm(trustee),
-        election=schemas.ElectionOut.from_orm(election),
-    )
-
+    return {
+        "election": election,
+        "trustee": trustee,
+    }
 
 @api_router.get("/{short_name}/get-randomness", status_code=200)
 async def get_randomness(short_name: str, _: str = Depends(AuthUser())):
@@ -975,13 +1004,18 @@ async def post_trustee_step_3(
         )
 
     pk_data = psifos_utils.from_json(trustee_data.verification_key)
-    pk = elgamal.PublicKey(**pk_data)
 
     # TODO: perform server-side checks here!
+
+    public_key = await crypto_crud.create_public_key(
+        session=session,
+        public_key=pk_data,
+    )
+
     await crud.update_trustee(
         session=session,
         trustee_id=trustee.id,
-        fields={"public_key": pk, "current_step": 4},
+        fields={"public_key_id": public_key.id, "current_step": 4},
     )
 
     return {"message": "Keygenerator step 3 completed successfully"}
@@ -1240,6 +1274,8 @@ async def get_questions(
             voter_login_id=voter_login_id,
             status="Started",
         )
+        
+
     except HTTPException: 
         logger.error("Invalid Voter Access: %s (%s)" % (voter_login_id, short_name))
         raise HTTPException(status_code=400, detail="voter not found")
