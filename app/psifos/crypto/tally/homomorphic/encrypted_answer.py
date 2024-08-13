@@ -64,6 +64,11 @@ class EncryptedClosedAnswer(AbstractEncryptedAnswer):
         if groups is not None:
             for j, group in enumerate(groups):
                 excluded_proof = self.excluded_proofs.instances[j]
+
+                # No es necesario chequear cuando el grupo tiene un solo elemento y no hay pruebas excluidas
+                if len(groups[group]) == 1 and len(excluded_proof.proofs) == 0:
+                    continue
+
                 group_product = 1
                 for i in groups[group]:
                     choice = self.choices.instances[i]
