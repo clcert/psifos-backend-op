@@ -23,14 +23,13 @@ from app.config import APP_FRONTEND_URL
 from app.psifos.model import models
 from app.psifos.model.cruds import crud
 from app.psifos.model.cruds import crypto_crud
+from app.psifos.model.cruds import results as results_crud
 from app.psifos.model.schemas import schemas
 from app.psifos.model.schemas import crypto_schemas
 from app.psifos.model.cruds import questions as questions_crud
 from app.dependencies import get_session
-from app.psifos.psifos_object.questions import Questions
 from app.psifos.crypto import elgamal, sharedpoint
 from app.psifos.crypto import utils as crypto_utils
-from app.psifos.crypto.elgamal import PublicKey
 from app.psifos import utils as psifos_utils
 from app.psifos_auth.auth_bearer import AuthAdmin
 from app.psifos_auth.utils import (
@@ -373,10 +372,15 @@ async def end_election(
 
     if len(not_null_voters) < 1:
         groups = await crud.get_groups_by_election_id(session=session, election_id=election.id)
+        await results_crud.create_result(
+            session=session,
+            election_id=election.id,
+            result=election.end_without_votes(groups=groups),
+        )
         await crud.update_election(
             session=session,
             election_id=election.id,
-            fields=election.end_without_votes(groups=groups),
+            fields={"election_status": ElectionStatusEnum.decryptions_combined},
         )
         return {"message": "The election was succesfully ended"}
 
@@ -664,6 +668,8 @@ async def get_trustee(
 @api_router.get(
     "/{short_name}/trustee/{trustee_uuid}/home",
     status_code=200,
+    response_model=schemas.TrusteeHome,
+
 )
 async def get_trustee_home(
     short_name: str,
@@ -682,10 +688,10 @@ async def get_trustee_home(
         simple=True,
     )
 
-    return {
-        "election": election,
-        "trustee": trustee,
-    }
+    return schemas.TrusteeHome(
+        trustee=schemas.TrusteeOut.from_orm(trustee),
+        election=schemas.ElectionOut.from_orm(election),
+    )
 
 @api_router.get("/{short_name}/get-randomness", status_code=200)
 async def get_randomness(short_name: str, _: str = Depends(AuthUser())):
@@ -1282,25 +1288,6 @@ async def get_questions(
     else:
         logger.info("%s:%s - Valid Voter Access: %s (%s)" % (request.client.host, request.client.port, voter_login_id, election.short_name))
         return election
-
-
-@api_router.get("/{short_name}/questions", status_code=200)
-async def get_questions(
-    short_name: str,
-    current_user: models.User = Depends(AuthAdmin()),
-    session: Session | AsyncSession = Depends(get_session),
-):
-    """
-    Admin's route for getting all the questions of a specific election
-    """
-    election = await get_auth_election(
-        short_name=short_name, current_user=current_user, session=session
-    )
-    if not election.questions:
-        HTTPException(status_code=400, detail="The election doesn't have questions")
-
-    return Questions.serialize(election.questions)
-
 
 @api_router.get("/{short_name}/get-certificate", status_code=200)
 async def get_pdf(

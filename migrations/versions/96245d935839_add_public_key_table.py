@@ -1,7 +1,7 @@
 """Add public key table
 
 Revision ID: 96245d935839
-Revises: 2910fc77e01f
+Revises: c858304d6e7e
 Create Date: 2024-08-06 03:36:05.897727
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
 revision = '96245d935839'
-down_revision = '2910fc77e01f'
+down_revision = 'c858304d6e7e'
 branch_labels = None
 depends_on = None
 

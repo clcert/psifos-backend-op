@@ -3,7 +3,6 @@ Tally module for Psifos.
 """
 
 from app.database.serialization import SerializableList, SerializableObject
-from app.psifos.psifos_object.result import ElectionResultGroup
 from .homomorphic.tally import HomomorphicTally
 from .mixnet.close_massive_tally import CloseMassiveTally
 from .mixnet.stv_tally import STVTally
@@ -87,7 +86,7 @@ class TallyWrapper(SerializableObject):
                     max_weight=election.max_weight,
                 ),
             )
-        return ElectionResultGroup(*decrypted_tally, group=group)
+        return {"result": decrypted_tally, "group":group}
 
     def get_tallies(self):
         return self.tally.instances

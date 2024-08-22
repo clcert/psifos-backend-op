@@ -1,11 +1,16 @@
 import sqlalchemy.types as types
 from app.psifos.crypto.elgamal import PublicKey
-from app.psifos.crypto.sharedpoint import Certificate, ListOfCoefficients, ListOfSignatures, Point
-from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptionsManager
+from app.psifos.crypto.sharedpoint import (
+    Certificate,
+    ListOfCoefficients,
+    ListOfSignatures,
+    Point,
+)
+from app.psifos.crypto.tally.common.decryption.trustee_decryption import (
+    TrusteeDecryptionsManager,
+)
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyManager
-from app.psifos.psifos_object.result import ElectionResultManager
-from app.psifos.psifos_object.questions import Questions
 from sqlalchemy.dialects.mysql import LONGTEXT
 
 class SerializableField(types.TypeDecorator):
@@ -29,31 +34,23 @@ class SerializableField(types.TypeDecorator):
 class PublicKeyField(SerializableField):
     class_type = PublicKey
 
-    
-class QuestionsField(SerializableField):
-    class_type = Questions
 
-    
 class TallyManagerField(SerializableField):
     class_type = TallyManager
 
-    
+
 class TrusteeDecryptionsField(SerializableField):
     class_type = TrusteeDecryptionsManager
 
-    
-class ElectionResultField(SerializableField):
-    class_type = ElectionResultManager
 
-    
 class EncryptedVoteField(SerializableField):
     class_type = EncryptedVote
 
-    
+
 class CertificateField(SerializableField):
     class_type = Certificate
 
-    
+
 class CoefficientsField(SerializableField):
     class_type = ListOfCoefficients
 

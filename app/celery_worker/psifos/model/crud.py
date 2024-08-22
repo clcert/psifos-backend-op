@@ -1,4 +1,5 @@
 from app.psifos.model import models
+from app.psifos.model.results import Results
 from app.psifos.model.schemas import schemas
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -132,3 +133,10 @@ def get_public_key(session: Session, id: int):
     query = select(models.PublicKey).where(models.PublicKey.id == id)
     result = session.execute(query)
     return result.scalars().first()
+
+def create_result(session: Session, election_id: int, result: dict):
+
+    db_result = Results(election_id=election_id, **result)
+    session.add(db_result)
+    session.commit()
+    return db_result

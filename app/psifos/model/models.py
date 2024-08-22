@@ -15,11 +15,6 @@ from sqlalchemy import Column, ForeignKey
 from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime
 
 from app.psifos import utils
-from app.psifos.psifos_object.questions import Questions
-from app.psifos.psifos_object.result import (
-    ElectionResultManager,
-    ElectionResultGroup,
-)
 from app.psifos.crypto.tally.common.decryption.decryption_factory import (
     DecryptionFactory,
 )
@@ -31,13 +26,14 @@ from app.psifos.crypto.elgamal import ElGamal
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyWrapper
 
-from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum, ElectionLoginTypeEnum
+from app.psifos.model.enums import (
+    ElectionStatusEnum,
+    ElectionTypeEnum,
+    ElectionLoginTypeEnum,
+)
 
 from app.database.custom_fields import (
-    PublicKeyField,
-    QuestionsField,
     TallyManagerField,
-    ElectionResultField,
     EncryptedVoteField,
     CertificateField,
     TrusteeDecryptionsField,
@@ -88,7 +84,7 @@ class Election(Base):
     voters_by_weight_init = Column(Text, nullable=True)
     voters_by_weight_end = Column(Text, nullable=True)
 
-    result = relationship("Results",cascade="all, delete", back_populates="election")
+    result = relationship("Results",uselist=False, cascade="all, delete", back_populates="election")
 
     public_key = relationship("PublicKey", back_populates="elections")
 
@@ -267,28 +263,28 @@ class Election(Base):
                     group=group,
                 )
                 result_per_group.append(results_grouped)
-                for index, result in enumerate(results_grouped.result.instances):
+                for index, result in enumerate(results_grouped.get("result", [])):
                     if len(results_total) == index:
-                        results_total.append(
-                            {"ans_results": result.ans_results.instances})
+                        results_total.append(result)
                     else:
-                        results_total[index]["ans_results"] = [
-                            a + b for a, b in zip(result.ans_results.instances, results_total[index]["ans_results"])
+                        results_total[index] = [
+                            a + b for a, b in zip(result, results_total[index])
                         ]
             else:
-                result_dict = [{"ans_results": dic["tally"]}
-                               for dic in tally_dict]
+                result_dict = [dic["tally"] for dic in tally_dict]
                 if len(results_total) == 0:
-                    results_total = [{"ans_results": [
-                        int(value) for value in array_result["tally"]]} for array_result in tally_dict]
+                    results_total = [[
+                        int(value) for value in array_result["tally"]] for array_result in tally_dict]
                 group = group if group else "Sin grupo"
-                result_per_group.append(ElectionResultGroup(
-                    *result_dict, group=group, with_votes=with_votes))
+                result_per_group.append({
+                    "result": result_dict,
+                    "group": group
+                })
 
-        return {"result": ElectionResultManager(results_total=results_total, results_grouped=result_per_group), "election_status": ElectionStatusEnum.decryptions_combined}
+        return {"total_result": results_total, "grouped_result": result_per_group}
 
     def end_without_votes(self, groups):
-        question_list = Questions.serialize(self.questions, to_json=False)
+        question_list = self.questions
         groups.append("Sin grupo")
         results = []
         results_group = []
@@ -296,22 +292,18 @@ class Election(Base):
             aux_group_results = []
             for question in question_list:
                 result_question = {
-                        "tally_type": question["tally_type"],
-                        "ans_results": ["0"] * int(question["total_closed_options"]),
+                        "ans_results": [0] * int(question.total_closed_options),
                     }
                 aux_group_results.append(
-                    result_question
+                    result_question["ans_results"]
                 )
             results = aux_group_results
-            results_group.append(
-                ElectionResultGroup(
-                    *aux_group_results, group=group, with_votes=False)
-            )
-        election_result = ElectionResultManager(results_total=results, results_grouped=results_group)
-        return {
-            "result": election_result,
-            "election_status": ElectionStatusEnum.decryptions_combined,
-        }
+            results_group.append({
+                "result": aux_group_results,
+                "group": group
+            })
+    
+        return {"total_result": results, "grouped_result": results_group}
 
     def results_released(self):
         released_data = {

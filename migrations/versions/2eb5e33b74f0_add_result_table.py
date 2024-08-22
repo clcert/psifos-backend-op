@@ -1,8 +1,8 @@
 """Add result table
 
-Revision ID: 2910fc77e01f
-Revises: c858304d6e7e
-Create Date: 2024-08-05 01:14:36.137323
+Revision ID: 2eb5e33b74f0
+Revises: 96245d935839
+Create Date: 2024-08-17 01:14:56.920260
 
 """
 from alembic import op
@@ -12,8 +12,8 @@ import app
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
-revision = '2910fc77e01f'
-down_revision = 'c858304d6e7e'
+revision = '2eb5e33b74f0'
+down_revision = '96245d935839'
 branch_labels = None
 depends_on = None
 
@@ -26,7 +26,8 @@ def upgrade() -> None:
     sa.Column('total_result', sa.JSON(), nullable=False),
     sa.Column('grouped_result', sa.JSON(), nullable=True),
     sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('election_id')
     )
     op.create_index(op.f('ix_psifos_results_id'), 'psifos_results', ['id'], unique=False)
     op.drop_column('psifos_election', 'result')

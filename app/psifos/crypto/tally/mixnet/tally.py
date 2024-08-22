@@ -134,7 +134,6 @@ class MixnetTally(AbstractTally):
 
         count_vote = self.count_votes(q_result, self.num_options)
         result = {
-            "tally_type": self.tally_type,
             "ans_results": count_vote
         }
 

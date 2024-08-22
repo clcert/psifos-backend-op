@@ -137,8 +137,9 @@ def combine_decryptions(election_uuid: str):
     """
     with SessionLocal() as session:
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
-        fields = election.combine_decryptions()
-        crud.update_election(session=session, election_id=election.id, fields=fields)
+        results = election.combine_decryptions()
+        crud.create_result(session=session, election_id=election.id, result=results)
+        crud.update_election(session=session, election_id=election.id, fields={"election_status": ElectionStatusEnum.decryptions_combined})
 
 
 @celery.task(name="upload_voters")

@@ -38,6 +38,9 @@ COMPLETE_ELECTION_QUERY_OPTIONS = [
     selectinload(models.Election.public_key),
 ]
 
+TRUSTEE_QUERY_OPTIONS = joinedload(models.Trustee.public_key)
+
+
 VOTER_QUERY_OPTIONS = selectinload(
     models.Voter.cast_vote
 )
@@ -202,7 +205,7 @@ async def get_trustee_by_id(session: Session | AsyncSession, id: int):
 async def get_trustee_by_uuid(session: Session | AsyncSession, uuid: str):
     query = select(models.Trustee).where(
         models.Trustee.uuid == uuid,
-    )
+    ).options(TRUSTEE_QUERY_OPTIONS)
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
@@ -218,7 +221,7 @@ async def get_by_login_id_and_election_id(session: Session | AsyncSession, trust
 
 async def get_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
     query = select(models.Trustee).where(
-        models.Trustee.election_id == election_id).options(joinedload(models.Trustee.public_key))
+        models.Trustee.election_id == election_id).options(TRUSTEE_QUERY_OPTIONS)
     result = await db_handler.execute(session, query)
     return result.scalars().all()
 
