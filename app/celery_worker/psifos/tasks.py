@@ -22,6 +22,10 @@ from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyManager
 from app.psifos.crypto.utils import hash_b64
 from app.psifos.model.enums import ElectionStatusEnum, ElectionLoginTypeEnum
+from io import StringIO
+
+import csv
+
 
 
 @celery.task(name="process_castvote")
@@ -51,6 +55,7 @@ def process_cast_vote(
                 voter_in = schemas.VoterIn(
                     voter_login_id=voter_login_id,
                     voter_name=voter_login_id,
+                    login_id_election_id=f"{voter_login_id}_{election.id}",
                     voter_weight=1,
                     group="",
                 )
@@ -144,37 +149,39 @@ def upload_voters(election_uuid: str, voter_file_content: str):
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
 
         try:
-            voters = [
-                schemas.VoterIn(**v)
-                for v in models.Voter.upload_voters(voter_file_content, grouped=election.grouped)
-            ]
-        except Exception:
-            return False, 0, 0
+            grouped = election.grouped
+            buffer = StringIO(voter_file_content)
+            csv_reader = csv.reader(buffer, delimiter=",")
+            k = 0  # voter counter
+            n = 0 # total voters
+            for voter in csv_reader:
+                n += 1
+                add_group = len(voter) > 3 and grouped
+                v_in =  {
+                        "voter_login_id": voter[0],
+                        "voter_name": voter[1],
+                        "voter_weight": voter[2],
+                        "login_id_election_id": f"{voter[0]}_{election.id}",
+                        "group": voter[3] if add_group else ""
+                    }
+                v_in = schemas.VoterIn(**v_in)
 
-        k = 0  # voter counter
-        n = len(voters)  # total voters
-        for voter in voters:
-            # check if voter already exists
-            if crud.get_voter_by_login_id_and_election_id(
-                session=session,
-                voter_login_id=voter.voter_login_id,
-                election_id=election.id,
-            ):
-                continue
+                # add the voter to the database
+                crud.create_voter(
+                    session=session,
+                    election_id=election.id,
+                    uuid=str(uuid.uuid1()),
+                    voter=v_in,
+                )
+                k += 1
 
-            # add the voter to the database
-            crud.create_voter(
+            # update the total_voters field of election
+            crud.update_election(
                 session=session,
                 election_id=election.id,
-                uuid=str(uuid.uuid1()),
-                voter=voter,
+                fields={"total_voters": election.total_voters + k},
             )
-            k += 1
-
-        # update the total_voters field of election
-        crud.update_election(
-            session=session,
-            election_id=election.id,
-            fields={"total_voters": election.total_voters + k},
-        )
+        except Exception as e:
+            return False, 0, 0
+        
     return True, k, n
