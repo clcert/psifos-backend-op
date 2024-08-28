@@ -1229,7 +1229,7 @@ async def trustee_decrypt_and_prove(
 
 # >>> Revisar
 @api_router.get(
-    "/{short_name}/questions", status_code=200, response_model=schemas.ElectionOut
+    "/{short_name}/questions", status_code=200, response_model=schemas.BoothElectionOut
 )
 async def get_questions(
     request: Request,
@@ -1241,11 +1241,20 @@ async def get_questions(
     Route for get questions
     """
     try:
+
+        query_params = [
+            models.Election.short_name,
+            models.Election.questions,
+            models.Election.public_key,
+            models.Election.uuid
+        ]
+
         _, election = await get_auth_voter_and_election(
             session=session,
             short_name=short_name,
             voter_login_id=voter_login_id,
             status="Started",
+            election_params=query_params,
         )
     except HTTPException: 
         logger.error("Invalid Voter Access: %s (%s)" % (voter_login_id, short_name))
