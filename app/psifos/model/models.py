@@ -327,8 +327,6 @@ class Voter(Base):
         ForeignKey("psifos_election.id",
                    onupdate="CASCADE", ondelete="CASCADE"),
     )
-    uuid = Column(String(50), nullable=False, unique=True)
-
     voter_login_id = Column(String(100), nullable=False)
     voter_name = Column(String(200), nullable=False)
     voter_weight = Column(Integer, nullable=False)
@@ -360,15 +358,13 @@ class Voter(Base):
         return voters
 
     def process_cast_vote(
-        self, encrypted_vote: EncryptedVote, election: Election, cast_ip: str, public_key: PublicKey
+        self, encrypted_vote: EncryptedVote, election: Election, public_key: PublicKey
     ):
         is_valid = encrypted_vote.verify(election, public_key)
         cast_vote_fields = {
             "vote": encrypted_vote,
             "vote_hash": crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)),
             "is_valid": is_valid,
-            "cast_ip": cast_ip,
-            "cast_ip_hash": crypto_utils.hash_b64(cast_ip),
             "cast_at": utils.tz_now(),
         }
 
@@ -396,9 +392,6 @@ class CastVote(Base):
     # vote_tinyhash = Column(String(500), nullable=False)
 
     is_valid = Column(Boolean, nullable=False)
-
-    cast_ip = Column(Text, nullable=False)
-    cast_ip_hash = Column(String(500), nullable=False)
 
     cast_at = Column(DateTime, nullable=False)
 

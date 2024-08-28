@@ -92,10 +92,10 @@ async def get_voters_with_valid_vote(session: Session | AsyncSession, election_i
     return [v for v in voters if v.valid_cast_votes >= 1]
 
 
-async def get_voter_by_uuid_and_election_id(voter_uuid: str, session: Session | AsyncSession, election_id: int):
+async def get_voter_by_login_id_and_election_id(session: Session | AsyncSession, voter_login_id: str, election_id: int):
     query = select(models.Voter).where(
         models.Voter.election_id == election_id,
-        models.Voter.uuid == voter_uuid
+        models.Voter.voter_login_id == voter_login_id
     ).options(
         VOTER_QUERY_OPTIONS
     )
@@ -103,19 +103,19 @@ async def get_voter_by_uuid_and_election_id(voter_uuid: str, session: Session | 
     return result.scalars().first()
 
 
-async def edit_voter(voter_uuid: str, session: Session | AsyncSession, election_id: int, fields: dict):
+async def edit_voter(voter_login_id: str, session: Session | AsyncSession, election_id: int, fields: dict):
     query = update(models.Voter).where(
         models.Voter.election_id == election_id,
-        models.Voter.uuid == voter_uuid
+        models.Voter.voter_login_id == voter_login_id
     ).values(fields)
     await db_handler.execute(session, query)
     await db_handler.commit(session)
 
-    return await get_voter_by_uuid_and_election_id(voter_uuid=voter_uuid, session=session, election_id=election_id)
+    return await get_voter_by_login_id_and_election_id(voter_login_id=voter_login_id, session=session, election_id=election_id)
 
 
-async def create_voter(session: Session | AsyncSession, election_id: str, uuid: str, voter: schemas.VoterIn):
-    db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
+async def create_voter(session: Session | AsyncSession, election_id: str, voter: schemas.VoterIn):
+    db_voter = models.Voter(election_id=election_id, **voter.dict())
     db_handler.add(session, db_voter)
     await db_handler.commit(session)
     await db_handler.refresh(session, db_voter)
@@ -134,9 +134,9 @@ async def delete_election_voters(session: Session | AsyncSession, election_id: i
     await db_handler.commit(session)
 
 
-async def delete_election_voter(session: Session | AsyncSession,  election_id, voter_uuid):
+async def delete_election_voter(session: Session | AsyncSession,  election_id, voter_login_id):
     query = delete(models.Voter).where(models.Voter.election_id ==
-                                       election_id, models.Voter.uuid == voter_uuid)
+                                       election_id, models.Voter.voter_login_id == voter_login_id)
     await db_handler.execute(session, query)
     await db_handler.commit(session)
 

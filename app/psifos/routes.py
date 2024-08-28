@@ -255,13 +255,12 @@ async def get_voters(
 
 
 @api_router.post(
-    "/{short_name}/voters/{voter_uuid}/edit",
+    "/{short_name}/voters/edit",
     response_model=schemas.VoterOut,
     status_code=200,
 )
 async def edit_voter(
     short_name: str,
-    voter_uuid: str,
     fields_voter: dict,
     current_user: models.User = Depends(AuthAdmin()),
     session: Session | AsyncSession = Depends(get_session),
@@ -272,8 +271,9 @@ async def edit_voter(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
+    voter_login_id = fields_voter.get("voter_login_id")
     return await crud.edit_voter(
-        voter_uuid=voter_uuid,
+        voter_login_id=voter_login_id,
         session=session,
         election_id=election.id,
         fields=fields_voter,
@@ -615,7 +615,6 @@ async def cast_vote(
 
     task_params = {
         "serialized_encrypted_vote": cast_vote.encrypted_vote,
-        "cast_ip": request.client.host,
     }
 
     if election.election_login_type == ElectionLoginTypeEnum.close_p:

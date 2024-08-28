@@ -105,8 +105,8 @@ def get_voter_by_login_id_and_election_id(session: Session, voter_login_id: int,
     result = session.execute(query)
     return result.scalars().first()
 
-def create_voter(session: Session, election_id: int, uuid: str, voter: schemas.VoterIn):
-    db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
+def create_voter(session: Session, election_id: int, voter: schemas.VoterIn):
+    db_voter = models.Voter(election_id=election_id, **voter.dict())
     session.add(db_voter)
     session.commit()
     session.refresh(db_voter)

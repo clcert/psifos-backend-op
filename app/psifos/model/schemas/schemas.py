@@ -154,8 +154,6 @@ class CastVoteOut(CastVoteBase):
     vote_hash: str
     # vote_tinyhash: str | None
 
-    cast_ip: str
-    cast_ip_hash: str
     is_valid: bool
 
     cast_at: datetime
@@ -192,8 +190,6 @@ class VoterOut(VoterBase):
     """
 
     id: int
-    uuid: str
-
     valid_cast_votes: int
     invalid_cast_votes: int
 

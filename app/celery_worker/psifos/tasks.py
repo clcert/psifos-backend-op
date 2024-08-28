@@ -32,7 +32,6 @@ def process_cast_vote(
     election_login_type: str,
     election_uuid: str,
     serialized_encrypted_vote: str,
-    cast_ip: str,
     **kwargs
 ):
     """
@@ -61,7 +60,6 @@ def process_cast_vote(
                 voter = crud.create_voter(
                     session=session,
                     election_id=election.id,
-                    uuid=str(uuid.uuid1()),
                     voter=voter_in,
                 )
                 crud.update_election(
@@ -73,7 +71,7 @@ def process_cast_vote(
         enc_vote_data = psifos_utils.from_json(serialized_encrypted_vote)
         encrypted_vote = EncryptedVote(**enc_vote_data)
         is_valid, voter_fields, cast_vote_fields = voter.process_cast_vote(
-            encrypted_vote, election, cast_ip, public_key=public_key
+            encrypted_vote, election, public_key=public_key
         )
         cast_vote = crud.update_or_create_cast_vote(
             session=session,
@@ -173,7 +171,6 @@ def upload_voters(election_uuid: str, voter_file_content: str):
             crud.create_voter(
                 session=session,
                 election_id=election.id,
-                uuid=str(uuid.uuid1()),
                 voter=voter,
             )
             k += 1
