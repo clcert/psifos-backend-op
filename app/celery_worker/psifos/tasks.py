@@ -176,13 +176,14 @@ def upload_voters(election_uuid: str, voter_file_content: str):
                 v_in = schemas.VoterIn(**v_in)
 
                 # add the voter to the database
-                crud.create_voter(
+                new_voter = crud.create_voter(
                     session=session,
                     election_id=election.id,
                     uuid=str(uuid.uuid1()),
                     voter=v_in,
                 )
-                k += 1
+                if new_voter:
+                    k += 1    
 
             # update the total_voters field of election
             crud.update_election(
