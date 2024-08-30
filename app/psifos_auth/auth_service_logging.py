@@ -84,8 +84,13 @@ class AbstractAuth(object):
         Check if the voter that logs in exists and redirects
         """
 
-        election = await crud.get_election_by_short_name(
-            short_name=short_name, session=db_session
+        query_params = [
+            crud.models.Election.id,
+            crud.models.Election.election_login_type,
+        ]
+
+        election = await crud.get_election_params_by_name(
+            session=db_session, short_name=short_name, params=query_params
         )
         voter = await crud.get_voter_by_login_id_and_election_id(
             db_session, user_id, election.id

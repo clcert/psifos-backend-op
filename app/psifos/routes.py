@@ -573,7 +573,8 @@ async def cast_vote(
 
     query_params = [
         models.Election.election_login_type,
-        models.Election.short_name
+        models.Election.short_name,
+        models.Election.uuid
     ]
 
 
@@ -582,7 +583,7 @@ async def cast_vote(
         short_name=short_name,
         voter_login_id=voter_login_id,
         status=ElectionStatusEnum.started,
-        election_params=query_params,
+        election_params=query_params
     )
 
     task_params = {
@@ -1254,7 +1255,7 @@ async def get_questions(
             short_name=short_name,
             voter_login_id=voter_login_id,
             status="Started",
-            election_params=query_params,
+            election_params=query_params
         )
     except HTTPException: 
         logger.error("Invalid Voter Access: %s (%s)" % (voter_login_id, short_name))

@@ -48,7 +48,8 @@ def process_cast_vote(
             models.Election.id,
             models.Election.total_voters,
             models.Election.questions,
-            models.Election.public_key
+            models.Election.public_key,
+            models.Election.uuid
         ]
 
         election = crud.get_election_params_by_short_name(short_name=election_short_name, session=session, params=query_params)
