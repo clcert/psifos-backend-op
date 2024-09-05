@@ -2,9 +2,9 @@
     "logger": {
       "path": "/var/logs",
       "filename": "access.log",
-      "level": "info",
+      "level": "psifos",
       "rotation": "20 days",
       "retention": "1 months",
-      "format": "<level>{level: <4}</level> <green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <level>{message}</level>"
+      "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}"
     }
   }

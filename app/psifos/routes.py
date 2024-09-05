@@ -601,14 +601,14 @@ async def cast_vote(
     verified, vote_fingerprint = task.get()
 
     if verified:
-        logger.info("%s:%s - Valid Cast Vote: %s (%s)" % (request.client.host, request.client.port, voter_login_id, election.short_name))
+        logger.log("PSIFOS", "%s - Valid Cast Vote: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return {
             "message": "Encrypted vote received succesfully",
             "verified": verified,
             "vote_hash": vote_fingerprint,
         }
     else:
-        logger.error("Invalid Cast Vote: %s (%s)" % (voter_login_id, election.short_name))
+        logger.error("%s - Invalid Cast Vote: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return {"message": "Invalid encrypted vote", "verified": verified}
 
 
@@ -1241,10 +1241,10 @@ async def get_questions(
             status="Started",
         )
     except HTTPException: 
-        logger.error("Invalid Voter Access: %s (%s)" % (voter_login_id, short_name))
+        logger.error("%s - Invalid Voter Access: %s (%s)" % (voter_login_id, request.client.host, short_name))
         raise HTTPException(status_code=400, detail="voter not found")
     else:
-        logger.info("%s:%s - Valid Voter Access: %s (%s)" % (request.client.host, request.client.port, voter_login_id, election.short_name))
+        logger.log("PSIFOS", "%s - Valid Voter Access: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return election
 
 

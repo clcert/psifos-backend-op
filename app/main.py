@@ -12,7 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from starlette_context import middleware, plugins
 
-from api_analytics.fastapi import Analytics
+# from api_analytics.fastapi import Analytics
 
 from app.logger import logger
 
@@ -23,7 +23,7 @@ app = FastAPI()
 app.logger = logger
 
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
-app.add_middleware(Analytics, api_key=TOKEN_ANALYTICS_OP)  # Add middleware
+# app.add_middleware(Analytics, api_key=TOKEN_ANALYTICS_OP)  # Add middleware
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 

@@ -65,6 +65,7 @@ class CustomizeLogger:
     ):
 
         logger.remove()
+        logger.level("PSIFOS", no=35, color="<red>", icon="")
         logger.add(
             sys.stdout,
             enqueue=True,
@@ -90,7 +91,7 @@ class CustomizeLogger:
             _logger = logging.getLogger(_log)
             _logger.handlers = [InterceptHandler()]
 
-        return logger.bind(request_id=None, method=None)
+        return logger.bind(request_id=None, method=None) 
 
 
     @classmethod
@@ -130,7 +131,7 @@ class ElectionLogger(object):
     async def critical(self, election_id, event: ElectionEventEnum, **kwargs):
         await self._log_to_db(logging.CRITICAL, election_id, event, **kwargs)
 
-        
+
     async def error(self, election_id, event: ElectionEventEnum, **kwargs):
         await self._log_to_db(logging.ERROR, election_id, event, **kwargs)
 
@@ -153,5 +154,6 @@ class ElectionLogger(object):
         
 psifos_logger = ElectionLogger()
 
+# logger.level("PSIFOS", no=35, color="<red>", icon="!!!")
 logger_config_path = Path(__file__).with_name("logger_config.json")
 logger = CustomizeLogger.make_logger(logger_config_path)
