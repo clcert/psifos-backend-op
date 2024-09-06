@@ -571,11 +571,19 @@ async def cast_vote(
     Route for casting a vote
     """
 
+    query_params = [
+        models.Election.election_login_type,
+        models.Election.short_name,
+        models.Election.uuid
+    ]
+
+
     voter, election = await get_auth_voter_and_election(
         session=session,
         short_name=short_name,
         voter_login_id=voter_login_id,
         status=ElectionStatusEnum.started,
+        election_params=query_params
     )
 
     task_params = {
@@ -595,20 +603,20 @@ async def cast_vote(
     #    return make_response(jsonify({"message": f"{msg}"}), 400)
 
     task_params["election_login_type"] = election.election_login_type
-    task_params["election_uuid"] = election.uuid
+    task_params["election_short_name"] = election.short_name
 
     task = tasks.process_cast_vote.delay(**task_params)
     verified, vote_fingerprint = task.get()
 
     if verified:
-        logger.info("%s:%s - Valid Cast Vote: %s (%s)" % (request.client.host, request.client.port, voter_login_id, election.short_name))
+        logger.log("PSIFOS", "%s - Valid Cast Vote: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return {
             "message": "Encrypted vote received succesfully",
             "verified": verified,
             "vote_hash": vote_fingerprint,
         }
     else:
-        logger.error("Invalid Cast Vote: %s (%s)" % (voter_login_id, election.short_name))
+        logger.error("%s - Invalid Cast Vote: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return {"message": "Invalid encrypted vote", "verified": verified}
 
 
@@ -951,6 +959,7 @@ async def get_trustee_step_2(
 
 @api_router.post("/{short_name}/trustee/{trustee_uuid}/step-3", status_code=200)
 async def post_trustee_step_3(
+    request: Request,
     short_name: str,
     trustee_uuid: str,
     trustee_data: schemas.KeyGenStep3Data,
@@ -984,6 +993,7 @@ async def post_trustee_step_3(
         fields={"public_key": pk, "current_step": 4},
     )
 
+    logger.log("PSIFOS", "%s - Valid Key Generation: %s (%s)" % (request.client.host, trustee_login_id, short_name))
     return {"message": "Keygenerator step 3 completed successfully"}
 
 
@@ -1090,6 +1100,7 @@ dec_num_lock = threading.Lock()
     "/{short_name}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200
 )
 async def trustee_decrypt_and_prove(
+    request: Request,
     short_name: str,
     trustee_uuid: str,
     trustee_data: list[schemas.DecryptionIn],
@@ -1126,6 +1137,7 @@ async def trustee_decrypt_and_prove(
             answers_decryptions_list.append(answers_decryptions)
 
         else:
+            logger.error("%s - Invalid Decryptions Received: %s (%s)" % (request.client.host, trustee.trustee_login_id, short_name))
             raise HTTPException(
                 status_code=400,
                 detail="An error was found during the verification of the proofs",
@@ -1149,7 +1161,7 @@ async def trustee_decrypt_and_prove(
             election_id=election.id,
             fields={"decryptions_uploaded": dec_num},
         )
-
+        logger.log("PSIFOS", "%s - Valid Decryptions Received: %s (%s)" % (request.client.host, trustee.trustee_login_id, short_name))
         await psifos_logger.info(
             election_id=election.id,
             event=ElectionPublicEventEnum.DECRYPTION_RECIEVED,
@@ -1222,7 +1234,7 @@ async def trustee_decrypt_and_prove(
 
 # >>> Revisar
 @api_router.get(
-    "/{short_name}/questions", status_code=200, response_model=schemas.ElectionOut
+    "/{short_name}/questions", status_code=200, response_model=schemas.BoothElectionOut
 )
 async def get_questions(
     request: Request,
@@ -1234,17 +1246,26 @@ async def get_questions(
     Route for get questions
     """
     try:
+
+        query_params = [
+            models.Election.short_name,
+            models.Election.questions,
+            models.Election.public_key,
+            models.Election.uuid
+        ]
+
         _, election = await get_auth_voter_and_election(
             session=session,
             short_name=short_name,
             voter_login_id=voter_login_id,
             status="Started",
+            election_params=query_params
         )
     except HTTPException: 
-        logger.error("Invalid Voter Access: %s (%s)" % (voter_login_id, short_name))
+        logger.error("%s - Invalid Voter Access: %s (%s)" % (voter_login_id, request.client.host, short_name))
         raise HTTPException(status_code=400, detail="voter not found")
     else:
-        logger.info("%s:%s - Valid Voter Access: %s (%s)" % (request.client.host, request.client.port, voter_login_id, election.short_name))
+        logger.log("PSIFOS", "%s - Valid Voter Access: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return election
 
 
