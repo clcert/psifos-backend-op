@@ -951,6 +951,7 @@ async def get_trustee_step_2(
 
 @api_router.post("/{short_name}/trustee/{trustee_uuid}/step-3", status_code=200)
 async def post_trustee_step_3(
+    request: Request,
     short_name: str,
     trustee_uuid: str,
     trustee_data: schemas.KeyGenStep3Data,
@@ -984,6 +985,7 @@ async def post_trustee_step_3(
         fields={"public_key": pk, "current_step": 4},
     )
 
+    logger.log("PSIFOS", "%s - Valid Key Generation: %s (%s)" % (request.client.host, trustee_login_id, short_name))
     return {"message": "Keygenerator step 3 completed successfully"}
 
 
@@ -1090,6 +1092,7 @@ dec_num_lock = threading.Lock()
     "/{short_name}/trustee/{trustee_uuid}/decrypt-and-prove", status_code=200
 )
 async def trustee_decrypt_and_prove(
+    request: Request,
     short_name: str,
     trustee_uuid: str,
     trustee_data: list[schemas.DecryptionIn],
@@ -1126,6 +1129,7 @@ async def trustee_decrypt_and_prove(
             answers_decryptions_list.append(answers_decryptions)
 
         else:
+            logger.error("%s - Invalid Decryptions Received: %s (%s)" % (request.client.host, trustee.trustee_login_id, short_name))
             raise HTTPException(
                 status_code=400,
                 detail="An error was found during the verification of the proofs",
@@ -1149,7 +1153,7 @@ async def trustee_decrypt_and_prove(
             election_id=election.id,
             fields={"decryptions_uploaded": dec_num},
         )
-
+        logger.log("PSIFOS", "%s - Valid Decryptions Received: %s (%s)" % (request.client.host, trustee.trustee_login_id, short_name))
         await psifos_logger.info(
             election_id=election.id,
             event=ElectionPublicEventEnum.DECRYPTION_RECIEVED,
