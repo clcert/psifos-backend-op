@@ -7,6 +7,16 @@ def get_election_by_uuid(session: Session, uuid: str):
     result = session.execute(query)
     return result.scalars().first()
 
+def get_election_by_short_name(session: Session, short_name: str):
+    query = select(models.Election).where(models.Election.short_name == short_name)
+    result = session.execute(query)
+    return result.scalars().first()
+
+def get_election_params_by_short_name(session: Session, short_name: str, params: list):
+    query = select(*params).where(models.Election.short_name == short_name)
+    result = session.execute(query)
+    return result.first()
+
 def get_voter_by_voter_id(session: Session, voter_id: int):
     query = select(models.Voter).where(models.Voter.id == voter_id)
     result = session.execute(query)

@@ -571,11 +571,19 @@ async def cast_vote(
     Route for casting a vote
     """
 
+    query_params = [
+        models.Election.election_login_type,
+        models.Election.short_name,
+        models.Election.uuid
+    ]
+
+
     voter, election = await get_auth_voter_and_election(
         session=session,
         short_name=short_name,
         voter_login_id=voter_login_id,
         status=ElectionStatusEnum.started,
+        election_params=query_params
     )
 
     task_params = {
@@ -595,7 +603,7 @@ async def cast_vote(
     #    return make_response(jsonify({"message": f"{msg}"}), 400)
 
     task_params["election_login_type"] = election.election_login_type
-    task_params["election_uuid"] = election.uuid
+    task_params["election_short_name"] = election.short_name
 
     task = tasks.process_cast_vote.delay(**task_params)
     verified, vote_fingerprint = task.get()
@@ -1222,7 +1230,7 @@ async def trustee_decrypt_and_prove(
 
 # >>> Revisar
 @api_router.get(
-    "/{short_name}/questions", status_code=200, response_model=schemas.ElectionOut
+    "/{short_name}/questions", status_code=200, response_model=schemas.BoothElectionOut
 )
 async def get_questions(
     request: Request,
@@ -1234,11 +1242,20 @@ async def get_questions(
     Route for get questions
     """
     try:
+
+        query_params = [
+            models.Election.short_name,
+            models.Election.questions,
+            models.Election.public_key,
+            models.Election.uuid
+        ]
+
         _, election = await get_auth_voter_and_election(
             session=session,
             short_name=short_name,
             voter_login_id=voter_login_id,
             status="Started",
+            election_params=query_params
         )
     except HTTPException: 
         logger.error("Invalid Voter Access: %s (%s)" % (voter_login_id, short_name))

@@ -27,8 +27,16 @@ async def get_auth_election(short_name: str, current_user: auth_models.User, ses
 
     return election
 
-async def get_auth_voter_and_election(short_name: str, voter_login_id: str, session: Session | AsyncSession, status: str = None):
-    election = await crud.get_election_by_short_name(session=session, short_name=short_name)
+async def get_auth_voter_and_election(short_name: str, voter_login_id: str, session: Session | AsyncSession, status: str = None, election_params: list = None):
+
+    if election_params:
+        election_params = [*election_params, 
+                           models.Election.id,
+                           models.Election.election_login_type,
+                           models.Election.election_status]
+        election = await crud.get_election_params_by_name(session=session, short_name=short_name, params=election_params)
+    else:
+        election = await crud.get_election_by_short_name(session=session, short_name=short_name)
     if not election:
         raise HTTPException(status_code=404, detail="Election not found")
     
