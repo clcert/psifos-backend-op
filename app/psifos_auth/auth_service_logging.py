@@ -61,7 +61,7 @@ class AbstractAuth(object):
             election_id=election.id,
         )
         if not trustee:
-            logger.error("%s - Invalid Trustee Access: %s (%s)" % (request.session["user"], request.client.host, short_name))
+            logger.error("%s - Invalid Trustee Access: %s (%s)" % (request.client.host, request.session["user"], short_name))
             await psifos_logger.warning(
                 election_id=election.id,
                 event=ElectionAdminEventEnum.TRUSTEE_LOGIN_FAIL,
