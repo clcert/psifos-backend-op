@@ -17,7 +17,7 @@ from app.database import db_handler
 
 from fastapi import Request, HTTPException
 from starlette.responses import RedirectResponse
-from app.logger import psifos_logger
+from app.logger import psifos_logger, logger
 from app.psifos.model.enums import ElectionAdminEventEnum, ElectionLoginTypeEnum
 
 
@@ -61,6 +61,7 @@ class AbstractAuth(object):
             election_id=election.id,
         )
         if not trustee:
+            logger.error("%s - Invalid Trustee Access: %s (%s)" % (request.session["user"], request.client.host, short_name))
             await psifos_logger.warning(
                 election_id=election.id,
                 event=ElectionAdminEventEnum.TRUSTEE_LOGIN_FAIL,
@@ -70,6 +71,7 @@ class AbstractAuth(object):
                 url=APP_FRONTEND_URL + f"psifos/{short_name}/trustee/home"
             )
         else:
+            logger.log("PSIFOS", "%s - Valid Trustee Access: %s (%s)" % (request.client.host, request.session["user"], short_name))
             await psifos_logger.info(
                 election_id=election.id,
                 event=ElectionAdminEventEnum.TRUSTEE_LOGIN,
