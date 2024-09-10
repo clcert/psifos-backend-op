@@ -1262,7 +1262,7 @@ async def get_questions(
             election_params=query_params
         )
     except HTTPException: 
-        logger.error("%s - Invalid Voter Access: %s (%s)" % (voter_login_id, request.client.host, short_name))
+        logger.error("%s - Invalid Voter Access: %s (%s)" % (request.client.host, voter_login_id, short_name))
         raise HTTPException(status_code=400, detail="voter not found")
     else:
         logger.log("PSIFOS", "%s - Valid Voter Access: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
