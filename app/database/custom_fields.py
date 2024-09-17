@@ -28,38 +28,48 @@ class SerializableField(types.TypeDecorator):
 # --- Custom SerializableFields ---
 class PublicKeyField(SerializableField):
     class_type = PublicKey
+    cache_ok = False
 
     
 class QuestionsField(SerializableField):
     class_type = Questions
+    cache_ok = False
 
     
 class TallyManagerField(SerializableField):
     class_type = TallyManager
+    cache_ok = False
 
     
 class TrusteeDecryptionsField(SerializableField):
     class_type = TrusteeDecryptionsManager
+    cache_ok = False
 
     
 class ElectionResultField(SerializableField):
     class_type = ElectionResultManager
+    cache_ok = False
 
     
 class EncryptedVoteField(SerializableField):
     class_type = EncryptedVote
+    cache_ok = False
 
     
 class CertificateField(SerializableField):
     class_type = Certificate
+    cache_ok = False
 
     
 class CoefficientsField(SerializableField):
     class_type = ListOfCoefficients
+    cache_ok = False
 
 
 class AcknowledgementsField(SerializableField):
     class_type = ListOfSignatures
+    cache_ok = False
 
 class PointField(SerializableField):
     class_type = Point
+    cache_ok = False
