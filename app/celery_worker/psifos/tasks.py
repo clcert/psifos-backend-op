@@ -22,7 +22,6 @@ from .model import crud
 from app.psifos import utils as psifos_utils
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.model.crypto_models import PublicKey
-from app.psifos.crypto.tally.tally import TallyManager
 from app.psifos.crypto.utils import hash_b64
 from app.psifos.model.enums import ElectionStatusEnum, ElectionLoginTypeEnum
 
@@ -96,7 +95,6 @@ def compute_tally(election_uuid: str, public_key: dict):
     with SessionLocal() as session:
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
         voters_group = crud.get_groups_voters(session=session, election_id=election.id)
-        tally_grouped = []
         for voter_group in voters_group:
             group = voter_group[0]
             voters = crud.get_voters_by_election_id_and_group(
@@ -114,18 +112,21 @@ def compute_tally(election_uuid: str, public_key: dict):
                 for v in serialized_encrypted_votes
             ]
             pk = PublicKey(**public_key)
-            print(pk)
-            tally = election.compute_tally(encrypted_votes, weights, group, pk)
-            tally_grouped.append(tally)
+            with_votes = len(encrypted_votes) > 0
+            tally = election.compute_tally(encrypted_votes, weights, pk)
 
-        tally_manager = TallyManager(*tally_grouped)
+            crud.create_group_tally(
+                session=session,
+                election_id=election.id,
+                group=group,
+                with_votes=with_votes,
+                tally_grouped=tally,
+            )
+
         fields = {
-            "encrypted_tally": tally_manager,
             "election_status": ElectionStatusEnum.tally_computed,
-            "encrypted_tally_hash": hash_b64(TallyManager.serialize(tally_manager)),
         }
         crud.update_election(session=session, election_id=election.id, fields=fields)
-
 
 @celery.task(name="combine_decryptions", ignore_result=True)
 def combine_decryptions(election_uuid: str):
@@ -135,7 +136,8 @@ def combine_decryptions(election_uuid: str):
     """
     with SessionLocal() as session:
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
-        results = election.combine_decryptions()
+        tallies = crud.get_tallies_grouped_by_group_and_ordered_by_q_num(session=session, election_id=election.id)
+        results = election.combine_decryptions(session=session, tallies=tallies)
         crud.create_result(session=session, election_id=election.id, result=results)
         crud.update_election(session=session, election_id=election.id, fields={"election_status": ElectionStatusEnum.decryptions_combined})
 

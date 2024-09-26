@@ -1,5 +1,5 @@
 import sqlalchemy.types as types
-from app.psifos.crypto.elgamal import PublicKey
+from app.psifos.crypto.elgamal import PublicKey, ListOfCipherTexts
 from app.psifos.crypto.sharedpoint import (
     Certificate,
     ListOfCoefficients,
@@ -10,8 +10,10 @@ from app.psifos.crypto.tally.common.decryption.trustee_decryption import (
     TrusteeDecryptionsManager,
 )
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
-from app.psifos.crypto.tally.tally import TallyManager
 from sqlalchemy.dialects.mysql import LONGTEXT
+from app.psifos.crypto.tally.mixnet.decryption import ListOfDecryptionFactors, ListOfDecryptionProofs
+from app.psifos.crypto.elgamal import ListOfIntegers, ListOfZKProofs
+
 
 class SerializableField(types.TypeDecorator):
     impl = LONGTEXT
@@ -34,11 +36,6 @@ class SerializableField(types.TypeDecorator):
 class PublicKeyField(SerializableField):
     class_type = PublicKey
 
-
-class TallyManagerField(SerializableField):
-    class_type = TallyManager
-
-
 class TrusteeDecryptionsField(SerializableField):
     class_type = TrusteeDecryptionsManager
 
@@ -60,3 +57,18 @@ class AcknowledgementsField(SerializableField):
 
 class PointField(SerializableField):
     class_type = Point
+
+class ListOfCipherTextsField(SerializableField):
+    class_type = ListOfCipherTexts
+
+class ListOfIntegersField(SerializableField):
+    class_type = ListOfIntegers
+
+class ListOfZKProofsField(SerializableField):
+    class_type = ListOfZKProofs
+
+class ListOfDecryptionFactorsField(SerializableField):
+    class_type = ListOfDecryptionFactors
+
+class ListOfDecryptionProofsField(SerializableField):
+    class_type = ListOfDecryptionProofs

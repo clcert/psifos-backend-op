@@ -12,6 +12,7 @@ from sqlalchemy import and_
 from app.psifos import utils
 from app.psifos.crypto.sharedpoint import Point
 from app.psifos.model import models
+from app.psifos.model.decryptions import DecryptionFactory, HomomorphicDecryption, MixnetDecryption
 from app.psifos.model.schemas import schemas
 from sqlalchemy import select, update, delete
 from sqlalchemy.orm import selectinload, defer, joinedload
@@ -25,7 +26,6 @@ ELECTION_QUERY_OPTIONS = [
     selectinload(models.Election.questions),
     selectinload(models.Election.result),
     selectinload(models.Election.public_key),
-    defer(models.Election.encrypted_tally)
 ]
 
 COMPLETE_ELECTION_QUERY_OPTIONS = [
@@ -38,7 +38,11 @@ COMPLETE_ELECTION_QUERY_OPTIONS = [
     selectinload(models.Election.public_key),
 ]
 
-TRUSTEE_QUERY_OPTIONS = joinedload(models.Trustee.public_key)
+TRUSTEE_QUERY_OPTIONS = [
+    joinedload(models.Trustee.public_key),
+    selectinload(models.Trustee.decryptions_homomorphic),
+    selectinload(models.Trustee.decryptions_mixnet),
+]
 
 
 VOTER_QUERY_OPTIONS = selectinload(
@@ -205,7 +209,7 @@ async def get_trustee_by_id(session: Session | AsyncSession, id: int):
 async def get_trustee_by_uuid(session: Session | AsyncSession, uuid: str):
     query = select(models.Trustee).where(
         models.Trustee.uuid == uuid,
-    ).options(TRUSTEE_QUERY_OPTIONS)
+    ).options(*TRUSTEE_QUERY_OPTIONS)
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
@@ -221,7 +225,7 @@ async def get_by_login_id_and_election_id(session: Session | AsyncSession, trust
 
 async def get_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
     query = select(models.Trustee).where(
-        models.Trustee.election_id == election_id).options(TRUSTEE_QUERY_OPTIONS)
+        models.Trustee.election_id == election_id).options(*TRUSTEE_QUERY_OPTIONS)
     result = await db_handler.execute(session, query)
     return result.scalars().all()
 
@@ -447,3 +451,45 @@ async def get_logs_by_type(session: Session | AsyncSession, election_id: int, ty
     )
     result = await db_handler.execute(session, query)
     return result.all()
+
+# --- Tally CRUD Utils ---
+async def get_tally_by_group(session: Session | AsyncSession, election_id: int, group: str):
+    query = select(models.Tally).where(
+        models.Tally.election_id == election_id,
+        models.Tally.group == group
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
+
+async def get_tally_by_election_id(session: Session | AsyncSession, election_id: int):
+    query = select(models.Tally).where(
+        models.Tally.election_id == election_id
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
+
+# --- Decryption CRUD Utils ---
+
+async def get_decryptions_homomorphic_by_trustee_id(session: Session | AsyncSession, trustee_id: int):
+    query = select(HomomorphicDecryption).where(HomomorphicDecryption.trustee_id == trustee_id)
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
+
+async def get_decryptions_mixnet_by_trustee_id(session: Session | AsyncSession, trustee_id: int):
+    query = select(MixnetDecryption).where(MixnetDecryption.trustee_id == trustee_id)
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
+
+async def get_decryptions_by_trustee_id(session: Session | AsyncSession, trustee_id: int):
+    homorphic = await get_decryptions_homomorphic_by_trustee_id(session=session, trustee_id=trustee_id)
+    mixnet = await get_decryptions_mixnet_by_trustee_id(session=session, trustee_id=trustee_id)
+    return homorphic + mixnet
+
+async def create_decryption(session: Session | AsyncSession, trustee_id: int, group: str, q_num: int, decryption: schemas.DecryptionIn):
+    decryption.group = group
+    decryption.trustee_id = trustee_id
+    decryption.q_num = q_num
+    db_handler.add(session, decryption)
+    await db_handler.commit(session)
+    await db_handler.refresh(session, decryption)
+    return decryption

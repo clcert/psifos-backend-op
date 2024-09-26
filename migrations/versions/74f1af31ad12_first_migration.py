@@ -49,7 +49,7 @@ def upgrade() -> None:
     sa.Column('total_voters', sa.Integer(), nullable=True),
     sa.Column('total_trustees', sa.Integer(), nullable=True),
     sa.Column('cast_url', sa.String(length=500), nullable=True),
-    sa.Column('encrypted_tally', app.database.custom_fields.TallyManagerField(), nullable=True),
+    sa.Column('encrypted_tally', sa.Text(), nullable=True),
     sa.Column('encrypted_tally_hash', sa.Text(), nullable=True),
     sa.Column('decryptions_uploaded', sa.Integer(), nullable=True),
     sa.Column('result', sa.Text(), nullable=True),

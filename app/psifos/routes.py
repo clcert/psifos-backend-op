@@ -420,11 +420,7 @@ async def compute_tally(
             },
         )
 
-        pk = await crypto_crud.get_public_key(
-            session=session, id=election.id
-        )
-        print(pk)
-        print(pk.to_dict())
+        pk = election.public_key
 
         task_params = {
             "election_uuid": election.uuid,
@@ -440,7 +436,6 @@ async def compute_tally(
         return {"message": "The encrypted tally was succesfully computed"}
 
     except Exception as e:
-        print(e)
         await crud.update_election(
             session=session,
             election_id=election.id,
@@ -523,11 +518,9 @@ async def get_trustees(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
-    uwu = await crud.get_trustees_by_election_id(
+    return await crud.get_trustees_by_election_id(
         session=session, election_id=election.id
     )
-    print(uwu)
-    return uwu
 
 
 @api_router.post("/{short_name}/create-trustee", status_code=200)
@@ -687,9 +680,14 @@ async def get_trustee_home(
         simple=True,
     )
 
+    decryptions = await crud.get_decryptions_by_trustee_id(
+        session=session, trustee_id=trustee.id
+    )
+
     return schemas.TrusteeHome(
         trustee=schemas.TrusteeOut.from_orm(trustee),
         election=schemas.ElectionOut.from_orm(election),
+        decryptions=decryptions
     )
 
 @api_router.get("/{short_name}/get-randomness", status_code=200)
@@ -1152,16 +1150,20 @@ async def trustee_decrypt_and_prove(
         answers_decryptions: TrusteeDecryptionsGroup = TrusteeDecryptionsGroup(
             decryption
         )
-        encrypted_tally_group = election.encrypted_tally.get_by_group(decryption.group)
-        election_tally_group = TallyWrapper(
-            *encrypted_tally_group["tally"],
-            group=decryption.group,
-            with_votes=decryption.with_votes,
-        )
+        encrypted_tally_group = await crud.get_tally_by_group(session=session, election_id=election.id, group=decryption.group)
         if answers_decryptions.decryptions.verify(
             public_key=trustee.public_key,
-            encrypted_tally=election_tally_group,
+            encrypted_tally=encrypted_tally_group,
         ):
+            for q_num, dec in enumerate(answers_decryptions.decryptions.instances):
+                
+                await crud.create_decryption(
+                    session=session,
+                    trustee_id=trustee.id,
+                    group=decryption.group,
+                    q_num=q_num,
+                    decryption=dec,
+                )
             answers_decryptions_list.append(answers_decryptions)
 
         else:
@@ -1169,18 +1171,12 @@ async def trustee_decrypt_and_prove(
                 status_code=400,
                 detail="An error was found during the verification of the proofs",
             )
-
     decryptions = TrusteeDecryptionsManager(*answers_decryptions_list)
     # Zona critica, solo un custodio puede entrar y cambiar las desencriptaciones
     with dec_num_lock:
         # Sacamos la elección denuevo por si ha recibido algún cambio de otro custodio
         election = await crud.get_election_by_short_name(
             session=session, short_name=short_name
-        )
-        trustee = await crud.update_trustee(
-            session=session,
-            trustee_id=trustee.id,
-            fields={"decryptions": decryptions},
         )
         dec_num = election.decryptions_uploaded + 1
         election = await crud.update_election(
@@ -1250,10 +1246,14 @@ async def trustee_decrypt_and_prove(
         election_id=election.id,
         trustee_id=trustee.trustee_id,
     )
-    election.encrypted_tally = psifos_utils.to_json(election.encrypted_tally.instances)
+    encrypted_tally = await crud.get_tally_by_election_id(
+        session=session, election_id=election.id
+    )
+    encrypted_tally = [schemas.TallyBase.from_orm(tally) for tally in encrypted_tally]
     return {
-        "election": schemas.CompleteElectionOut.from_orm(election),
+        "election": schemas.ElectionOut.from_orm(election),
         "trustee": schemas.TrusteeOut.from_orm(trustee),
+        "encrypted_tally": encrypted_tally,
         "certificates": psifos_utils.to_json(certificates),
         "points": psifos_utils.to_json(points),
     }
@@ -1445,7 +1445,6 @@ async def get_voters_valid_vote(
     )
     result = []
     for voter in voters_with_valid_votes:
-        print(voter)
         result.append(
             {
                 "voter_id": voter.voter_login_id,

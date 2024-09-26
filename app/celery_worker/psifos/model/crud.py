@@ -1,9 +1,12 @@
 from app.psifos.model import models
+from app.psifos.model.decryptions import HomomorphicDecryption, MixnetDecryption
 from app.psifos.model.results import Results
 from app.psifos.model.schemas import schemas
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import selectinload, defer
+from collections import defaultdict
+
 
 ELECTION_QUERY_OPTIONS = [
 
@@ -12,7 +15,6 @@ ELECTION_QUERY_OPTIONS = [
     selectinload(models.Election.audited_ballots),
     selectinload(models.Election.questions),
     selectinload(models.Election.result),
-    defer(models.Election.encrypted_tally)
 ]
 
 def get_election_by_uuid(session: Session, uuid: str):
@@ -140,3 +142,90 @@ def create_result(session: Session, election_id: int, result: dict):
     session.add(db_result)
     session.commit()
     return db_result
+
+def get_public_key_by_election_id(session: Session, election_id: int):
+    query = select(models.PublicKey).where(models.PublicKey.election_id == election_id)
+    result = session.execute(query)
+    return result.scalars().first()
+
+# Tally
+def get_tally_by_election_id(session: Session, election_id: int):
+    query = select(models.Tally).where(
+        models.Tally.election_id == election_id,
+    )
+    result = session.execute(query)
+    return result.scalars().all()
+
+def get_tally_by_election_id_and_group(session: Session, election_id: int, group: str):
+    query = select(models.Tally).where(
+        models.Tally.election_id == election_id,
+        models.Tally.group == group
+    )
+    result = session.execute(query)
+    return result.scalars().all()
+
+def get_tallies_grouped_by_group_and_ordered_by_q_num(session: Session, election_id: int):
+    # Consulta para obtener todos los Tallys, ordenados por group y luego por q_num
+    query = (
+        select(models.Tally)
+        .where(models.Tally.election_id == election_id)
+        .order_by(models.Tally.group, models.Tally.q_num)  # Ordena por grupo y luego por q_num
+    )
+    result = session.execute(query)
+    tallies = result.scalars().all()
+
+    # Agrupar los Tallys por group usando defaultdict
+    grouped_tallies = defaultdict(list)
+    for tally in tallies:
+        grouped_tallies[tally.group].append(tally)
+
+    # Convertir el defaultdict a una lista de listas (arreglo de arreglos)
+    return list(grouped_tallies.values())
+
+def create_group_tally(session: Session, election_id: int, group: str, with_votes: bool, tally_grouped: list) -> list:
+    """
+    Creates a group tally for a given election and group.
+    """
+    for item in tally_grouped:
+        db_tally = models.Tally(
+            election_id=election_id,
+            group=group,
+            with_votes=with_votes,
+            tally_type=item.tally_type,
+            computed=item.computed,
+            num_tallied=item.num_tallied,
+            tally=item.tally,
+            q_num=item.q_num,
+            num_options=item.num_options,
+        )
+
+        session.add(db_tally)
+    
+    session.commit()
+    return tally_grouped
+        
+# Decryption
+
+def get_homomorphic_decryption_by_trustee_id(session: Session, trustee_id: int, q_num: int):
+    query = select(HomomorphicDecryption).where(
+        models.HomomorphicDecryption.trustee_id == trustee_id,
+        models.HomomorphicDecryption.q_num == q_num
+    )
+    result = session.execute(query)
+    return result.scalars().first()
+
+def get_mixnet_decryption_by_trustee_id(session: Session, trustee_id: int, q_num: int):
+    query = select(MixnetDecryption).where(
+        models.MixnetDecryption.trustee_id == trustee_id,
+        models.MixnetDecryption.q_num == q_num
+    )
+    result = session.execute(query)
+    return result.scalars().first()
+
+def get_decryptions_by_trustee_id(session: Session, trustee_id: int, q_num: int):
+    h_decryption = get_homomorphic_decryption_by_trustee_id(session, trustee_id, q_num)
+    if h_decryption:
+        return h_decryption
+    
+    m_decryption = get_mixnet_decryption_by_trustee_id(session, trustee_id, q_num)
+    return m_decryption

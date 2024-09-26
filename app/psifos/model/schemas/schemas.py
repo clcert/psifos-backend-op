@@ -31,12 +31,14 @@ When we deal with SQLAlchemy we must note the following:
 """
 
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator, root_validator
 
 from app.database.serialization import SerializableList, SerializableObject
 from app.psifos.model.enums import ElectionTypeEnum, ElectionStatusEnum, ElectionLoginTypeEnum
 
-from typing import Optional
+from typing import Optional, List
+
+import json
 
 class PsifosSchema(BaseModel):
     """
@@ -66,6 +68,39 @@ class PublicKeyBase(PsifosSchema):
     class Config:
         orm_mode = True
 
+class DecryptionBase(PsifosSchema):
+    """
+    Basic decryption schema.
+    """
+
+    trustee_id: int | None
+    decryption_type: str | None
+    decryption_factors: object | None
+    decryption_proofs: object | None
+
+    class Config:
+        orm_mode = True
+
+class TallyBase(PsifosSchema):
+    """
+    Basic tally schema.
+    """
+    election_id: int
+    group: str
+    with_votes: bool
+    tally_type: str
+    q_num: int
+    num_options: int
+    computed: bool
+    num_tallied: int
+    max_answers: int | None
+    num_of_winners: int | None
+    include_blank_null: bool | None
+    tally: object | None
+
+    class Config:
+        orm_mode = True
+
 class QuestionBase(PsifosSchema):
     """
     Schema for creating a question.
@@ -76,7 +111,7 @@ class QuestionBase(PsifosSchema):
     q_description: str | None
     total_options: int
     total_closed_options: int
-    closed_options: str | None
+    closed_options_list: List[str] | None
     max_answers: int
     min_answers: int
     include_blank_null: bool | None
@@ -84,8 +119,10 @@ class QuestionBase(PsifosSchema):
     group_votes: bool | None
     num_of_winners: int | None
 
-#  Trustee-related schemas
+    class Config:
+        orm_mode = True
 
+#  Trustee-related schemas
 
 class TrusteeBase(PsifosSchema):
     """
@@ -117,7 +154,6 @@ class TrusteeOut(TrusteeBase):
     current_step: int
     public_key: PublicKeyBase | None
     public_key_hash: str | None
-    decryptions: object | None
     certificate: object | None
     coefficients: object | None
     acknowledgements: object | None
@@ -238,7 +274,7 @@ class ElectionOut(ElectionBase):
     election_status: ElectionStatusEnum
     decryptions_uploaded: int
     public_key: PublicKeyBase | None
-    questions: object | None
+    questions: list[QuestionBase] | None
     total_voters: int
     total_trustees: int
     encrypted_tally_hash: str | None
@@ -263,13 +299,6 @@ class SimpleElection(ElectionBase):
 
     class Config:
         orm_mode = True
-
-class CompleteElectionOut(ElectionOut):
-    encrypted_tally: object | None
-
-    class Config:
-        orm_mode = True
-
 
 # ------------------ response-related schemas ------------------
 
@@ -300,3 +329,4 @@ class DecryptionIn(PsifosSchema):
 class TrusteeHome(PsifosSchema):
     trustee: TrusteeOut
     election: ElectionOut
+    decryptions: object

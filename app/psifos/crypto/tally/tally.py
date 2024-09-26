@@ -3,17 +3,15 @@ Tally module for Psifos.
 """
 
 from app.database.serialization import SerializableList, SerializableObject
-from .homomorphic.tally import HomomorphicTally
-from .mixnet.close_massive_tally import CloseMassiveTally
-from .mixnet.stv_tally import STVTally
+from app.psifos.model.tally import HomomorphicTally, STVTally, MixnetTally
 
 
 class TallyFactory:
     @staticmethod
     def create(**kwargs):
         tally_to_mn_tally = {
-            "CLOSED":HomomorphicTally,
-            "MIXNET":CloseMassiveTally,
+            "HOMOMORPHIC":HomomorphicTally,
+            "MIXNET":MixnetTally,
             "STVNC":STVTally,
         }
         tally_type = kwargs.get("tally_type")

@@ -32,7 +32,7 @@ class AbstractQuestion(Base):
     election = relationship("Election", back_populates="questions")
 
     TALLY_TYPE_MAP = {
-        QuestionTypeEnum.CLOSED: "CLOSED",
+        QuestionTypeEnum.CLOSED: "HOMOMORPHIC",
         QuestionTypeEnum.MIXNET: "MIXNET",
         QuestionTypeEnum.STVNC: "STVNC"
     }
