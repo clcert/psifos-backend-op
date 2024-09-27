@@ -59,6 +59,9 @@ class AbstractQuestion(SerializableObject):
         self.total_options: int = int(kwargs["total_options"])
         self.total_closed_options: int = int(kwargs["total_closed_options"])
         self.closed_options: list = kwargs["closed_options"]
+        self.options_specifications: list = (
+            kwargs["options_specifications"] if "options_specifications" in kwargs.keys() else 0
+        )
 
         self.max_answers: int = int(kwargs["max_answers"])
         self.min_answers: int = int(kwargs["min_answers"])
