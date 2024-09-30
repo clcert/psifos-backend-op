@@ -24,6 +24,16 @@ def get_election_by_uuid(session: Session, uuid: str):
     result = session.execute(query)
     return result.scalars().first()
 
+def get_election_by_short_name(session: Session, short_name: str):
+    query = select(models.Election).where(models.Election.short_name == short_name)
+    result = session.execute(query)
+    return result.scalars().first()
+
+def get_election_params_by_short_name(session: Session, short_name: str, params: list):
+    query = select(*params).where(models.Election.short_name == short_name)
+    result = session.execute(query)
+    return result.first()
+
 def get_voter_by_voter_id(session: Session, voter_id: int):
     query = select(models.Voter).where(models.Voter.id == voter_id)
     result = session.execute(query)
@@ -107,18 +117,23 @@ def get_voter_by_login_id_and_election_id(session: Session, voter_login_id: int,
     result = session.execute(query)
     return result.scalars().first()
 
-def create_voter(session: Session, election_id: int, voter: schemas.VoterIn):
-    db_voter = models.Voter(election_id=election_id, **voter.dict())
-    session.add(db_voter)
-    session.commit()
-    session.refresh(db_voter)
+def create_voter(session: Session, election_id: int, uuid: str, voter: schemas.VoterIn):
 
-    # db_cast_vote = models.CastVote(voter_id=db_voter.id)
-    # session.add(db_cast_vote)
-    # session.commit()
-    # session.refresh(db_cast_vote)
-    
-    return db_voter #, db_cast_vote
+    try:
+        db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
+        session.add(db_voter)
+        session.commit()
+        session.refresh(db_voter)
+
+        # db_cast_vote = models.CastVote(voter_id=db_voter.id)
+        # session.add(db_cast_vote)
+        # session.commit()
+        # session.refresh(db_cast_vote)
+        return db_voter #, db_cast_vote
+
+    except Exception as e:
+        session.rollback()
+        return None
 
 def update_voter(session: Session, voter_id: int, fields: dict):
     query = update(models.Voter).where(

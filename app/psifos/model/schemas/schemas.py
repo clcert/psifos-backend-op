@@ -209,6 +209,7 @@ class VoterBase(PsifosSchema):
     voter_login_id: str
     voter_weight: int
     voter_name: str
+    login_id_election_id: str
     group: str | None
 
 
@@ -284,6 +285,16 @@ class ElectionOut(ElectionBase):
     trustees: object | None
 
 
+    class Config:
+        orm_mode = True
+
+class BoothElectionOut(PsifosSchema):
+
+    id: int
+    election_status: ElectionStatusEnum
+    public_key: object | None
+    questions: object | None
+    uuid: str | None
     class Config:
         orm_mode = True
 
