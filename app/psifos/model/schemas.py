@@ -231,6 +231,7 @@ class BoothElectionOut(PsifosSchema):
     public_key: object | None
     questions: object | None
     uuid: str | None
+    name: str | None
     class Config:
         orm_mode = True
 

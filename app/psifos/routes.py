@@ -1251,7 +1251,8 @@ async def get_questions(
             models.Election.short_name,
             models.Election.questions,
             models.Election.public_key,
-            models.Election.uuid
+            models.Election.uuid,
+            models.Election.name
         ]
 
         _, election = await get_auth_voter_and_election(
