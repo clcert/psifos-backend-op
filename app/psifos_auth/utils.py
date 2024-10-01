@@ -7,6 +7,7 @@ from app.database import db_handler
 from app.psifos_auth.model import models as auth_models
 from app.psifos_auth.model import crud as auth_crud
 from app.psifos_auth.model import schemas as auth_schemas
+from app.psifos.model import models
 from app.psifos.model.enums import ElectionLoginTypeEnum
 
 from fastapi import Depends, HTTPException
@@ -16,8 +17,16 @@ from requests_oauthlib import OAuth2Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def get_auth_election(short_name: str, current_user: auth_models.User, session: Session | AsyncSession, status: str = None, simple: bool = False):
-    election = await crud.get_election_by_short_name(session=session, short_name=short_name, simple=simple)
+async def get_auth_election(short_name: str, current_user: auth_models.User, session: Session | AsyncSession, status: str = None, election_params: list = None):
+    
+    if election_params:
+        election_params = [*election_params, 
+                           models.Election.id,
+                           models.Election.election_status,
+                           models.Election.admin_id]
+        election = await crud.get_election_params_by_name(session=session, short_name=short_name, params=election_params)
+    else:
+        election = await crud.get_election_by_short_name(session=session, short_name=short_name)
     if not election:
         raise HTTPException(status_code=404, detail="Election not found")
     if election.admin_id != current_user.id:

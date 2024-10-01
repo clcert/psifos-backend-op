@@ -115,6 +115,7 @@ class QuestionBase(PsifosSchema):
     max_answers: int
     min_answers: int
     include_blank_null: bool | None
+    excluding_groups: bool | None
     tally_type: str
     group_votes: bool | None
     num_of_winners: int | None
@@ -292,8 +293,8 @@ class BoothElectionOut(PsifosSchema):
 
     id: int
     election_status: ElectionStatusEnum
-    public_key: object | None
-    questions: object | None
+    public_key: PublicKeyBase | None
+    questions: list[QuestionBase] | None
     uuid: str | None
     class Config:
         orm_mode = True

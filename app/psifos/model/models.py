@@ -338,6 +338,8 @@ class Voter(Base):
         ForeignKey("psifos_election.id",
                    onupdate="CASCADE", ondelete="CASCADE"),
     )
+    login_id_election_id = Column(String(50), nullable=False, unique=True)
+
     voter_login_id = Column(String(100), nullable=False)
     voter_name = Column(String(200), nullable=False)
     voter_weight = Column(Integer, nullable=False)
@@ -369,9 +371,9 @@ class Voter(Base):
         return voters
 
     def process_cast_vote(
-        self, encrypted_vote: EncryptedVote, election: Election, public_key: PublicKey
+        self, encrypted_vote: EncryptedVote, election: Election, public_key: PublicKey, questions: AbstractQuestion
     ):
-        is_valid = encrypted_vote.verify(election, public_key)
+        is_valid = encrypted_vote.verify(election, public_key, questions=questions)
         cast_vote_fields = {
             "vote": encrypted_vote,
             "vote_hash": crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)),

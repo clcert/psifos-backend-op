@@ -505,7 +505,6 @@ async def results_release(
 @api_router.get(
     "/{short_name}/get-trustees",
     status_code=200,
-    response_model=list[schemas.TrusteeOut],
 )
 async def get_trustees(
     short_name: str,
@@ -515,13 +514,16 @@ async def get_trustees(
     """
     Route for get trustees
     """
+
+    election_params = [
+        models.Election.id,
+    ]
     election = await get_auth_election(
-        short_name=short_name, current_user=current_user, session=session
+        short_name=short_name, current_user=current_user, session=session, election_params=election_params
     )
-    return await crud.get_trustees_by_election_id(
+    return await crud.get_simple_trustees_by_election_id(
         session=session, election_id=election.id
     )
-
 
 @api_router.post("/{short_name}/create-trustee", status_code=200)
 async def create_trustee(
@@ -598,13 +600,12 @@ async def cast_vote(
     """
     Route for casting a vote
     """
-
     query_params = [
         models.Election.election_login_type,
         models.Election.short_name,
-        models.Election.uuid
+        models.Election.uuid,
+        models.Election.questions
     ]
-
 
     voter, election = await get_auth_voter_and_election(
         session=session,
@@ -613,11 +614,9 @@ async def cast_vote(
         status=ElectionStatusEnum.started,
         election_params=query_params
     )
-
     task_params = {
         "serialized_encrypted_vote": cast_vote.encrypted_vote,
     }
-
     if election.election_login_type == ElectionLoginTypeEnum.close_p:
         task_params["voter_id"] = voter.id
 
@@ -628,13 +627,10 @@ async def cast_vote(
     # allowed, msg = psifos_utils.do_cast_vote_checks(request, election, voter)
     # if not allowed:
     #    return make_response(jsonify({"message": f"{msg}"}), 400)
-
     task_params["election_login_type"] = election.election_login_type
     task_params["election_short_name"] = election.short_name
-
     task = tasks.process_cast_vote.delay(**task_params)
     verified, vote_fingerprint = task.get()
-
     if verified:
         logger.log("PSIFOS", "%s - Valid Cast Vote: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return {
@@ -1196,6 +1192,11 @@ async def trustee_decrypt_and_prove(
             election_id=election.id,
             fields={"decryptions_uploaded": dec_num},
         )
+        await crud.update_trustee(
+            session=session,
+            trustee_id=trustee.id,
+            fields={"current_step": 5},
+        )
         logger.log("PSIFOS", "%s - Valid Decryptions Received: %s (%s)" % (request.client.host, trustee.trustee_login_id, short_name))
         await psifos_logger.info(
             election_id=election.id,
@@ -1286,21 +1287,12 @@ async def get_questions(
     """
     try:
 
-        query_params = [
-            models.Election.short_name,
-            models.Election.questions,
-            models.Election.public_key,
-            models.Election.uuid
-        ]
-
         _, election = await get_auth_voter_and_election(
             session=session,
             short_name=short_name,
             voter_login_id=voter_login_id,
             status="Started",
-            election_params=query_params
         )
-        
 
     except HTTPException: 
         logger.error("%s - Invalid Voter Access: %s (%s)" % (request.client.host, voter_login_id, short_name))

@@ -1,6 +1,7 @@
 from app.psifos.model import models
 from app.psifos.model.decryptions import HomomorphicDecryption, MixnetDecryption
 from app.psifos.model.results import Results
+from app.psifos.model.questions import AbstractQuestion
 from app.psifos.model.schemas import schemas
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -117,10 +118,10 @@ def get_voter_by_login_id_and_election_id(session: Session, voter_login_id: int,
     result = session.execute(query)
     return result.scalars().first()
 
-def create_voter(session: Session, election_id: int, uuid: str, voter: schemas.VoterIn):
+def create_voter(session: Session, election_id: int, voter: schemas.VoterIn):
 
     try:
-        db_voter = models.Voter(election_id=election_id, uuid=uuid, **voter.dict())
+        db_voter = models.Voter(election_id=election_id, **voter.dict())
         session.add(db_voter)
         session.commit()
         session.refresh(db_voter)
@@ -162,6 +163,11 @@ def get_public_key_by_election_id(session: Session, election_id: int):
     query = select(models.PublicKey).where(models.PublicKey.election_id == election_id)
     result = session.execute(query)
     return result.scalars().first()
+
+def get_questions_by_election_id(session: Session, election_id: int):
+    query = select(AbstractQuestion).where(AbstractQuestion.election_id == election_id)
+    result = session.execute(query)
+    return result.scalars().all()
 
 # Tally
 def get_tally_by_election_id(session: Session, election_id: int):

@@ -229,6 +229,11 @@ async def get_trustees_by_election_id(session: Session | AsyncSession, election_
     result = await db_handler.execute(session, query)
     return result.scalars().all()
 
+async def get_simple_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
+    query = select(models.Trustee).where(
+        models.Trustee.election_id == election_id)
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
 
 async def get_next_trustee_id(session: Session | AsyncSession, election_id: int):
     trustees = await get_trustees_by_election_id(session=session, election_id=election_id)

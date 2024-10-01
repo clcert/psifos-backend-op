@@ -44,17 +44,17 @@ def process_cast_vote(
     """
 
     with SessionLocal() as session:
-        public_key = crud.get_public_key(session=session, id=election.public_key_id)
 
         query_params = [
             models.Election.id,
             models.Election.total_voters,
-            models.Election.questions,
-            models.Election.public_key,
-            models.Election.uuid
+            models.Election.uuid,
+            models.Election.public_key_id,
         ]
 
         election = crud.get_election_params_by_short_name(short_name=election_short_name, session=session, params=query_params)
+        questions = crud.get_questions_by_election_id(election_id=election.id, session=session)
+        public_key = crud.get_public_key(session=session, id=election.public_key_id)
         if election_login_type == ElectionLoginTypeEnum.close_p:
             voter_id = kwargs.get("voter_id")
             voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
@@ -85,7 +85,7 @@ def process_cast_vote(
         enc_vote_data = psifos_utils.from_json(serialized_encrypted_vote)
         encrypted_vote = EncryptedVote(**enc_vote_data)
         is_valid, voter_fields, cast_vote_fields = voter.process_cast_vote(
-            encrypted_vote, election, public_key=public_key
+            encrypted_vote, election, public_key=public_key, questions=questions
         )
         cast_vote = crud.update_or_create_cast_vote(
             session=session,
@@ -187,7 +187,6 @@ def upload_voters(election_uuid: str, voter_file_content: str):
                 new_voter = crud.create_voter(
                     session=session,
                     election_id=election.id,
-                    uuid=str(uuid.uuid1()),
                     voter=v_in,
                 )
                 if new_voter:
