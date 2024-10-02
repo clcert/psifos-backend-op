@@ -20,6 +20,8 @@ class STVTally(MixnetTally):
     def stv(
         self, blank_count, null_count, ballot_list, candidates_list,
     ):
+        for ballot in ballot_list:
+            print(ballot)
         result = {
             "roundresumes": {},
             "talliesresumes": {},
