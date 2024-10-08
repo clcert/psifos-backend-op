@@ -15,8 +15,9 @@ from app.psifos.model import models
 from app.psifos.model.decryptions import DecryptionFactory, HomomorphicDecryption, MixnetDecryption
 from app.psifos.model.schemas import schemas
 from sqlalchemy import select, update, delete
-from sqlalchemy.orm import selectinload, defer, joinedload
+from sqlalchemy.orm import selectinload, defer, joinedload, with_polymorphic
 from app.database import db_handler
+
 
 ELECTION_QUERY_OPTIONS = [
 
@@ -463,7 +464,8 @@ async def get_logs_by_type(session: Session | AsyncSession, election_id: int, ty
 
 # --- Tally CRUD Utils ---
 async def get_tally_by_group(session: Session | AsyncSession, election_id: int, group: str):
-    query = select(models.Tally).where(
+    tally_polymorphic = with_polymorphic(models.Tally, "*")
+    query = select(tally_polymorphic).where(
         models.Tally.election_id == election_id,
         models.Tally.group == group
     )

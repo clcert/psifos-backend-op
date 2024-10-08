@@ -6,7 +6,6 @@ from app.psifos.crypto.elgamal import ListOfZKProofs, ListOfIntegers, fiatshamir
 from app.psifos.crypto.tally.homomorphic.tally import HomomorphicTally
 from app.psifos.crypto.tally.mixnet.decryption import ListOfDecryptionFactors, ListOfDecryptionProofs
 
-from app.psifos.crypto.tally.mixnet.tally import MixnetTally
 from app.database.custom_fields import ListOfDecryptionFactorsField, ListOfDecryptionProofsField, ListOfIntegersField, ListOfZKProofsField
 
 
@@ -55,8 +54,8 @@ class HomomorphicDecryption(Base):
     def get_proof_object(self):
         return self.decryption_proofs
 
-    def _homomorphic_verify(self, public_key, homomorphic_tally: HomomorphicTally):
-        tally = homomorphic_tally.tally
+    def _homomorphic_verify(self, public_key, homomorphic_tally):
+        tally = homomorphic_tally.get_tally()
 
         # go through each one
         for a_num, ans_tally in enumerate(tally.instances):
@@ -112,14 +111,13 @@ class MixnetDecryption(Base):
         self.decryption_proofs = ListOfDecryptionProofs(*decryption_proofs)
         self.decryption_type = decryption_type
 
-    def _mixnet_verify(self, public_key, mixnet_tally: MixnetTally):
+    def _mixnet_verify(self, public_key, mixnet_tally):
         tally = mixnet_tally.get_tally()
         decryption_factors = self.get_decryption_factors()
         decryption_proofs = self.get_decryption_proofs()
-
         # go through each one
-        for vote_num, vote_ctxts in enumerate(tally):
-            for choice_num, choice_ctxt in enumerate(vote_ctxts):
+        for vote_num, vote_ctxts in enumerate(tally.instances):
+            for choice_num, choice_ctxt in enumerate(vote_ctxts.instances):
                 proof = decryption_proofs[vote_num][choice_num]
                 factor = decryption_factors[vote_num][choice_num]
 
@@ -137,7 +135,7 @@ class MixnetDecryption(Base):
 
         return True
     
-    def verify(self, public_key, mixnet_tally : MixnetTally):
+    def verify(self, public_key, mixnet_tally):
         mixnet_verify = self._mixnet_verify(public_key, mixnet_tally)
         return mixnet_verify
 

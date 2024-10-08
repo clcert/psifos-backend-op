@@ -4,6 +4,7 @@ import time
 import re
 import itertools
 import enum
+import json
 
 from sqlalchemy import Column, Text, Integer, Boolean, JSON, Enum, ForeignKey
 from sqlalchemy.orm import relationship
@@ -44,7 +45,7 @@ class Tally(Base):
     max_answers = Column(Integer, nullable=True)
     num_of_winners = Column(Integer, nullable=True)
     include_blank_null = Column(Boolean, nullable=True)
-    tally = Column(ListOfCipherTextsField, nullable=False, default=[])
+    tally = Column(Text, nullable=False, default=[])
 
     election = relationship("Election", back_populates="encrypted_tally")
 
@@ -74,7 +75,6 @@ class HomomorphicTally(Tally):
         Else, tally cannot be None
         """
         super(HomomorphicTally, self).__init__(**kwargs)
-        
         if not self.computed:
             self.tally = [0] * self.num_options
 
@@ -82,7 +82,7 @@ class HomomorphicTally(Tally):
             self.tally = ListOfCipherTexts(*tally)
     
     def get_tally(self):
-        return self.tally.instances
+        return ListOfCipherTexts(*json.loads(self.tally))
     
     def compute(self, public_key, encrypted_answers, weights, **kwargs):
         self.computed = True
@@ -97,7 +97,7 @@ class HomomorphicTally(Tally):
             self.num_tallied += 1
         a_tally = ListOfCipherTexts()
         a_tally.set_instances(self.tally)
-        self.tally = a_tally
+        self.tally = a_tally.serialize(s_list=a_tally, to_json=True)
 
     def decrypt(self, public_key, decryption_factors, t, max_weight=1, **kwargs):
         """
@@ -113,7 +113,7 @@ class HomomorphicTally(Tally):
         q_result = []
 
         tally = self.get_tally()
-        for a_num, a_ctxt in enumerate(tally):
+        for a_num, a_ctxt in enumerate(tally.instances):
             last_raw_value = None
             
             # generate al subsets of size t+1 and compare values between each iteration
@@ -168,7 +168,7 @@ class MixnetTally(Tally):
         self.tally_type = "mixnet"
 
     def get_tally(self):
-        return [x.instances for x in self.tally.instances]
+        return ListOfEncryptedTexts(*json.loads(self.tally))
         
     def compute(self, public_key, encrypted_answers, **kwargs) -> None:        
         # first we create the list of ciphertexts
@@ -178,7 +178,6 @@ class MixnetTally(Tally):
                 Ciphertext.serialize(ctxt, to_json=False)
                 for ctxt in enc_ans.get_choices()
             ])
-        
         election = kwargs.get("election")
         election_name = election.short_name
         election_uuid = election.uuid
@@ -223,7 +222,8 @@ class MixnetTally(Tally):
             r = requests.get(f"{server_urls[sv_idx]}/get-ciphertexts?token={TOKEN}").json()
             if r["status"] == "CIPHERTEXTS_COMPUTED":
                 response_content = [mixnet_output["ciphertexts"] for mixnet_output in r["content"]]
-                self.tally = ListOfEncryptedTexts(*response_content)
+                tally_result = ListOfEncryptedTexts(*response_content)
+                self.tally = tally_result.serialize(s_list=tally_result, to_json=True)
                 break
             time.sleep(MIXNET_WAIT_INTERVAL)
 
@@ -234,9 +234,9 @@ class MixnetTally(Tally):
     def decrypt(self, public_key, decryption_factors, t, **kwargs) -> None:
         q_result = []
         tally = self.get_tally()
-        for vote_num, vote_ctxts in enumerate(tally):
+        for vote_num, vote_ctxts in enumerate(tally.instances):
             v_result = []
-            for ctxt_num, ctxt in enumerate(vote_ctxts):
+            for ctxt_num, ctxt in enumerate(vote_ctxts.instances):
                 last_raw_value = None
                 
                 # generate al subsets of size t+1 and compare values between each iteration
@@ -261,11 +261,7 @@ class MixnetTally(Tally):
             q_result.append(v_result)
 
         count_vote = self.count_votes(q_result, self.num_options)
-        result = {
-            "ans_results": count_vote
-        }
-
-        return result
+        return count_vote
     
     def count_votes(self, votes, total_closed_options):
         # The votes come with a +1 from the front, take it into account when counting
