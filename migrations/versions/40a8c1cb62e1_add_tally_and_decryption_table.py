@@ -33,7 +33,7 @@ def upgrade() -> None:
     sa.Column('max_answers', sa.Integer(), nullable=True),
     sa.Column('num_of_winners', sa.Integer(), nullable=True),
     sa.Column('include_blank_null', sa.Boolean(), nullable=True),
-    sa.Column('tally', app.database.custom_fields.ListOfCipherTextsField(), nullable=False),
+    sa.Column('tally', sa.Text(), nullable=False),
     sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
