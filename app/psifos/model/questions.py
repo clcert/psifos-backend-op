@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, Boolean
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, Boolean, JSON
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -29,6 +29,9 @@ class AbstractQuestion(Base):
     group_votes = Column(String(50), nullable=True)
     num_of_winners = Column(Integer, nullable=True)
     excluding_groups = Column(Boolean, nullable=True)
+    options_specifications = Column(JSON, nullable=True)
+    open_option_max_size = Column(Integer, nullable=True)
+    total_open_options = Column(Integer, nullable=True)
 
     election = relationship("Election", back_populates="questions")
 

@@ -118,7 +118,9 @@ class QuestionBase(PsifosSchema):
     excluding_groups: bool | None
     tally_type: str
     group_votes: bool | None
+    excluding_groups: bool | None
     num_of_winners: int | None
+    options_specifications: List[str] | None
 
     class Config:
         orm_mode = True
@@ -296,6 +298,7 @@ class BoothElectionOut(PsifosSchema):
     public_key: PublicKeyBase | None
     questions: list[QuestionBase] | None
     uuid: str | None
+    name: str | None
     class Config:
         orm_mode = True
 
