@@ -196,7 +196,6 @@ def upload_voters(election_uuid: str, voter_file_content: str):
             crud.update_election(
                 session=session,
                 election_id=election.id,
-                voter=voter,
                 fields={"total_voters": election.total_voters + k},
             )
         except Exception as e:
