@@ -60,7 +60,7 @@ class Election(Base):
     description = Column(Text)
 
     public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id"), nullable=True)
-    questions = relationship("AbstractQuestion", back_populates="election")
+    questions = relationship("AbstractQuestion", cascade="all, delete", back_populates="election")
 
     obscure_voter_names = Column(Boolean, default=False, nullable=False)
     randomize_answer_order = Column(Boolean, default=False, nullable=False)

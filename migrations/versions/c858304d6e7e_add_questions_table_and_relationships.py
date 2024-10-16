@@ -36,7 +36,7 @@ def upgrade() -> None:
     sa.Column('tally_type', sa.String(length=50), nullable=False),
     sa.Column('group_votes', sa.String(length=50), nullable=True),
     sa.Column('num_of_winners', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], ),
+    sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_psifos_questions_id'), 'psifos_questions', ['id'], unique=False)

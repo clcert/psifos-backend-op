@@ -33,7 +33,7 @@ class AbstractQuestion(Base):
     open_option_max_size = Column(Integer, nullable=True)
     total_open_options = Column(Integer, nullable=True)
 
-    election = relationship("Election", back_populates="questions")
+    election = relationship("Election", back_populates="questions", cascade="all, delete")
 
     TALLY_TYPE_MAP = {
         QuestionTypeEnum.CLOSED: "HOMOMORPHIC",
