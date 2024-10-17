@@ -10,7 +10,7 @@ class Results(Base):
     total_result = Column(JSON, nullable=False)
     grouped_result = Column(JSON, nullable=True)
 
-    election = relationship("Election", back_populates="result")
+    election = relationship("Election", back_populates="result", cascade="all, delete")
 
     def __init__(self, *args, **kwargs):
         super(Results, self).__init__(*args, **kwargs)

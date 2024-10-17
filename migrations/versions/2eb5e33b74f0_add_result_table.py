@@ -25,7 +25,7 @@ def upgrade() -> None:
     sa.Column('election_id', sa.Integer(), nullable=False),
     sa.Column('total_result', sa.JSON(), nullable=False),
     sa.Column('grouped_result', sa.JSON(), nullable=True),
-    sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], ),
+    sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('election_id')
     )

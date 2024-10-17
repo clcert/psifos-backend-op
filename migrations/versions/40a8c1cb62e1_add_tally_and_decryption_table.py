@@ -34,7 +34,7 @@ def upgrade() -> None:
     sa.Column('num_of_winners', sa.Integer(), nullable=True),
     sa.Column('include_blank_null', sa.Boolean(), nullable=True),
     sa.Column('tally', sa.Text(), nullable=False),
-    sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], ),
+    sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_psifos_tallies_id'), 'psifos_tallies', ['id'], unique=False)
@@ -45,7 +45,7 @@ def upgrade() -> None:
     sa.Column('q_num', sa.Integer(), nullable=False),
     sa.Column('decryption_factors', app.database.custom_fields.ListOfIntegersField(), nullable=True),
     sa.Column('decryption_proofs', app.database.custom_fields.ListOfZKProofsField(), nullable=True),
-    sa.ForeignKeyConstraint(['trustee_id'], ['psifos_trustee.id'], ),
+    sa.ForeignKeyConstraint(['trustee_id'], ['psifos_trustee.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_psifos_decryptions_homomorphic_id'), 'psifos_decryptions_homomorphic', ['id'], unique=False)
@@ -56,7 +56,7 @@ def upgrade() -> None:
     sa.Column('q_num', sa.Integer(), nullable=False),
     sa.Column('decryption_factors', app.database.custom_fields.ListOfDecryptionFactorsField(), nullable=True),
     sa.Column('decryption_proofs', app.database.custom_fields.ListOfDecryptionProofsField(), nullable=True),
-    sa.ForeignKeyConstraint(['trustee_id'], ['psifos_trustee.id'], ),
+    sa.ForeignKeyConstraint(['trustee_id'], ['psifos_trustee.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_psifos_decryptions_mixnet_id'), 'psifos_decryptions_mixnet', ['id'], unique=False)

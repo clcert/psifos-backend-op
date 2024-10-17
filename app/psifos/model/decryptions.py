@@ -38,7 +38,7 @@ class HomomorphicDecryption(Base):
     group = Column(Text, nullable=False)
     q_num = Column(Integer, nullable=False)
 
-    psifos_trustee = relationship("Trustee", back_populates="decryptions_homomorphic")
+    psifos_trustee = relationship("Trustee", back_populates="decryptions_homomorphic", cascade="all, delete")
     decryption_factors = Column(ListOfIntegersField, nullable=True)
     decryption_proofs = Column(ListOfZKProofsField, nullable=True)
 
@@ -101,7 +101,7 @@ class MixnetDecryption(Base):
     group = Column(Text, nullable=False)
     q_num = Column(Integer, nullable=False)
 
-    psifos_trustee = relationship("Trustee", back_populates="decryptions_mixnet")
+    psifos_trustee = relationship("Trustee", back_populates="decryptions_mixnet", cascade="all, delete")
     decryption_factors = Column(ListOfDecryptionFactorsField, nullable=True)
     decryption_proofs = Column(ListOfDecryptionProofsField, nullable=True)
 

@@ -47,7 +47,7 @@ class Tally(Base):
     include_blank_null = Column(Boolean, nullable=True)
     tally = Column(Text, nullable=False, default=[])
 
-    election = relationship("Election", back_populates="encrypted_tally")
+    election = relationship("Election", back_populates="encrypted_tally", cascade="all, delete")
 
     def __repr__(self):
         return f"Tally(id={self.id}, tally_type={self.tally_type}, election_id={self.election_id}, group={self.group}, with_votes={self.with_votes})"
