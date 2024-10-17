@@ -7,6 +7,7 @@ Create Date: 2024-09-23 12:39:34.541589
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import mysql
 import app
 
 from sqlalchemy.dialects import mysql
@@ -33,7 +34,7 @@ def upgrade() -> None:
     sa.Column('max_answers', sa.Integer(), nullable=True),
     sa.Column('num_of_winners', sa.Integer(), nullable=True),
     sa.Column('include_blank_null', sa.Boolean(), nullable=True),
-    sa.Column('tally', sa.Text(), nullable=False),
+    sa.Column('tally', mysql.LONGTEXT(), nullable=False),
     sa.ForeignKeyConstraint(['election_id'], ['psifos_election.id'], onupdate='CASCADE', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )

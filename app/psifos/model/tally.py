@@ -7,6 +7,7 @@ import enum
 import json
 
 from sqlalchemy import Column, Text, Integer, Boolean, JSON, Enum, ForeignKey
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -45,7 +46,7 @@ class Tally(Base):
     max_answers = Column(Integer, nullable=True)
     num_of_winners = Column(Integer, nullable=True)
     include_blank_null = Column(Boolean, nullable=True)
-    tally = Column(Text, nullable=False, default=[])
+    tally = Column(LONGTEXT, nullable=False, default=[])
 
     election = relationship("Election", back_populates="encrypted_tally", cascade="all, delete")
 
