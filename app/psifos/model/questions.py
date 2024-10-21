@@ -14,7 +14,7 @@ class AbstractQuestion(Base):
     __tablename__ = "psifos_questions"
 
     id = Column(Integer, primary_key=True, index=True)
-    election_id = Column(Integer, ForeignKey("psifos_election.id"), nullable=False)
+    election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     q_num = Column(Integer, nullable=False)
     q_type = Column(Enum(QuestionTypeEnum), nullable=False)
     q_text = Column(Text, nullable=False)

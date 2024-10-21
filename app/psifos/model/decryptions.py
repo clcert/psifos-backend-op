@@ -34,7 +34,7 @@ class HomomorphicDecryption(Base):
     __tablename__ = "psifos_decryptions_homomorphic"
 
     id = Column(Integer, primary_key=True, index=True)
-    trustee_id = Column(Integer, ForeignKey("psifos_trustee.id"), nullable=False)
+    trustee_id = Column(Integer, ForeignKey("psifos_trustee.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     group = Column(Text, nullable=False)
     q_num = Column(Integer, nullable=False)
 
@@ -97,7 +97,7 @@ class MixnetDecryption(Base):
     __tablename__ = "psifos_decryptions_mixnet"
 
     id = Column(Integer, primary_key=True, index=True)
-    trustee_id = Column(Integer, ForeignKey("psifos_trustee.id"), nullable=False)
+    trustee_id = Column(Integer, ForeignKey("psifos_trustee.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     group = Column(Text, nullable=False)
     q_num = Column(Integer, nullable=False)
 

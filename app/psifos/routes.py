@@ -90,13 +90,16 @@ async def delete_election(
     """
     Admin's route for delete a election by uuid
     """
+    try:
+        election = await get_auth_election(
+            short_name=short_name, current_user=current_user, session=session
+        )
+        await crud.delete_election(session=session, election_id=election.id)
+        await crypto_crud.delete_unused_public_keys(session=session)
+        return {"message": "election delete"}
 
-    election = await get_auth_election(
-        short_name=short_name, current_user=current_user, session=session
-    )
-    await crud.delete_election(session=session, election_id=election.id)
-    return {"message": "election delete"}
-
+    except:
+        raise HTTPException(status_code=404, detail="error in delete election")
 
 @api_router.get(
     "/get-election/{short_name}", response_model=schemas.ElectionOut, status_code=200
@@ -578,6 +581,7 @@ async def delete_trustee(
     await crud.delete_trustee(
         session=session, election_id=election.id, uuid=trustee_uuid
     )
+    await crypto_crud.delete_unused_public_keys(session=session)
     await crud.update_election(
         session=session,
         election_id=election.id,

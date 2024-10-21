@@ -6,7 +6,7 @@ class Results(Base):
     __tablename__ = "psifos_results"
 
     id = Column(Integer, primary_key=True, index=True)
-    election_id = Column(Integer, ForeignKey("psifos_election.id"), nullable=False, unique=True)
+    election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False, unique=True)
     total_result = Column(JSON, nullable=False)
     grouped_result = Column(JSON, nullable=True)
 

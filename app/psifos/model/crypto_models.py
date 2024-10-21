@@ -12,8 +12,8 @@ class PublicKey(Base):
     _g = Column('g', Text, nullable=False)
     _q = Column('q', Text, nullable=False)
 
-    trustees = relationship("Trustee", back_populates="public_key")
-    elections = relationship("Election", back_populates="public_key")
+    trustees = relationship("Trustee", back_populates="public_key", uselist=False, cascade="all, delete")
+    elections = relationship("Election", back_populates="public_key", uselist=False, cascade="all, delete")
 
     @property
     def y(self):

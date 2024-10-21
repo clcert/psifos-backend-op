@@ -58,8 +58,10 @@ class Election(Base):
     election_status = Column(Enum(ElectionStatusEnum), default="setting_up")
     election_login_type =  Column(Enum(ElectionLoginTypeEnum), default="close_p")
     description = Column(Text)
+    
+    public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id", ondelete="CASCADE"), nullable=True, unique=True)
+    public_key = relationship("PublicKey", back_populates="elections", uselist=False, cascade="all, delete")
 
-    public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id"), nullable=True)
     questions = relationship("AbstractQuestion", cascade="all, delete", back_populates="election")
 
     obscure_voter_names = Column(Boolean, default=False, nullable=False)
@@ -81,9 +83,8 @@ class Election(Base):
     voters_by_weight_init = Column(Text, nullable=True)
     voters_by_weight_end = Column(Text, nullable=True)
 
-    result = relationship("Results",uselist=False, cascade="all, delete", back_populates="election")
+    result = relationship("Results",uselist=False, cascade="all, delete", backref="psifos_election")
 
-    public_key = relationship("PublicKey", back_populates="elections")
 
     # One-to-many relationships
     voters = relationship("Voter", cascade="all, delete",
@@ -444,7 +445,9 @@ class Trustee(Base):
 
     current_step = Column(Integer, default=0)
 
-    public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id"), nullable=True)
+    public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id"), nullable=True, unique=True)
+    public_key = relationship("PublicKey", back_populates="trustees", uselist=False, single_parent=True)
+
     public_key_hash = Column(String(100), nullable=True)
     decryptions_homomorphic = relationship(
         "HomomorphicDecryption", cascade="all, delete", back_populates="psifos_trustee"
@@ -456,7 +459,6 @@ class Trustee(Base):
     coefficients = Column(CoefficientsField, nullable=True)
     acknowledgements = Column(AcknowledgementsField, nullable=True)
 
-    public_key = relationship("PublicKey", back_populates="trustees")
 
     def get_decryptions_group(self, group):
         if self.decryptions:

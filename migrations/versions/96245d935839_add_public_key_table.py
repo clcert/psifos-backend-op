@@ -29,10 +29,10 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_psifos_public_keys_id'), 'psifos_public_keys', ['id'], unique=False)
-    op.add_column('psifos_election', sa.Column('public_key_id', sa.Integer(), nullable=True))
+    op.add_column('psifos_election', sa.Column('public_key_id', sa.Integer(), nullable=True, unique=True))
     op.create_foreign_key(None, 'psifos_election', 'psifos_public_keys', ['public_key_id'], ['id'])
     op.drop_column('psifos_election', 'public_key')
-    op.add_column('psifos_trustee', sa.Column('public_key_id', sa.Integer(), nullable=True))
+    op.add_column('psifos_trustee', sa.Column('public_key_id', sa.Integer(), nullable=True, unique=True))
     op.create_foreign_key(None, 'psifos_trustee', 'psifos_public_keys', ['public_key_id'], ['id'])
     op.drop_column('psifos_trustee', 'public_key')
     # ### end Alembic commands ###

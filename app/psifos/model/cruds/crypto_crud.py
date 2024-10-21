@@ -21,3 +21,25 @@ async def get_public_key(session: Session | AsyncSession, id: int):
     stmt = select(PublicKey).filter(PublicKey.id == id)
     result = await session.execute(stmt)
     return result.scalars().first()
+
+async def delete_public_key(session: Session | AsyncSession, id: int):
+    stmt = delete(PublicKey).where(PublicKey.id == id)
+    await session.execute(stmt)
+    await db_handler.commit(session)
+    return True
+
+async def delete_unused_public_keys(session: AsyncSession):
+    # Consulta para encontrar las claves públicas que no están asociadas a ninguna elección o trustee
+    stmt = select(PublicKey).filter(
+        ~PublicKey.elections.has(),  # No tiene elecciones asociadas
+        ~PublicKey.trustees.has()    # No tiene trustees asociados
+    )
+    
+    result = await session.execute(stmt)
+    unused_keys = result.scalars().all()
+
+    # Eliminar claves públicas no usadas
+    for key in unused_keys:
+        await delete_public_key(session, key.id)
+
+    return {"message": f"Deleted {len(unused_keys)} unused public keys."}

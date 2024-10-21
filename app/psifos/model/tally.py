@@ -35,7 +35,7 @@ class Tally(Base):
     __tablename__ = "psifos_tallies"
 
     id = Column(Integer, primary_key=True, index=True)
-    election_id = Column(Integer, ForeignKey("psifos_election.id"), nullable=False)
+    election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     group = Column(Text, nullable=False)
     with_votes = Column(Boolean, default=False)
     tally_type = Column(Enum(TallyTypeEnum), nullable=False)
