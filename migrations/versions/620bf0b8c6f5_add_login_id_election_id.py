@@ -13,7 +13,7 @@ import app
 
 # revision identifiers, used by Alembic.
 revision = '620bf0b8c6f5'
-down_revision = '8888e0f12d80'
+down_revision = '40a8c1cb62e1'
 branch_labels = None
 depends_on = None
 

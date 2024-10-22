@@ -1,7 +1,7 @@
 import logging
 import json
 
-from app.psifos.model import crud
+from app.psifos.model.cruds import crud
 from app.psifos.model.enums import ElectionEventEnum
 from app.psifos.utils import tz_now
 from app.database import db_handler

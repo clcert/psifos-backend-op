@@ -11,7 +11,7 @@ from app.config import (
     OAUTH_USER_INFO_URL,
     OAUTH_GOOGLE,
 )
-from app.psifos.model import crud
+from app.psifos.model.cruds import crud
 from requests_oauthlib import OAuth2Session
 from app.database import db_handler
 
