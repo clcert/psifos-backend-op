@@ -59,6 +59,11 @@ class Tally(Base):
         'with_polymorphic': '*'
     }
 
+    def get_loads_tally(self):
+        if type(self.tally) == str:
+            return json.loads(self.tally)
+        return self.tally
+
 class HomomorphicTally(Tally):
     """
     Homomorhic tally implementation for closed questions.

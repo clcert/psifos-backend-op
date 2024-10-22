@@ -284,10 +284,10 @@ class Election(Base):
                             a + b for a, b in zip(result, results_total[index])
                         ]
             else:
-                result_dict = [dic["tally"] for dic in tally_object]
+                result_dict = [dic.get_loads_tally() for dic in tally_object]
                 if not results_total:
                     results_total = [
-                        [int(value) for value in array_result["tally"]]
+                        [int(value) for value in array_result.get_loads_tally()]
                         for array_result in tally_object
                     ]
 
