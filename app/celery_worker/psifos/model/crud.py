@@ -218,6 +218,9 @@ def create_group_tally(session: Session, election_id: int, group: str, with_vote
             tally=item.tally,
             q_num=item.q_num,
             num_options=item.num_options,
+            max_answers=item.max_answers,
+            num_of_winners=item.num_of_winners,
+            include_blank_null=bool(item.include_blank_null)
         )
 
         session.add(db_tally)
