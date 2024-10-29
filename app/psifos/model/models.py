@@ -244,10 +244,10 @@ class Election(Base):
         """
         from app.celery_worker.psifos.model import crud
 
-        def get_partial_decryptions(trustees, total_questions):
+        def get_partial_decryptions(trustees, total_questions, group):
             return [
                 [
-                    (t.trustee_id, crud.get_decryptions_by_trustee_id(session, t.id, q_num).get_decryption_factors())
+                    (t.trustee_id, crud.get_decryptions_by_trustee_id(session, t.id, q_num, group).get_decryption_factors())
                     for t in trustees
                 ]
                 for q_num in range(total_questions)
@@ -264,7 +264,7 @@ class Election(Base):
             group = group if group else "Sin grupo"
 
             if tally_object[0].with_votes:
-                partial_decryptions = get_partial_decryptions(self.trustees, total_questions)
+                partial_decryptions = get_partial_decryptions(self.trustees, total_questions, tally_object[0].group)
                 decrypted_tally = [
                     tally.decrypt(
                         public_key=public_key,

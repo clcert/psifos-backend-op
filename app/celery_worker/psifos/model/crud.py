@@ -230,26 +230,28 @@ def create_group_tally(session: Session, election_id: int, group: str, with_vote
         
 # Decryption
 
-def get_homomorphic_decryption_by_trustee_id(session: Session, trustee_id: int, q_num: int):
+def get_homomorphic_decryption_by_trustee_id(session: Session, trustee_id: int, q_num: int, group: str):
     query = select(HomomorphicDecryption).where(
         models.HomomorphicDecryption.trustee_id == trustee_id,
-        models.HomomorphicDecryption.q_num == q_num
+        models.HomomorphicDecryption.q_num == q_num,
+        models.HomomorphicDecryption.group == group
     )
     result = session.execute(query)
     return result.scalars().first()
 
-def get_mixnet_decryption_by_trustee_id(session: Session, trustee_id: int, q_num: int):
+def get_mixnet_decryption_by_trustee_id(session: Session, trustee_id: int, q_num: int, group: str):
     query = select(MixnetDecryption).where(
         models.MixnetDecryption.trustee_id == trustee_id,
-        models.MixnetDecryption.q_num == q_num
+        models.MixnetDecryption.q_num == q_num,
+        models.MixnetDecryption.group == group
     )
     result = session.execute(query)
     return result.scalars().first()
 
-def get_decryptions_by_trustee_id(session: Session, trustee_id: int, q_num: int):
-    h_decryption = get_homomorphic_decryption_by_trustee_id(session, trustee_id, q_num)
+def get_decryptions_by_trustee_id(session: Session, trustee_id: int, q_num: int, group: str = ""):
+    h_decryption = get_homomorphic_decryption_by_trustee_id(session, trustee_id, q_num, group)
     if h_decryption:
         return h_decryption
     
-    m_decryption = get_mixnet_decryption_by_trustee_id(session, trustee_id, q_num)
+    m_decryption = get_mixnet_decryption_by_trustee_id(session, trustee_id, q_num, group)
     return m_decryption
