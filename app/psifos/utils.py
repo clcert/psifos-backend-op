@@ -10,6 +10,7 @@ from tkinter.messagebox import RETRY
 import pytz
 
 from app.psifos.model.enums import ElectionLoginTypeEnum
+from app.psifos.model.cruds import crypto_crud
 from app.psifos.crypto.sharedpoint import Point
 from datetime import datetime
 from app.config import TIMEZONE
@@ -46,11 +47,12 @@ def format_points(points):
 # -- Election utils --
 
 
-def generate_election_pk(trustees):
+async def generate_election_pk(trustees, session):
     t_first_coefficients = [t.coefficients.instances[0].coefficient for t in trustees]
 
     combined_pk = reduce((lambda x, y: x * y), t_first_coefficients)
-    return trustees[0].public_key.clone_with_new_y(combined_pk)
+    public_key = await crypto_crud.get_public_key(session, trustees[0].public_key_id)
+    return public_key.clone_with_new_y(combined_pk)
 
 
 # -- CastVote validation --

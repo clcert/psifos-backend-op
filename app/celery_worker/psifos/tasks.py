@@ -13,13 +13,15 @@ import uuid
 
 
 from app.celery_worker import celery
-from app.psifos.model import models, schemas
+from app.psifos.model.schemas import schemas
+from app.psifos.model import models
 from app.database import SessionLocal
 from .model import crud
 
+
 from app.psifos import utils as psifos_utils
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
-from app.psifos.crypto.tally.tally import TallyManager
+from app.psifos.model.crypto_models import PublicKey
 from app.psifos.crypto.utils import hash_b64
 from app.psifos.model.enums import ElectionStatusEnum, ElectionLoginTypeEnum
 from app.psifos.model import models
@@ -34,7 +36,6 @@ def process_cast_vote(
     election_login_type: str,
     election_short_name: str,
     serialized_encrypted_vote: str,
-    cast_ip: str,
     **kwargs
 ):
     """
@@ -47,12 +48,13 @@ def process_cast_vote(
         query_params = [
             models.Election.id,
             models.Election.total_voters,
-            models.Election.questions,
-            models.Election.public_key,
-            models.Election.uuid
+            models.Election.uuid,
+            models.Election.public_key_id,
         ]
 
         election = crud.get_election_params_by_short_name(short_name=election_short_name, session=session, params=query_params)
+        questions = crud.get_questions_by_election_id(election_id=election.id, session=session)
+        public_key = crud.get_public_key(session=session, id=election.public_key_id)
         if election_login_type == ElectionLoginTypeEnum.close_p:
             voter_id = kwargs.get("voter_id")
             voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
@@ -72,7 +74,6 @@ def process_cast_vote(
                 voter = crud.create_voter(
                     session=session,
                     election_id=election.id,
-                    uuid=str(uuid.uuid1()),
                     voter=voter_in,
                 )
                 crud.update_election(
@@ -84,7 +85,7 @@ def process_cast_vote(
         enc_vote_data = psifos_utils.from_json(serialized_encrypted_vote)
         encrypted_vote = EncryptedVote(**enc_vote_data)
         is_valid, voter_fields, cast_vote_fields = voter.process_cast_vote(
-            encrypted_vote, election, cast_ip
+            encrypted_vote, election, public_key=public_key, questions=questions
         )
         cast_vote = crud.update_or_create_cast_vote(
             session=session,
@@ -102,14 +103,13 @@ def process_cast_vote(
 
 
 @celery.task(name="compute_tally")
-def compute_tally(election_uuid: str):
+def compute_tally(election_uuid: str, public_key: dict):
     """
     Computes the encrypted tally of an election.
     """
     with SessionLocal() as session:
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
         voters_group = crud.get_groups_voters(session=session, election_id=election.id)
-        tally_grouped = []
         for voter_group in voters_group:
             group = voter_group[0]
             voters = crud.get_voters_by_election_id_and_group(
@@ -126,17 +126,22 @@ def compute_tally(election_uuid: str):
                 EncryptedVote(**(psifos_utils.from_json(v)))
                 for v in serialized_encrypted_votes
             ]
-            tally = election.compute_tally(encrypted_votes, weights, group)
-            tally_grouped.append(tally)
+            pk = PublicKey(**public_key)
+            with_votes = len(encrypted_votes) > 0
+            tally = election.compute_tally(encrypted_votes, weights, pk)
 
-        tally_manager = TallyManager(*tally_grouped)
+            crud.create_group_tally(
+                session=session,
+                election_id=election.id,
+                group=group,
+                with_votes=with_votes,
+                tally_grouped=tally,
+            )
+
         fields = {
-            "encrypted_tally": tally_manager,
             "election_status": ElectionStatusEnum.tally_computed,
-            "encrypted_tally_hash": hash_b64(TallyManager.serialize(tally_manager)),
         }
         crud.update_election(session=session, election_id=election.id, fields=fields)
-
 
 @celery.task(name="combine_decryptions", ignore_result=True)
 def combine_decryptions(election_uuid: str):
@@ -146,8 +151,10 @@ def combine_decryptions(election_uuid: str):
     """
     with SessionLocal() as session:
         election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
-        fields = election.combine_decryptions()
-        crud.update_election(session=session, election_id=election.id, fields=fields)
+        tallies = crud.get_tallies_grouped_by_group_and_ordered_by_q_num(session=session, election_id=election.id)
+        results = election.combine_decryptions(session=session, tallies=tallies)
+        crud.create_result(session=session, election_id=election.id, result=results)
+        crud.update_election(session=session, election_id=election.id, fields={"election_status": ElectionStatusEnum.decryptions_combined})
 
 
 @celery.task(name="upload_voters")
@@ -180,7 +187,6 @@ def upload_voters(election_uuid: str, voter_file_content: str):
                 new_voter = crud.create_voter(
                     session=session,
                     election_id=election.id,
-                    uuid=str(uuid.uuid1()),
                     voter=v_in,
                 )
                 if new_voter:

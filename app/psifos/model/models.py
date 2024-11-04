@@ -15,28 +15,21 @@ from sqlalchemy import Column, ForeignKey
 from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime
 
 from app.psifos import utils
-from app.psifos.psifos_object.questions import Questions
-from app.psifos.psifos_object.result import (
-    ElectionResultManager,
-    ElectionResultGroup,
-)
-from app.psifos.crypto.tally.common.decryption.decryption_factory import (
-    DecryptionFactory,
-)
 
 import app.psifos.crypto.utils as crypto_utils
+from app.psifos.model.cruds import crypto_crud
 
 from app.psifos.crypto.elgamal import ElGamal
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
-from app.psifos.crypto.tally.tally import TallyWrapper
+from app.psifos.crypto.tally.tally import TallyWrapper, TallyFactory
 
-from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum, ElectionLoginTypeEnum
+from app.psifos.model.enums import (
+    ElectionStatusEnum,
+    ElectionTypeEnum,
+    ElectionLoginTypeEnum,
+)
 
 from app.database.custom_fields import (
-    PublicKeyField,
-    QuestionsField,
-    TallyManagerField,
-    ElectionResultField,
     EncryptedVoteField,
     CertificateField,
     TrusteeDecryptionsField,
@@ -46,7 +39,11 @@ from app.database.custom_fields import (
 )
 from app.database import Base
 from app.psifos_auth.model.models import User
-
+from app.psifos.model.questions import AbstractQuestion  # Importar la clase de pregunta
+from app.psifos.model.crypto_models import PublicKey
+from app.psifos.model.results import Results
+from app.psifos.model.tally import Tally
+from app.psifos.model.decryptions import HomomorphicDecryption, MixnetDecryption
 
 class Election(Base):
     __tablename__ = "psifos_election"
@@ -61,9 +58,11 @@ class Election(Base):
     election_status = Column(Enum(ElectionStatusEnum), default="setting_up")
     election_login_type =  Column(Enum(ElectionLoginTypeEnum), default="close_p")
     description = Column(Text)
+    
+    public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id", ondelete="CASCADE"), nullable=True, unique=True)
+    public_key = relationship("PublicKey", back_populates="elections", uselist=False, cascade="all, delete")
 
-    public_key = Column(PublicKeyField, nullable=True)
-    questions = Column(QuestionsField, nullable=True)
+    questions = relationship("AbstractQuestion", cascade="all, delete", back_populates="election")
 
     obscure_voter_names = Column(Boolean, default=False, nullable=False)
     randomize_answer_order = Column(Boolean, default=False, nullable=False)
@@ -74,17 +73,18 @@ class Election(Base):
     total_voters = Column(Integer, default=0)
     total_trustees = Column(Integer, default=0)
 
-    encrypted_tally = Column(TallyManagerField, nullable=True)
-    encrypted_tally_hash = Column(Text, nullable=True)
+    encrypted_tally = relationship("Tally", back_populates="election")
 
     decryptions_uploaded = Column(Integer, default=0)
-    result = Column(ElectionResultField, nullable=True)
 
     voting_started_at = Column(DateTime, nullable=True)
     voting_ended_at = Column(DateTime, nullable=True)
 
     voters_by_weight_init = Column(Text, nullable=True)
     voters_by_weight_end = Column(Text, nullable=True)
+
+    result = relationship("Results",uselist=False, cascade="all, delete", backref="psifos_election")
+
 
     # One-to-many relationships
     voters = relationship("Voter", cascade="all, delete",
@@ -93,7 +93,7 @@ class Election(Base):
         "Trustee", cascade="all, delete", backref="psifos_election")
     sharedpoints = relationship(
         "SharedPoint", cascade="all, delete", backref="psifos_election"
-    )
+    ) # TODO: Check 
     audited_ballots = relationship(
         "AuditedBallot", cascade="all, delete", backref="psifos_election"
     )
@@ -133,7 +133,7 @@ class Election(Base):
 
         return params
 
-    def start(self):
+    async def start(self, session):
         normalized_weights = {}
         voters_by_weight_init = {}
         for v in self.voters:
@@ -153,10 +153,17 @@ class Election(Base):
             "voters_by_weight_init_grouped": voters_by_weight_init_grouped
         })
 
+        election_pk = await utils.generate_election_pk(self.trustees, session)
+
+        pk = await crypto_crud.create_public_key(
+            session=session,
+            public_key=election_pk
+        )
+
         return {
             "voting_started_at": utils.tz_now(),
             "election_status": ElectionStatusEnum.started,
-            "public_key": utils.generate_election_pk(self.trustees),
+            "public_key_id": pk.id,
             "voters_by_weight_init": weight_init,
         }
 
@@ -188,91 +195,108 @@ class Election(Base):
         }
 
     def compute_tally(
-        self, encrypted_votes: list[EncryptedVote], weights: list[int], group: str
+        self, encrypted_votes: list[EncryptedVote], weights: list[int], public_key: dict
     ):
         # First we instantiate the TallyManager class.
-        question_list = Questions.serialize(self.questions, to_json=False)
+        question_list = self.questions
         tally_params = [
             {
-                "tally_type": q_dict["tally_type"],
+                "tally_type": q.tally_type,
                 "computed": False,
                 "num_tallied": 0,
                 "q_num": q_num,
-                "max_answers": q_dict["max_answers"],
-                "num_options": q_dict["total_closed_options"],
-                "num_of_winners": q_dict.get("num_of_winners", None),
-                "include_blank_null": q_dict["include_blank_null"] == "True",
+                "max_answers": q.max_answers,
+                "num_options": q.total_closed_options,
+                "num_of_winners": q.num_of_winners,
+                "include_blank_null": q.include_blank_null,
             }
-            for q_num, q_dict in enumerate(question_list)
+            for q_num, q in enumerate(question_list)
         ]
-        with_votes = len(encrypted_votes) > 0
-        enc_tally = TallyWrapper(
-            *tally_params, group=group, with_votes=with_votes)
+        tally_array = []
+        for q_num, tally in enumerate(tally_params):
+            encrypted_answers = [
+                enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes
+            ]
+            width = self.questions[q_num].max_answers
+            tally_object = TallyFactory.create(**tally)
+            tally_object.compute(
+                public_key=public_key,
+                encrypted_answers=encrypted_answers,
+                weights=weights,
+                election=self,
+                width=width
+            )
+            tally_array.append(tally_object)
+
+        # enc_tally = TallyWrapper(
+        #    *tally_params, group=group, with_votes=with_votes)
 
         # Then we compute the encrypted_tally
-        enc_tally.compute(
-            encrypted_votes=encrypted_votes, weights=weights, election=self
-        )
+        # enc_tally.compute(
+        #    encrypted_votes=encrypted_votes, weights=weights, election=self, public_key=public_key
+        # )
 
-        return enc_tally
+        return tally_array
 
-    def combine_decryptions(self):
+    def combine_decryptions(self, session, tallies):
         """
         combine all of the decryption results
         """
+        from app.celery_worker.psifos.model import crud
+
+        def get_partial_decryptions(trustees, total_questions, group):
+            return [
+                [
+                    (t.trustee_id, crud.get_decryptions_by_trustee_id(session, t.id, q_num, group).get_decryption_factors())
+                    for t in trustees
+                ]
+                for q_num in range(total_questions)
+            ]
+
+        public_key = self.public_key
         result_per_group = []
         results_total = []
-        for tally in self.encrypted_tally.get_tallys():
-            with_votes = tally.get("with_votes", False) == "True"
-            group = tally.get("group", "")
-            tally_dict = tally.get("tally")
-            total_questions = len(tally_dict)
-            if with_votes:
-                partial_decryptions = [
-                    [
-                        (
-                            t.trustee_id,
-                            DecryptionFactory.create(
-                                **t.get_decryptions_group(group).get("decryptions")[
-                                    q_num
-                                ]
-                            ).get_decryption_factors(),
-                        )
-                        for t in self.trustees
-                        if t.decryptions is not None
-                    ]
-                    for q_num in range(total_questions)
+
+        # Iteramos sobre el tally total
+        for tally_object in tallies:
+            group = tally_object[0].group
+            total_questions = len(self.questions)
+            group = group if group else "Sin grupo"
+
+            if tally_object[0].with_votes:
+                partial_decryptions = get_partial_decryptions(self.trustees, total_questions, tally_object[0].group)
+                decrypted_tally = [
+                    tally.decrypt(
+                        public_key=public_key,
+                        decryption_factors=partial_decryptions[q_num],
+                        t=self.total_trustees // 2,
+                        max_weight=self.max_weight,
+                    )
+                    for q_num, tally in enumerate(tally_object)
                 ]
-                tally = TallyWrapper(*tally_dict, group=group, with_votes=True)
-                group = group if group else "Sin grupo"
-                results_grouped = tally.decrypt(
-                    partial_decryptions=partial_decryptions,
-                    election=self,
-                    group=group,
-                )
-                result_per_group.append(results_grouped)
-                for index, result in enumerate(results_grouped.result.instances):
+                result_per_group.append({"result": decrypted_tally, "group": group})
+
+                for index, result in enumerate(decrypted_tally):
                     if len(results_total) == index:
-                        results_total.append(
-                            {"ans_results": result.ans_results.instances})
+                        results_total.append(result)
                     else:
-                        results_total[index]["ans_results"] = [
-                            a + b for a, b in zip(result.ans_results.instances, results_total[index]["ans_results"])
+                        results_total[index] = [
+                            a + b for a, b in zip(result, results_total[index])
                         ]
             else:
-                result_dict = [{"ans_results": dic["tally"]}
-                               for dic in tally_dict]
-                if len(results_total) == 0:
-                    results_total = [{"ans_results": [
-                        int(value) for value in array_result["tally"]]} for array_result in tally_dict]
-                group = group if group else "Sin grupo"
-                result_per_group.append(ElectionResultGroup(
-                    *result_dict, group=group, with_votes=with_votes))
+                result_dict = [dic.get_loads_tally() for dic in tally_object]
+                if not results_total:
+                    results_total = [
+                        [int(value) for value in array_result.get_loads_tally()]
+                        for array_result in tally_object
+                    ]
 
-        return {"result": ElectionResultManager(results_total=results_total, results_grouped=result_per_group), "election_status": ElectionStatusEnum.decryptions_combined}
+                result_per_group.append({"result": result_dict, "group": group})
+
+        return {"total_result": results_total, "grouped_result": result_per_group}
 
     def end_without_votes(self, groups):
-        question_list = Questions.serialize(self.questions, to_json=False)
+        question_list = self.questions
         groups.append("Sin grupo")
         results = []
         results_group = []
@@ -280,22 +304,18 @@ class Election(Base):
             aux_group_results = []
             for question in question_list:
                 result_question = {
-                        "tally_type": question["tally_type"],
-                        "ans_results": ["0"] * int(question["total_closed_options"]),
+                        "ans_results": [0] * int(question.total_closed_options),
                     }
                 aux_group_results.append(
-                    result_question
+                    result_question["ans_results"]
                 )
             results = aux_group_results
-            results_group.append(
-                ElectionResultGroup(
-                    *aux_group_results, group=group, with_votes=False)
-            )
-        election_result = ElectionResultManager(results_total=results, results_grouped=results_group)
-        return {
-            "result": election_result,
-            "election_status": ElectionStatusEnum.decryptions_combined,
-        }
+            results_group.append({
+                "result": aux_group_results,
+                "group": group
+            })
+
+        return {"total_result": results, "grouped_result": results_group}
 
     def results_released(self):
         released_data = {
@@ -319,7 +339,6 @@ class Voter(Base):
         ForeignKey("psifos_election.id",
                    onupdate="CASCADE", ondelete="CASCADE"),
     )
-    uuid = Column(String(50), nullable=False, unique=True)
     login_id_election_id = Column(String(50), nullable=False, unique=True)
 
     voter_login_id = Column(String(100), nullable=False)
@@ -353,15 +372,13 @@ class Voter(Base):
         return voters
 
     def process_cast_vote(
-        self, encrypted_vote: EncryptedVote, election: Election, cast_ip: str
+        self, encrypted_vote: EncryptedVote, election: Election, public_key: PublicKey, questions: AbstractQuestion
     ):
-        is_valid = encrypted_vote.verify(election)
+        is_valid = encrypted_vote.verify(election, public_key, questions=questions)
         cast_vote_fields = {
             "vote": encrypted_vote,
             "vote_hash": crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)),
             "is_valid": is_valid,
-            "cast_ip": cast_ip,
-            "cast_ip_hash": crypto_utils.hash_b64(cast_ip),
             "cast_at": utils.tz_now(),
         }
 
@@ -389,9 +406,6 @@ class CastVote(Base):
     # vote_tinyhash = Column(String(500), nullable=False)
 
     is_valid = Column(Boolean, nullable=False)
-
-    cast_ip = Column(Text, nullable=False)
-    cast_ip_hash = Column(String(500), nullable=False)
 
     cast_at = Column(DateTime, nullable=False)
 
@@ -431,13 +445,20 @@ class Trustee(Base):
 
     current_step = Column(Integer, default=0)
 
-    public_key = Column(PublicKeyField, nullable=True)
-    public_key_hash = Column(String(100), nullable=True)
-    decryptions = Column(TrusteeDecryptionsField, nullable=True)
+    public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id"), nullable=True, unique=True)
+    public_key = relationship("PublicKey", back_populates="trustees", uselist=False, single_parent=True)
 
+    public_key_hash = Column(String(100), nullable=True)
+    decryptions_homomorphic = relationship(
+        "HomomorphicDecryption", cascade="all, delete", back_populates="psifos_trustee"
+    )
+    decryptions_mixnet = relationship(
+        "MixnetDecryption", cascade="all, delete", back_populates="psifos_trustee"
+    )
     certificate = Column(CertificateField, nullable=True)
     coefficients = Column(CoefficientsField, nullable=True)
     acknowledgements = Column(AcknowledgementsField, nullable=True)
+
 
     def get_decryptions_group(self, group):
         if self.decryptions:

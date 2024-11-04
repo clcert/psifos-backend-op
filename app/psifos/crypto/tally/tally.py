@@ -3,19 +3,16 @@ Tally module for Psifos.
 """
 
 from app.database.serialization import SerializableList, SerializableObject
-from app.psifos.psifos_object.result import ElectionResultGroup
-from .homomorphic.tally import HomomorphicTally
-from .mixnet.close_massive_tally import CloseMassiveTally
-from .mixnet.stv_tally import STVTally
+from app.psifos.model.tally import HomomorphicTally, STVTally, MixnetTally
 
 
 class TallyFactory:
     @staticmethod
     def create(**kwargs):
         tally_to_mn_tally = {
-            "homomorphic":HomomorphicTally,
-            "mixnet":CloseMassiveTally,
-            "stvnc":STVTally,
+            "HOMOMORPHIC":HomomorphicTally,
+            "MIXNET":MixnetTally,
+            "STVNC":STVTally,
         }
         tally_type = kwargs.get("tally_type")
         if tally_type in tally_to_mn_tally.keys():
@@ -57,16 +54,13 @@ class TallyWrapper(SerializableObject):
         self.with_votes: bool = kwargs.get("with_votes")
         self.tally = ListOfTallies(*args)
 
-    def compute(self, encrypted_votes, weights, election):
-        public_key = (
-            election.public_key
-        )  # TODO: replace this when multiple pk gets added
+    def compute(self, encrypted_votes, weights, election, public_key):
 
         for q_num, tally in enumerate(self.tally.instances):
             encrypted_answers = [
                 enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes
             ]
-            width = election.questions.instances[q_num].max_answers
+            width = election.questions[q_num].max_answers
             tally.compute(
                 public_key=public_key,
                 encrypted_answers=encrypted_answers,
@@ -90,7 +84,7 @@ class TallyWrapper(SerializableObject):
                     max_weight=election.max_weight,
                 ),
             )
-        return ElectionResultGroup(*decrypted_tally, group=group)
+        return {"result": decrypted_tally, "group":group}
 
     def get_tallies(self):
         return self.tally.instances
