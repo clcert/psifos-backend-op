@@ -301,10 +301,10 @@ async def delete_voters(
     )
 
 
-@api_router.post("/{short_name}/voter/{voter_uuid}/delete")
+@api_router.post("/{short_name}/voter/{voter_login_id}/delete")
 async def delete_voter(
     short_name: str,
-    voter_uuid: str,
+    voter_login_id: str,
     current_user: models.User = Depends(AuthAdmin()),
     session: Session | AsyncSession = Depends(get_session),
 ):
@@ -315,12 +315,17 @@ async def delete_voter(
         short_name=short_name, current_user=current_user, session=session
     )
     await crud.delete_election_voter(
-        session=session, election_id=election.id, voter_uuid=voter_uuid
+        session=session, election_id=election.id, voter_login_id=voter_login_id
+    )
+    await crud.update_election(
+        session=session,
+        election_id=election.id,
+        fields={"total_voters": election.total_voters - 1},
     )
     await psifos_logger.warning(
         election_id=election.id,
         event=ElectionPublicEventEnum.ELECTORAL_ROLL_MODIFIED,
-        voter_uuid=voter_uuid,
+        voter_login_id=voter_login_id,
     )
 
 
