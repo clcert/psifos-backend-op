@@ -83,9 +83,6 @@ class HomomorphicTally(AbstractTally):
                 last_raw_value = raw_value
             q_result.append(raw_value)
 
-        result = {
-            "tally_type": "homomorphic",
-            "ans_results": [dlog_table.lookup(result) for result in q_result]
-        }
+        result = [dlog_table.lookup(result) for result in q_result]
 
         return result

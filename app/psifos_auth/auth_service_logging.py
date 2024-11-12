@@ -11,13 +11,13 @@ from app.config import (
     OAUTH_USER_INFO_URL,
     OAUTH_GOOGLE,
 )
-from app.psifos.model import crud
+from app.psifos.model.cruds import crud
 from requests_oauthlib import OAuth2Session
 from app.database import db_handler
 
 from fastapi import Request, HTTPException
 from starlette.responses import RedirectResponse
-from app.logger import psifos_logger
+from app.logger import psifos_logger, logger
 from app.psifos.model.enums import ElectionAdminEventEnum, ElectionLoginTypeEnum
 
 
@@ -61,6 +61,7 @@ class AbstractAuth(object):
             election_id=election.id,
         )
         if not trustee:
+            logger.error("%s - Invalid Trustee Access: %s (%s)" % (request.client.host, request.session["user"], short_name))
             await psifos_logger.warning(
                 election_id=election.id,
                 event=ElectionAdminEventEnum.TRUSTEE_LOGIN_FAIL,
@@ -70,6 +71,7 @@ class AbstractAuth(object):
                 url=APP_FRONTEND_URL + f"psifos/{short_name}/trustee/home"
             )
         else:
+            logger.log("PSIFOS", "%s - Valid Trustee Access: %s (%s)" % (request.client.host, request.session["user"], short_name))
             await psifos_logger.info(
                 election_id=election.id,
                 event=ElectionAdminEventEnum.TRUSTEE_LOGIN,
@@ -84,8 +86,13 @@ class AbstractAuth(object):
         Check if the voter that logs in exists and redirects
         """
 
-        election = await crud.get_election_by_short_name(
-            short_name=short_name, session=db_session
+        query_params = [
+            crud.models.Election.id,
+            crud.models.Election.election_login_type,
+        ]
+
+        election = await crud.get_election_params_by_name(
+            session=db_session, short_name=short_name, params=query_params
         )
         voter = await crud.get_voter_by_login_id_and_election_id(
             db_session, user_id, election.id

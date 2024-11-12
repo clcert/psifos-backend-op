@@ -1,12 +1,19 @@
 import sqlalchemy.types as types
-from app.psifos.crypto.elgamal import PublicKey
-from app.psifos.crypto.sharedpoint import Certificate, ListOfCoefficients, ListOfSignatures, Point
-from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptionsManager
+from app.psifos.crypto.elgamal import PublicKey, ListOfCipherTexts
+from app.psifos.crypto.sharedpoint import (
+    Certificate,
+    ListOfCoefficients,
+    ListOfSignatures,
+    Point,
+)
+from app.psifos.crypto.tally.common.decryption.trustee_decryption import (
+    TrusteeDecryptionsManager,
+)
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
-from app.psifos.crypto.tally.tally import TallyManager
-from app.psifos.psifos_object.result import ElectionResultManager
-from app.psifos.psifos_object.questions import Questions
 from sqlalchemy.dialects.mysql import LONGTEXT
+from app.psifos.crypto.tally.mixnet.decryption import ListOfDecryptionFactors, ListOfDecryptionProofs
+from app.psifos.crypto.elgamal import ListOfIntegers, ListOfZKProofs
+
 
 class SerializableField(types.TypeDecorator):
     impl = LONGTEXT
@@ -28,38 +35,46 @@ class SerializableField(types.TypeDecorator):
 # --- Custom SerializableFields ---
 class PublicKeyField(SerializableField):
     class_type = PublicKey
+    cache_ok = False
 
-    
-class QuestionsField(SerializableField):
-    class_type = Questions
-
-    
-class TallyManagerField(SerializableField):
-    class_type = TallyManager
-
-    
 class TrusteeDecryptionsField(SerializableField):
     class_type = TrusteeDecryptionsManager
+    cache_ok = False
 
-    
-class ElectionResultField(SerializableField):
-    class_type = ElectionResultManager
 
-    
 class EncryptedVoteField(SerializableField):
     class_type = EncryptedVote
+    cache_ok = False
 
-    
+
 class CertificateField(SerializableField):
     class_type = Certificate
+    cache_ok = False
 
-    
+
 class CoefficientsField(SerializableField):
     class_type = ListOfCoefficients
+    cache_ok = False
 
 
 class AcknowledgementsField(SerializableField):
     class_type = ListOfSignatures
+    cache_ok = False
 
 class PointField(SerializableField):
     class_type = Point
+
+class ListOfCipherTextsField(SerializableField):
+    class_type = ListOfCipherTexts
+
+class ListOfIntegersField(SerializableField):
+    class_type = ListOfIntegers
+
+class ListOfZKProofsField(SerializableField):
+    class_type = ListOfZKProofs
+
+class ListOfDecryptionFactorsField(SerializableField):
+    class_type = ListOfDecryptionFactors
+
+class ListOfDecryptionProofsField(SerializableField):
+    class_type = ListOfDecryptionProofs

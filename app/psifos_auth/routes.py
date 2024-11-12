@@ -9,7 +9,8 @@ from app.config import SECRET_KEY, TYPE_AUTH, APP_FRONTEND_URL
 
 from app.psifos_auth.auth_service_logging import AuthFactory
 from app.psifos_auth.model import crud as auth_crud
-from app.psifos.model import crud
+from app.psifos.model.cruds import crud
+from app.psifos.model import models
 from app.psifos.model.enums import ElectionLoginTypeEnum
 
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -53,7 +54,12 @@ async def login_voter(short_name: str, request: Request, redirect: bool = Query(
     """
     Make the connection and verification with the CAS service
     """
-    election = await crud.get_election_by_short_name(session=session, short_name=short_name)
+    
+    query_params = [
+        models.Election.election_login_type,
+    ]
+
+    election = await crud.get_election_params_by_name(session=session, short_name=short_name, params=query_params)
     if not election:
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}
 

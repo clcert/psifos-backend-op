@@ -20,12 +20,16 @@ from app.psifos.crypto.tally.tally import TallyWrapper
 
 from app.config import APP_FRONTEND_URL
 
-from app.psifos.model import crud, schemas, models
+from app.psifos.model import models
+from app.psifos.model.cruds import crud
+from app.psifos.model.cruds import crypto_crud
+from app.psifos.model.cruds import results as results_crud
+from app.psifos.model.schemas import schemas
+from app.psifos.model.schemas import crypto_schemas
+from app.psifos.model.cruds import questions as questions_crud
 from app.dependencies import get_session
-from app.psifos.psifos_object.questions import Questions
 from app.psifos.crypto import elgamal, sharedpoint
 from app.psifos.crypto import utils as crypto_utils
-from app.psifos.crypto.elgamal import PublicKey
 from app.psifos import utils as psifos_utils
 from app.psifos_auth.auth_bearer import AuthAdmin
 from app.psifos_auth.utils import (
@@ -86,13 +90,16 @@ async def delete_election(
     """
     Admin's route for delete a election by uuid
     """
+    try:
+        election = await get_auth_election(
+            short_name=short_name, current_user=current_user, session=session
+        )
+        await crud.delete_election(session=session, election_id=election.id)
+        await crypto_crud.delete_unused_public_keys(session=session)
+        return {"message": "election delete"}
 
-    election = await get_auth_election(
-        short_name=short_name, current_user=current_user, session=session
-    )
-    await crud.delete_election(session=session, election_id=election.id)
-    return {"message": "election delete"}
-
+    except:
+        raise HTTPException(status_code=404, detail="error in delete election")
 
 @api_router.get(
     "/get-election/{short_name}", response_model=schemas.ElectionOut, status_code=200
@@ -109,7 +116,6 @@ async def get_election(
         short_name=short_name, current_user=current_user, session=session
     )
     return result
-
 
 @api_router.get(
     "/get-elections", response_model=list[schemas.SimpleElection], status_code=200
@@ -171,10 +177,26 @@ async def create_questions(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
-    questions = Questions(*data_questions["question"])
-    await crud.edit_questions(
-        session=session, db_election=election, questions=questions
-    )
+
+    for index, question in enumerate(data_questions["question"]):
+        question["q_num"] = index + 1
+        question["closed_options_list"] = question.get("closed_options", [])
+        del question["closed_options"]
+
+        if await questions_crud.get_question_by_q_num(
+            session=session, election_id=election.id, q_num=question["q_num"]
+        ):
+            await questions_crud.edit_question(
+                session=session,
+                election_id=election.id,
+                question_id=question["q_num"],
+                question=question,
+            )
+        else:
+            await questions_crud.create_question(
+                session=session, election_id=election.id, question=question
+            )
+
     return {"message": "Preguntas creadas con exito!"}
 
 
@@ -237,13 +259,12 @@ async def get_voters(
 
 
 @api_router.post(
-    "/{short_name}/voters/{voter_uuid}/edit",
+    "/{short_name}/voters/edit",
     response_model=schemas.VoterOut,
     status_code=200,
 )
 async def edit_voter(
     short_name: str,
-    voter_uuid: str,
     fields_voter: dict,
     current_user: models.User = Depends(AuthAdmin()),
     session: Session | AsyncSession = Depends(get_session),
@@ -254,8 +275,9 @@ async def edit_voter(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
+    voter_login_id = fields_voter.get("voter_login_id")
     return await crud.edit_voter(
-        voter_uuid=voter_uuid,
+        voter_login_id=voter_login_id,
         session=session,
         election_id=election.id,
         fields=fields_voter,
@@ -280,10 +302,10 @@ async def delete_voters(
     )
 
 
-@api_router.post("/{short_name}/voter/{voter_uuid}/delete")
+@api_router.post("/{short_name}/voter/{voter_login_id}/delete")
 async def delete_voter(
     short_name: str,
-    voter_uuid: str,
+    voter_login_id: str,
     current_user: models.User = Depends(AuthAdmin()),
     session: Session | AsyncSession = Depends(get_session),
 ):
@@ -294,12 +316,17 @@ async def delete_voter(
         short_name=short_name, current_user=current_user, session=session
     )
     await crud.delete_election_voter(
-        session=session, election_id=election.id, voter_uuid=voter_uuid
+        session=session, election_id=election.id, voter_login_id=voter_login_id
+    )
+    await crud.update_election(
+        session=session,
+        election_id=election.id,
+        fields={"total_voters": election.total_voters - 1},
     )
     await psifos_logger.warning(
         election_id=election.id,
         event=ElectionPublicEventEnum.ELECTORAL_ROLL_MODIFIED,
-        voter_uuid=voter_uuid,
+        voter_login_id=voter_login_id,
     )
 
 
@@ -320,7 +347,7 @@ async def start_election(
         status=ElectionStatusEnum.setting_up,
     )
     await crud.update_election(
-        session=session, election_id=election.id, fields=election.start()
+        session=session, election_id=election.id, fields=await election.start(session=session)
     )
 
     await psifos_logger.info(
@@ -354,10 +381,15 @@ async def end_election(
 
     if len(not_null_voters) < 1:
         groups = await crud.get_groups_by_election_id(session=session, election_id=election.id)
+        await results_crud.create_result(
+            session=session,
+            election_id=election.id,
+            result=election.end_without_votes(groups=groups),
+        )
         await crud.update_election(
             session=session,
             election_id=election.id,
-            fields=election.end_without_votes(groups=groups),
+            fields={"election_status": ElectionStatusEnum.decryptions_combined},
         )
         return {"message": "The election was succesfully ended"}
 
@@ -396,8 +428,12 @@ async def compute_tally(
                 "election_status": ElectionStatusEnum.computing_tally,
             },
         )
+
+        pk = election.public_key
+
         task_params = {
             "election_uuid": election.uuid,
+            "public_key": pk.to_dict(),
         }
 
         tasks.compute_tally.delay(**task_params)
@@ -478,7 +514,6 @@ async def results_release(
 @api_router.get(
     "/{short_name}/get-trustees",
     status_code=200,
-    response_model=list[schemas.TrusteeOut],
 )
 async def get_trustees(
     short_name: str,
@@ -488,14 +523,16 @@ async def get_trustees(
     """
     Route for get trustees
     """
+
+    election_params = [
+        models.Election.id,
+    ]
     election = await get_auth_election(
-        short_name=short_name, current_user=current_user, session=session
+        short_name=short_name, current_user=current_user, session=session, election_params=election_params
     )
-    result = await crud.get_trustees_by_election_id(
+    return await crud.get_simple_trustees_by_election_id(
         session=session, election_id=election.id
     )
-    return result
-
 
 @api_router.post("/{short_name}/create-trustee", status_code=200)
 async def create_trustee(
@@ -556,6 +593,16 @@ async def delete_trustee(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
+    await crud.delete_trustee(
+        session=session, election_id=election.id, uuid=trustee_uuid
+    )
+    await crypto_crud.delete_unused_public_keys(session=session)
+    await crud.update_election(
+        session=session,
+        election_id=election.id,
+        fields={"total_trustees": election.total_trustees - 1},
+    )
+    return {"message": "The trustee was successfully deleted"}
 
     trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
@@ -608,19 +655,23 @@ async def cast_vote(
     """
     Route for casting a vote
     """
+    query_params = [
+        models.Election.election_login_type,
+        models.Election.short_name,
+        models.Election.uuid,
+        models.Election.questions
+    ]
 
     voter, election = await get_auth_voter_and_election(
         session=session,
         short_name=short_name,
         voter_login_id=voter_login_id,
         status=ElectionStatusEnum.started,
+        election_params=query_params
     )
-
     task_params = {
         "serialized_encrypted_vote": cast_vote.encrypted_vote,
-        "cast_ip": request.client.host,
     }
-
     if election.election_login_type == ElectionLoginTypeEnum.close_p:
         task_params["voter_id"] = voter.id
 
@@ -631,22 +682,19 @@ async def cast_vote(
     # allowed, msg = psifos_utils.do_cast_vote_checks(request, election, voter)
     # if not allowed:
     #    return make_response(jsonify({"message": f"{msg}"}), 400)
-
     task_params["election_login_type"] = election.election_login_type
-    task_params["election_uuid"] = election.uuid
-
+    task_params["election_short_name"] = election.short_name
     task = tasks.process_cast_vote.delay(**task_params)
     verified, vote_fingerprint = task.get()
-
     if verified:
-        logger.info("%s:%s - Valid Cast Vote: %s (%s)" % (request.client.host, request.client.port, voter_login_id, election.short_name))
+        logger.log("PSIFOS", "%s - Valid Cast Vote: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return {
             "message": "Encrypted vote received succesfully",
             "verified": verified,
             "vote_hash": vote_fingerprint,
         }
     else:
-        logger.error("Invalid Cast Vote: %s (%s)" % (voter_login_id, election.short_name))
+        logger.error("%s - Invalid Cast Vote: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return {"message": "Invalid encrypted vote", "verified": verified}
 
 
@@ -735,6 +783,16 @@ async def get_trustee_crypto(
     }
 
 
+
+    decryptions = await crud.get_decryptions_by_trustee_id(
+        session=session, trustee_id=trustee.id
+    )
+
+    return schemas.TrusteeHome(
+        trustee=schemas.TrusteeOut.from_orm(trustee),
+        election=schemas.ElectionOut.from_orm(election),
+        decryptions=decryptions
+    )
 
 @api_router.get("/{short_name}/get-randomness", status_code=200)
 async def get_randomness(short_name: str, _: str = Depends(AuthUser())):
@@ -1076,7 +1134,6 @@ async def post_trustee_step_3(
         )
 
     pk_data = psifos_utils.from_json(trustee_data.verification_key)
-    pk = elgamal.PublicKey(**pk_data)
 
     # TODO: perform server-side checks here!
     await crud.update_trustee_crypto(
@@ -1086,6 +1143,12 @@ async def post_trustee_step_3(
         fields={"public_key": pk, "current_step": 4},
     )
 
+    public_key = await crypto_crud.create_public_key(
+        session=session,
+        public_key=pk_data,
+    )
+
+    logger.log("PSIFOS", "%s - Valid Key Generation: %s (%s)" % (request.client.host, trustee_login_id, short_name))
     return {"message": "Keygenerator step 3 completed successfully"}
 
 
@@ -1232,27 +1295,28 @@ async def trustee_decrypt_and_prove(
         answers_decryptions: TrusteeDecryptionsGroup = TrusteeDecryptionsGroup(
             decryption.group, decryption.decryptions
         )
-        encrypted_tally_group = election.encrypted_tally.get_by_group(decryption.group)
-        election_tally_group = TallyWrapper(
-            *encrypted_tally_group["tally"],
-            group=decryption.group,
-            with_votes=decryption.with_votes,
-        )
+        encrypted_tally_group = await crud.get_tally_by_group(session=session, election_id=election.id, group=decryption.group)
         if answers_decryptions.decryptions.verify(
-            public_key=trustee_crypto.public_key,
-            encrypted_tally=election_tally_group,
+            public_key=trustee.public_key,
+            encrypted_tally=encrypted_tally_group,
         ):
-            answers_decryptions_list.append({
-                "group": decryption.group,
-                "decryptions": decryption.decryptions,
-            })
+            for q_num, dec in enumerate(answers_decryptions.decryptions.instances):
+                
+                await crud.create_decryption(
+                    session=session,
+                    trustee_id=trustee.id,
+                    group=decryption.group,
+                    q_num=q_num,
+                    decryption=dec,
+                )
+            answers_decryptions_list.append(answers_decryptions)
 
         else:
+            logger.error("%s - Invalid Decryptions Received: %s (%s)" % (request.client.host, trustee.trustee_login_id, short_name))
             raise HTTPException(
                 status_code=400,
                 detail="An error was found during the verification of the proofs",
             )
-
     decryptions = TrusteeDecryptionsManager(*answers_decryptions_list)
     # Zona critica, solo un custodio puede entrar y cambiar las desencriptaciones
     with dec_num_lock:
@@ -1272,7 +1336,12 @@ async def trustee_decrypt_and_prove(
             election_id=election.id,
             fields={"decryptions_uploaded": dec_num},
         )
-
+        await crud.update_trustee(
+            session=session,
+            trustee_id=trustee.id,
+            fields={"current_step": 5},
+        )
+        logger.log("PSIFOS", "%s - Valid Decryptions Received: %s (%s)" % (request.client.host, trustee.trustee_login_id, short_name))
         await psifos_logger.info(
             election_id=election.id,
             event=ElectionPublicEventEnum.DECRYPTION_RECIEVED,
@@ -1340,11 +1409,15 @@ async def trustee_decrypt_and_prove(
         election_id=election.id,
         trustee_id=trustee_crypto.trustee_election_id,
     )
-    election.encrypted_tally = psifos_utils.to_json(election.encrypted_tally.instances)
+    encrypted_tally = await crud.get_tally_by_election_id(
+        session=session, election_id=election.id
+    )
+    encrypted_tally = [schemas.TallyBase.from_orm(tally) for tally in encrypted_tally]
     return {
-        "election": schemas.CompleteElectionOut.from_orm(election),
+        "election": schemas.ElectionOut.from_orm(election),
         "trustee": schemas.TrusteeOut.from_orm(trustee),
         "trustee_crypto": schemas.TrusteeCryptoBase.from_orm(trustee_crypto),
+        "encrypted_tally": encrypted_tally,
         "certificates": psifos_utils.to_json(certificates),
         "points": psifos_utils.to_json(points),
     }
@@ -1352,7 +1425,7 @@ async def trustee_decrypt_and_prove(
 
 # >>> Revisar
 @api_router.get(
-    "/{short_name}/questions", status_code=200, response_model=schemas.ElectionOut
+    "/{short_name}/questions", status_code=200, response_model=schemas.BoothElectionOut
 )
 async def get_questions(
     request: Request,
@@ -1364,37 +1437,20 @@ async def get_questions(
     Route for get questions
     """
     try:
+
         _, election = await get_auth_voter_and_election(
             session=session,
             short_name=short_name,
             voter_login_id=voter_login_id,
             status="Started",
         )
+
     except HTTPException: 
-        logger.error("Invalid Voter Access: %s (%s)" % (voter_login_id, short_name))
+        logger.error("%s - Invalid Voter Access: %s (%s)" % (request.client.host, voter_login_id, short_name))
         raise HTTPException(status_code=400, detail="voter not found")
     else:
-        logger.info("%s:%s - Valid Voter Access: %s (%s)" % (request.client.host, request.client.port, voter_login_id, election.short_name))
+        logger.log("PSIFOS", "%s - Valid Voter Access: %s (%s)" % (request.client.host, voter_login_id, election.short_name))
         return election
-
-
-@api_router.get("/{short_name}/questions", status_code=200)
-async def get_questions(
-    short_name: str,
-    current_user: models.User = Depends(AuthAdmin()),
-    session: Session | AsyncSession = Depends(get_session),
-):
-    """
-    Admin's route for getting all the questions of a specific election
-    """
-    election = await get_auth_election(
-        short_name=short_name, current_user=current_user, session=session
-    )
-    if not election.questions:
-        HTTPException(status_code=400, detail="The election doesn't have questions")
-
-    return Questions.serialize(election.questions)
-
 
 @api_router.get("/{short_name}/get-certificate", status_code=200)
 async def get_pdf(

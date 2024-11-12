@@ -42,7 +42,7 @@ class MixnetTally(AbstractTally):
     def get_tally(self):
         return [x.instances for x in self.tally.instances]
         
-    def compute(self, public_key, encrypted_answers, **kwargs) -> None:
+    def compute(self, public_key, encrypted_answers, **kwargs) -> None:        
         # first we create the list of ciphertexts
         ciphertexts = []
         for enc_ans in encrypted_answers:
@@ -59,7 +59,7 @@ class MixnetTally(AbstractTally):
         server_names = [MIXNET_01_NAME, MIXNET_02_NAME, MIXNET_03_NAME]
         server_urls = [MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL]
 
-        TOKEN = re.sub(r'[^a-zA-Z0-9]+', '', f'{election_name}{election_uuid}{time.time()}')
+        TOKEN = re.sub(r'[^a-zA-Z0-9]+', '', f'{election_name}{election_uuid}{time.time()}{self.q_num}')
 
         for name, url in zip(server_names, server_urls):
             requests.post(url=f"{url}/configure-mixnet", json={
@@ -134,7 +134,6 @@ class MixnetTally(AbstractTally):
 
         count_vote = self.count_votes(q_result, self.num_options)
         result = {
-            "tally_type": self.tally_type,
             "ans_results": count_vote
         }
 
