@@ -29,4 +29,4 @@ class TrusteeDecryptionsManager(SerializableList):
     def __init__(self, *args) -> None:
         super(TrusteeDecryptionsManager, self).__init__()
         for decryptions_dict in args:
-            self.instances.append(TrusteeDecryptionsGroup(**decryptions_dict))
+            self.instances.append(decryptions_dict)

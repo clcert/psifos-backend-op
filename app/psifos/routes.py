@@ -530,7 +530,7 @@ async def get_trustees(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session, election_params=election_params
     )
-    return await crud.get_simple_trustees_by_election_id(
+    return await crud.get_trustees_by_election_id(
         session=session, election_id=election.id
     )
 
@@ -579,6 +579,28 @@ async def create_trustee(
     )
     return {"message": "The trustee was successfully created"}
 
+@api_router.get("/{short_name}/trustee/{trustee_uuid}/get-decryptions", status_code=200)
+async def get_decryptions(
+    short_name: str,
+    trustee_uuid: str,
+    current_user: models.User = Depends(AuthAdmin()),
+    session: Session | AsyncSession = Depends(get_session),
+):
+    """
+    Route for get decryptions
+    """
+    election = await get_auth_election(
+        short_name=short_name, current_user=current_user, session=session
+    )
+    trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
+    trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
+        session=session, trustee_id=trustee.id, election_id=election.id
+    )
+    decryptions = await crud.get_decryptions_by_trustee_id(
+        session=session, trustee_crypto_id=trustee_crypto.id
+    )
+    return decryptions
+
 
 @api_router.post("/{short_name}/delete-trustee/{trustee_uuid}", status_code=200)
 async def delete_trustee(
@@ -593,28 +615,21 @@ async def delete_trustee(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
-    await crud.delete_trustee(
-        session=session, election_id=election.id, uuid=trustee_uuid
-    )
-    await crypto_crud.delete_unused_public_keys(session=session)
-    await crud.update_election(
-        session=session,
-        election_id=election.id,
-        fields={"total_trustees": election.total_trustees - 1},
-    )
-    return {"message": "The trustee was successfully deleted"}
 
     trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
         session=session, trustee_id=trustee.id, election_id=election.id
     )
 
+    # Existe una crypto asociada a este custodio para esta elección
     if trustee_crypto:
         await crud.delete_trustee_crypto(session=session, trustee_id=trustee.id, election_id=election.id)
+        await crypto_crud.delete_unused_public_keys(session=session)
         cryptos_election = await crud.get_trustees_crypto_by_election_id(
             session=session, election_id=election.id
         )
 
+        # Debemos actualizar el id de los otros custodios
         for index, crypto in enumerate(cryptos_election):
             await crud.update_trustee_crypto(
                 session=session,
@@ -627,6 +642,7 @@ async def delete_trustee(
         session=session, trustee_id=trustee.id
     )
 
+    # Si el custodio existe en otra elección, no lo eliminamos
     if len(other_crypto) == 0:
         await crud.delete_trustee(
             session=session, uuid=trustee_uuid
@@ -730,19 +746,20 @@ async def get_trustee_panel(
     Trustee's route for getting his home
     """
 
-    trustee_uuid = request.session.get("trustee_uuid", None)
-    if not trustee_uuid:
+    trustee_login_id = request.session.get("user", None)
+    if not trustee_login_id:
         raise HTTPException(status_code=400, detail="Custodio sin elecciones")
-
-    trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
+    trustee = await crud.get_trustee_by_login_id(session=session, trustee_login_id=trustee_login_id)
     if trustee.trustee_login_id != trustee_login_id:
         raise HTTPException(status_code=400, detail="No autorizado")
 
-    trustee_crypto = await crud.get_trustee_panel(session=session, trustee_id=trustee.id)
+    trustee_crypto = await crud.get_trustees_crypto_by_trustee_id(
+        session=session, trustee_id=trustee.id
+    )
     final = []
-    for trustee_crypto in trustee.trustee_crypto:
-        election = await crud.get_election_by_id(session=session, election_id=trustee_crypto.election_id)
-        crypto = schemas.TrusteeCryptoPanel.from_orm(trustee_crypto)
+    for t_c in trustee_crypto:
+        election = await crud.get_election_by_id(session=session, election_id=t_c.election_id)
+        crypto = schemas.TrusteeCryptoPanel.from_orm(t_c)
         crypto.election_short_name = election.short_name
         final.append(
             crypto
@@ -764,18 +781,16 @@ async def get_trustee_crypto(
     """
     Trustee's route for getting his crypto data
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
 
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
         session=session, trustee_id=trustee.id, election_id=election.id
     )
-
     return {
         "trustee": schemas.TrusteeBase.from_orm(trustee),
         "trustee_crypto": schemas.TrusteeCryptoBase.from_orm(trustee_crypto),
@@ -815,11 +830,10 @@ async def get_step(
     """
     Get the step of the trustee
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     _, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
     trustee_step = await crud.get_global_trustee_step(
@@ -862,11 +876,10 @@ async def trustee_upload_pk(
     """
     Upload public key of trustee
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
 
@@ -909,11 +922,10 @@ async def post_trustee_step_1(
     """
     Step 1 of the keygenerator trustee
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
 
@@ -967,11 +979,10 @@ async def get_trustee_step_1(
     """
     Step 1 of the keygenerator trustee
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     _, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
     global_trustee_step = await crud.get_global_trustee_step(
@@ -1013,11 +1024,10 @@ async def post_trustee_step_2(
     """
     Step 2 of the keygenerator trustee
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
     global_trustee_step = await crud.get_global_trustee_step(
@@ -1052,11 +1062,10 @@ async def get_trustee_step_2(
     """
     Step 2 of the keygenerator trustee
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
 
@@ -1118,11 +1127,10 @@ async def post_trustee_step_3(
     """
     Step 3 of the keygenerator trustee
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
     global_trustee_step = await crud.get_global_trustee_step(
@@ -1136,17 +1144,17 @@ async def post_trustee_step_3(
     pk_data = psifos_utils.from_json(trustee_data.verification_key)
 
     # TODO: perform server-side checks here!
-    await crud.update_trustee_crypto(
-        session=session,
-        trustee_id=trustee.id,
-        election_id=election.id,
-        fields={"public_key": pk, "current_step": 4},
-    )
-
     public_key = await crypto_crud.create_public_key(
         session=session,
         public_key=pk_data,
     )
+    await crud.update_trustee_crypto(
+        session=session,
+        trustee_id=trustee.id,
+        election_id=election.id,
+        fields={"current_step": 4, "public_key_id": public_key.id},
+    )
+
 
     logger.log("PSIFOS", "%s - Valid Key Generation: %s (%s)" % (request.client.host, trustee_login_id, short_name))
     return {"message": "Keygenerator step 3 completed successfully"}
@@ -1162,11 +1170,10 @@ async def post_trustee_step_3(
     """
     Step 3 of the keygenerator trustee
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
 
@@ -1244,11 +1251,10 @@ async def trustee_check_sk(
     """
     Trustee Stage 2
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
 
@@ -1276,17 +1282,19 @@ async def trustee_decrypt_and_prove(
     """
     Trustee Stage 3
     """
-    trustee_uuid = request.session.get("trustee_uuid", None)
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
         status=ElectionStatusEnum.tally_computed,
     )
 
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
         session=session, trustee_id=trustee.id, election_id=election.id
+    )
+    public_key = await crypto_crud.get_public_key(
+        session=session, id=trustee_crypto.public_key_id
     )
 
     decryption_list = psifos_utils.from_json(trustee_data)
@@ -1297,14 +1305,14 @@ async def trustee_decrypt_and_prove(
         )
         encrypted_tally_group = await crud.get_tally_by_group(session=session, election_id=election.id, group=decryption.group)
         if answers_decryptions.decryptions.verify(
-            public_key=trustee.public_key,
+            public_key=public_key,
             encrypted_tally=encrypted_tally_group,
         ):
             for q_num, dec in enumerate(answers_decryptions.decryptions.instances):
                 
                 await crud.create_decryption(
                     session=session,
-                    trustee_id=trustee.id,
+                    trustee_crypto_id=trustee_crypto.id,
                     group=decryption.group,
                     q_num=q_num,
                     decryption=dec,
@@ -1328,18 +1336,13 @@ async def trustee_decrypt_and_prove(
             session=session,
             trustee_id=trustee.id,
             election_id=election.id,
-            fields={"decryptions": decryptions},
+            fields={"current_step": 5},
         )
         dec_num = election.decryptions_uploaded + 1
         election = await crud.update_election(
             session=session,
             election_id=election.id,
             fields={"decryptions_uploaded": dec_num},
-        )
-        await crud.update_trustee(
-            session=session,
-            trustee_id=trustee.id,
-            fields={"current_step": 5},
         )
         logger.log("PSIFOS", "%s - Valid Decryptions Received: %s (%s)" % (request.client.host, trustee.trustee_login_id, short_name))
         await psifos_logger.info(
@@ -1383,12 +1386,11 @@ async def trustee_decrypt_and_prove(
 ):
     """
     Trustee Stage 3
-    """
-    trustee_uuid = request.session.get("trustee_uuid", None)
+    """ 
     trustee, election = await get_auth_trustee_and_election(
         session=session,
         short_name=short_name,
-        trustee_uuid=trustee_uuid,
+        trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
     )
 

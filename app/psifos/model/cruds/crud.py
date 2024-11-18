@@ -50,9 +50,6 @@ VOTER_QUERY_OPTIONS = selectinload(
     models.Voter.cast_vote
 )
 
-TRUSTEE_QUERY_OPTIONS = selectinload(
-    models.Trustee.trustee_crypto
-)
 
 # ----- Voter CRUD Utils -----
 
@@ -223,6 +220,10 @@ async def get_trustee_panel(session: Session | AsyncSession, trustee_id: int):
     query = select(models.TrusteeCrypto, models.Election.short_name).join(
         models.Election, models.TrusteeCrypto.election_id == models.Election.id).where(
         models.TrusteeCrypto.trustee_id == trustee_id
+    ).options(
+        selectinload(
+            models.TrusteeCrypto.public_key
+        )
     )
     result = await db_handler.execute(session, query)
     return result.scalars().all()
@@ -250,7 +251,9 @@ async def get_trustees_by_election_id(session: Session | AsyncSession, election_
         models.TrusteeCrypto, models.TrusteeCrypto.trustee_id == models.Trustee.id).where(
         models.TrusteeCrypto.election_id == election_id
     ).options(
-        TRUSTEE_QUERY_OPTIONS
+        selectinload(
+            models.Trustee.trustee_crypto
+        )
     )
 
     result = await db_handler.execute(session, query)
@@ -325,6 +328,8 @@ async def get_trustee_crypto_by_trustee_id_election_id(session: Session | AsyncS
     query = select(models.TrusteeCrypto).where(
         models.TrusteeCrypto.trustee_id == trustee_id,
         models.TrusteeCrypto.election_id == election_id
+    ).options(
+        *TRUSTEE_QUERY_OPTIONS
     )
     result = await db_handler.execute(session, query)
     return result.scalars().first()
@@ -339,6 +344,8 @@ async def get_trustees_crypto_by_election_id(session: Session | AsyncSession, el
 async def get_trustees_crypto_by_trustee_id(session: Session | AsyncSession, trustee_id: int):
     query = select(models.TrusteeCrypto).where(
         models.TrusteeCrypto.trustee_id == trustee_id
+    ).options(
+        *TRUSTEE_QUERY_OPTIONS
     )
     result = await db_handler.execute(session, query)
     return result.scalars().all()
@@ -564,24 +571,24 @@ async def get_tally_by_election_id(session: Session | AsyncSession, election_id:
 
 # --- Decryption CRUD Utils ---
 
-async def get_decryptions_homomorphic_by_trustee_id(session: Session | AsyncSession, trustee_id: int):
-    query = select(HomomorphicDecryption).where(HomomorphicDecryption.trustee_id == trustee_id)
+async def get_decryptions_homomorphic_by_trustee_id(session: Session | AsyncSession, trustee_crypto_id: int):
+    query = select(HomomorphicDecryption).where(HomomorphicDecryption.trustee_crypto_id == trustee_crypto_id)
     result = await db_handler.execute(session, query)
     return result.scalars().all()
 
-async def get_decryptions_mixnet_by_trustee_id(session: Session | AsyncSession, trustee_id: int):
-    query = select(MixnetDecryption).where(MixnetDecryption.trustee_id == trustee_id)
+async def get_decryptions_mixnet_by_trustee_id(session: Session | AsyncSession, trustee_crypto_id: int):
+    query = select(MixnetDecryption).where(MixnetDecryption.trustee_crypto_id == trustee_crypto_id)
     result = await db_handler.execute(session, query)
     return result.scalars().all()
 
-async def get_decryptions_by_trustee_id(session: Session | AsyncSession, trustee_id: int):
-    homorphic = await get_decryptions_homomorphic_by_trustee_id(session=session, trustee_id=trustee_id)
-    mixnet = await get_decryptions_mixnet_by_trustee_id(session=session, trustee_id=trustee_id)
+async def get_decryptions_by_trustee_id(session: Session | AsyncSession, trustee_crypto_id: int):
+    homorphic = await get_decryptions_homomorphic_by_trustee_id(session=session, trustee_crypto_id=trustee_crypto_id)
+    mixnet = await get_decryptions_mixnet_by_trustee_id(session=session, trustee_crypto_id=trustee_crypto_id)
     return homorphic + mixnet
 
-async def create_decryption(session: Session | AsyncSession, trustee_id: int, group: str, q_num: int, decryption: schemas.DecryptionIn):
+async def create_decryption(session: Session | AsyncSession, trustee_crypto_id: int, group: str, q_num: int, decryption: schemas.DecryptionIn):
     decryption.group = group
-    decryption.trustee_id = trustee_id
+    decryption.trustee_crypto_id = trustee_crypto_id
     decryption.q_num = q_num
     db_handler.add(session, decryption)
     await db_handler.commit(session)

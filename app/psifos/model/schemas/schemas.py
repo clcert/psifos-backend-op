@@ -191,13 +191,6 @@ class TrusteeOut(TrusteeBase):
 
     id: int
     uuid: str
-    trustee_crypto: list[TrusteeCryptoBase] = []
-    current_step: int
-    public_key: PublicKeyBase | None
-    public_key_hash: str | None
-    certificate: object | None
-    coefficients: object | None
-    acknowledgements: object | None
 
     class Config:
         orm_mode = True
