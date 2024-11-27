@@ -315,6 +315,16 @@ async def delete_voter(
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session
     )
+    voter = await crud.get_voter_by_login_id_and_election_id(
+        session=session, voter_login_id=voter_login_id, election_id=election.id
+    )
+    voter_cast_votes = await crud.get_cast_vote_by_voter_id(
+        session=session, voter_id=voter.id
+    )
+    if voter_cast_votes:
+        raise HTTPException(
+            status_code=400, detail="The voter has already cast votes"
+        )
     await crud.delete_election_voter(
         session=session, election_id=election.id, voter_login_id=voter_login_id
     )
@@ -1624,7 +1634,8 @@ async def get_count_logs_by_date(
         short_name=short_name, current_user=current_user, session=session
     )
 
-    if election.election_status == "Setting up":
+    states_without_data = ["Setting up", "Ready for key generation", "Ready for opening"]
+    if election.election_status in states_without_data:
         return {}
 
     date_init = election.voting_started_at
