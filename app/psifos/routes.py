@@ -329,6 +329,85 @@ async def delete_voter(
         voter_login_id=voter_login_id,
     )
 
+@api_router.post("/{short_name}/ready-key-generation", status_code=200)
+async def ready_key_generation(
+    short_name: str,
+    current_user: models.User = Depends(AuthAdmin()),
+    session: Session | AsyncSession = Depends(get_session),
+):
+    """
+    Route for ready key generation
+    """
+    election = await get_auth_election(
+        short_name=short_name, 
+        current_user=current_user, 
+        session=session,
+        status=ElectionStatusEnum.setting_up
+    )
+    status, message = election.ready_key_generation() 
+    if not status:
+        raise HTTPException(status_code=400, detail=message)
+    
+    await crud.update_election(
+        session=session, election_id=election.id, fields={"election_status": ElectionStatusEnum.ready_key_generation}
+    )
+
+    await psifos_logger.info(
+        election_id=election.id, event=ElectionPublicEventEnum.KEY_GENERATION_READY
+    )
+    return {"message": message}
+
+@api_router.post("/{short_name}/back-to-setting-up", status_code=200)
+async def back_to_setting_up(
+    short_name: str,
+    current_user: models.User = Depends(AuthAdmin()),
+    session: Session | AsyncSession = Depends(get_session),
+):
+    """
+    Route for back to setting up
+    """
+    election = await get_auth_election(
+        short_name=short_name, 
+        current_user=current_user, 
+        session=session,
+        status=ElectionStatusEnum.ready_key_generation
+    )
+    await crud.update_election(
+        session=session, election_id=election.id, fields={"election_status": ElectionStatusEnum.setting_up}
+    )
+
+    await psifos_logger.info(
+        election_id=election.id, event=ElectionPublicEventEnum.BACK_TO_SETTING_UP
+    )
+    return {"message": "The election was successfully set up"}
+
+@api_router.post("/{short_name}/ready-opening", status_code=200)
+async def ready_opening(
+    short_name: str,
+    current_user: models.User = Depends(AuthAdmin()),
+    session: Session | AsyncSession = Depends(get_session),
+):
+    """
+    Route for ready opening
+    """
+    election = await get_auth_election(
+        short_name=short_name, 
+        current_user=current_user, 
+        session=session,
+        status=ElectionStatusEnum.ready_key_generation
+    )
+    status, message = election.ready_opening()
+    if not status:
+        raise HTTPException(status_code=400, detail=message)
+    
+    await crud.update_election(
+        session=session, election_id=election.id, fields={"election_status": ElectionStatusEnum.ready_opening}
+    )
+
+    await psifos_logger.info(
+        election_id=election.id, event=ElectionPublicEventEnum.OPENING_READY
+    )
+    return {"message": message}
 
 @api_router.post("/{short_name}/start-election", status_code=200)
 async def start_election(
@@ -344,7 +423,7 @@ async def start_election(
         short_name=short_name,
         current_user=current_user,
         session=session,
-        status=ElectionStatusEnum.setting_up,
+        status=ElectionStatusEnum.ready_opening,
     )
     await crud.update_election(
         session=session, election_id=election.id, fields=await election.start(session=session)
@@ -761,6 +840,7 @@ async def get_trustee_panel(
         election = await crud.get_election_by_id(session=session, election_id=t_c.election_id)
         crypto = schemas.TrusteeCryptoPanel.from_orm(t_c)
         crypto.election_short_name = election.short_name
+        crypto.election_status = election.election_status
         final.append(
             crypto
         )
@@ -881,6 +961,7 @@ async def trustee_upload_pk(
         short_name=short_name,
         trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
+        status=ElectionStatusEnum.ready_key_generation
     )
 
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
@@ -927,6 +1008,7 @@ async def post_trustee_step_1(
         short_name=short_name,
         trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
+        status=ElectionStatusEnum.ready_key_generation
     )
 
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
@@ -984,6 +1066,7 @@ async def get_trustee_step_1(
         short_name=short_name,
         trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
+        status=ElectionStatusEnum.ready_key_generation
     )
     global_trustee_step = await crud.get_global_trustee_step(
         session=session, election_id=election.id
@@ -1029,6 +1112,7 @@ async def post_trustee_step_2(
         short_name=short_name,
         trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
+        status=ElectionStatusEnum.ready_key_generation
     )
     global_trustee_step = await crud.get_global_trustee_step(
         session=session, election_id=election.id
@@ -1067,6 +1151,7 @@ async def get_trustee_step_2(
         short_name=short_name,
         trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
+        status=ElectionStatusEnum.ready_key_generation
     )
 
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
@@ -1132,6 +1217,7 @@ async def post_trustee_step_3(
         short_name=short_name,
         trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
+        status=ElectionStatusEnum.ready_key_generation
     )
     global_trustee_step = await crud.get_global_trustee_step(
         session=session, election_id=election.id
@@ -1155,6 +1241,15 @@ async def post_trustee_step_3(
         fields={"current_step": 4, "public_key_id": public_key.id},
     )
 
+    global_trustee_step = await crud.get_global_trustee_step(
+        session=session, election_id=election.id
+    )
+
+    if global_trustee_step == 4:
+        await crud.update_election(
+            session=session, election_id=election.id, fields={"election_status": ElectionStatusEnum.ready_opening}
+        )
+
 
     logger.log("PSIFOS", "%s - Valid Key Generation: %s (%s)" % (request.client.host, trustee_login_id, short_name))
     return {"message": "Keygenerator step 3 completed successfully"}
@@ -1175,6 +1270,7 @@ async def post_trustee_step_3(
         short_name=short_name,
         trustee_login_id=trustee_login_id,
         login_id=trustee_login_id,
+        status=ElectionStatusEnum.ready_key_generation
     )
 
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(

@@ -129,6 +129,24 @@ class Election(Base):
         }
 
         return params
+    
+    def ready_key_generation(self):
+        if not self.questions:
+            return False, "No questions found in the election"
+        
+        if not self.trustees:
+            return False, "No trustees found in the election"
+        
+        if self.election_login_type == ElectionLoginTypeEnum.close_p and not self.voters:
+            return False, "No voters found in the election"
+        
+        return True, "The election is ready for key generation"
+    
+    def ready_opening(self):
+        not_ready_trustees = [t.name for t in self.trustees if t.current_step != 4]
+        if not_ready_trustees:
+            return False, f"Trustees not ready to open the election: {', '.join(not_ready_trustees)}"
+        return True, "The election is ready to be opened"
 
     async def start(self, session):
         normalized_weights = {}

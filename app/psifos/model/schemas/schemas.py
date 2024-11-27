@@ -85,6 +85,7 @@ class TrusteeCryptoPanel(TrusteeCryptoBase):
     Basic trustee schema.
     """
     election_short_name: str | None
+    election_status: str | None
 
     class Config:
         orm_mode = True
