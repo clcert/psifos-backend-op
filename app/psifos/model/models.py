@@ -60,7 +60,6 @@ class Election(Base):
 
     questions = relationship("AbstractQuestion", cascade="all, delete", back_populates="election")
 
-    obscure_voter_names = Column(Boolean, default=False, nullable=False) # Lo eliminamos?
     randomized_options = Column(Boolean, default=False, nullable=False)
     normalized = Column(Boolean, default=False, nullable=False)
     grouped_voters = Column(Boolean, default=False, nullable=False)
