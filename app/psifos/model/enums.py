@@ -58,3 +58,12 @@ class ElectionLoginTypeEnum(str, enum.Enum):
     close_p = "Close"
     open_p = "Open"
     semi_close_p = "Semi Public"
+
+class TrusteeStepEnum(int, enum.Enum):
+    config_step = 0
+    secret_key_step = 1
+    certificates_step = 2
+    coefficients_step = 3
+    points_step = 4
+    waiting_decryptions = 5
+    decryptions_sent = 6

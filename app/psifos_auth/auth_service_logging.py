@@ -88,7 +88,7 @@ class AbstractAuth(object):
 
         query_params = [
             crud.models.Election.id,
-            crud.models.Election.election_login_type,
+            crud.models.Election.voters_login_type,
         ]
 
         election = await crud.get_election_params_by_name(
@@ -99,7 +99,7 @@ class AbstractAuth(object):
         )
 
         if (voter is not None) or (
-            not election.election_login_type == ElectionLoginTypeEnum.close_p
+            not election.voters_login_type == ElectionLoginTypeEnum.close_p
         ):
             await psifos_logger.info(
                 election_id=election.id,
@@ -327,7 +327,7 @@ class OAuth2Auth(AbstractAuth):
             return await self.check_trustee(db_session, short_name, request)
         
         elif isPanel:
-            trustee = await crud.get_trustee_by_login_id(session=db_session, trustee_login_id=user)
+            trustee = await crud.username(session=db_session, username=user)
             if trustee:
                 request.session["trustee_uuid"] = trustee.uuid
 

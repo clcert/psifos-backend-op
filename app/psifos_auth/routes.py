@@ -56,14 +56,14 @@ async def login_voter(short_name: str, request: Request, redirect: bool = Query(
     """
     
     query_params = [
-        models.Election.election_login_type,
+        models.Election.voters_login_type,
     ]
 
     election = await crud.get_election_params_by_name(session=session, short_name=short_name, params=query_params)
     if not election:
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}
 
-    if election.election_login_type == ElectionLoginTypeEnum.open_p:
+    if election.voters_login_type == ElectionLoginTypeEnum.open_p:
         request.session["public_election"] = True
         request.session["user"] = str(uuid.uuid4())
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}

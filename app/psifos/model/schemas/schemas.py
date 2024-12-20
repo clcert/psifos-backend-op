@@ -34,7 +34,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, validator, root_validator
 
 from app.database.serialization import SerializableList, SerializableObject
-from app.psifos.model.enums import ElectionTypeEnum, ElectionStatusEnum, ElectionLoginTypeEnum
+from app.psifos.model.enums import ElectionTypeEnum, ElectionStatusEnum, ElectionLoginTypeEnum, TrusteeStepEnum
 
 from typing import Optional, List
 
@@ -67,7 +67,7 @@ class TrusteeCryptoBase(PsifosSchema):
     Basic trustee schema.
     """
     trustee_election_id: int | None
-    current_step: int | None
+    current_step: TrusteeStepEnum | None
     public_key: str | object | None
     public_key_hash: str | None
     decryptions: str | object | None
@@ -121,18 +121,17 @@ class TallyBase(PsifosSchema):
     """
     Basic tally schema.
     """
-    election_id: int
-    group: str
+    group: str | None
     with_votes: bool
     tally_type: str
-    q_num: int
+    index: int
     num_options: int
     computed: bool
     num_tallied: int
     max_answers: int | None
     num_of_winners: int | None
-    include_blank_null: bool | None
-    tally: object | None
+    include_informal_options: bool | None
+    encrypted_tally: object | None
 
     class Config:
         orm_mode = True
@@ -141,20 +140,18 @@ class QuestionBase(PsifosSchema):
     """
     Schema for creating a question.
     """
-    q_num: int
-    q_type: str
-    q_text: str
-    q_description: str | None
+    index: int
+    type: str
+    title: str
+    description: str | None
+    formal_options: List[str] | None
     total_options: int
-    total_closed_options: int
-    closed_options_list: List[str] | None
     max_answers: int
     min_answers: int
-    include_blank_null: bool | None
-    excluding_groups: bool | None
+    include_informal_options: bool | None
+    excluded_options: bool | None
     tally_type: str
-    group_votes: bool | None
-    excluding_groups: bool | None
+    grouped_options: bool | None
     num_of_winners: int | None
     options_specifications: List[str] | None
 
@@ -170,7 +167,7 @@ class TrusteeBase(PsifosSchema):
 
     name: str
     email: str
-    trustee_login_id: str
+    username: str
 
     class Config:
         orm_mode = True
@@ -191,7 +188,6 @@ class TrusteeOut(TrusteeBase):
     """
 
     id: int
-    uuid: str
 
     class Config:
         orm_mode = True
@@ -241,10 +237,11 @@ class VoterBase(PsifosSchema):
     Basic election schema.
     """
 
-    voter_login_id: str
-    voter_weight: int
-    voter_name: str
-    login_id_election_id: str
+    username: str
+    weight_init: int
+    weight_end: int | None
+    name: str
+    username_election_id: str
     group: str | None
 
 
@@ -280,15 +277,15 @@ class ElectionBase(PsifosSchema):
     """
 
     short_name: str = Field(max_length=100)
-    name: str = Field(max_length=100)
+    long_name: str = Field(max_length=100)
     description: str | None
-    election_type: ElectionTypeEnum = Field(max_length=100)
+    type: ElectionTypeEnum = Field(max_length=100)
     max_weight: int
     obscure_voter_names: bool | None
-    randomize_answer_order: bool | None
-    election_login_type: ElectionLoginTypeEnum =Field(max_length=100)
-    normalization: bool | None
-    grouped: bool | None
+    randomized_options: bool | None
+    voters_login_type: ElectionLoginTypeEnum =Field(max_length=100)
+    normalized: bool | None
+    grouped_voters: bool | None
 
 
 class ElectionIn(ElectionBase):
@@ -306,13 +303,9 @@ class ElectionOut(ElectionBase):
 
 
     id: int
-    uuid: str
-    election_status: ElectionStatusEnum
-    decryptions_uploaded: int
+    status: ElectionStatusEnum
     public_key: PublicKeyBase | None
     questions: list[QuestionBase] | None
-    total_voters: int
-    total_trustees: int
     encrypted_tally_hash: str | None
     result: object | None
     voters_by_weight_init: str | None
@@ -325,22 +318,18 @@ class ElectionOut(ElectionBase):
 class BoothElectionOut(PsifosSchema):
 
     id: int
-    election_status: ElectionStatusEnum
+    status: ElectionStatusEnum
     public_key: PublicKeyBase | None
     questions: list[QuestionBase] | None
-    uuid: str | None
-    name: str | None
+    short_name: str | None
     class Config:
         orm_mode = True
 
 class SimpleElection(ElectionBase):
 
     id: int
-    uuid: str
-    election_status: ElectionStatusEnum
+    status: ElectionStatusEnum
     decryptions_uploaded: int
-    total_voters: int
-    total_trustees: int
 
 
     class Config:

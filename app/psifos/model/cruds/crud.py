@@ -7,13 +7,14 @@ CRUD utils for Psifos
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 
 from app.psifos import utils
 from app.psifos.crypto.sharedpoint import Point
 from app.psifos.model import models
 from app.psifos.model.decryptions import DecryptionFactory, HomomorphicDecryption, MixnetDecryption
 from app.psifos.model.schemas import schemas
+from app.psifos.model.enums import TrusteeStepEnum
 from sqlalchemy import select, update, delete
 from sqlalchemy.orm import selectinload, defer, joinedload, with_polymorphic
 from app.database import db_handler
@@ -73,9 +74,9 @@ async def get_voter_by_voter_id(session: Session | AsyncSession, voter_id: int):
     return result.scalars().first()
 
 
-async def get_voter_by_login_id_and_election_id(session: Session | AsyncSession, voter_login_id: int, election_id: int):
+async def get_voter_by_login_id_and_election_id(session: Session | AsyncSession, username: int, election_id: int):
     query = select(models.Voter).where(
-        models.Voter.voter_login_id == voter_login_id,
+        models.Voter.username == username,
         models.Voter.election_id == election_id
     ).options(
         VOTER_QUERY_OPTIONS
@@ -97,10 +98,10 @@ async def get_voters_with_valid_vote(session: Session | AsyncSession, election_i
     return [v for v in voters if v.valid_cast_votes >= 1]
 
 
-async def get_voter_by_login_id_and_election_id(session: Session | AsyncSession, voter_login_id: str, election_id: int):
+async def get_voter_by_login_id_and_election_id(session: Session | AsyncSession, username: str, election_id: int):
     query = select(models.Voter).where(
         models.Voter.election_id == election_id,
-        models.Voter.voter_login_id == voter_login_id
+        models.Voter.username == username
     ).options(
         VOTER_QUERY_OPTIONS
     )
@@ -108,15 +109,15 @@ async def get_voter_by_login_id_and_election_id(session: Session | AsyncSession,
     return result.scalars().first()
 
 
-async def edit_voter(voter_login_id: str, session: Session | AsyncSession, election_id: int, fields: dict):
+async def edit_voter(username: str, session: Session | AsyncSession, election_id: int, fields: dict):
     query = update(models.Voter).where(
         models.Voter.election_id == election_id,
-        models.Voter.voter_login_id == voter_login_id
+        models.Voter.username == username
     ).values(fields)
     await db_handler.execute(session, query)
     await db_handler.commit(session)
 
-    return await get_voter_by_login_id_and_election_id(voter_login_id=voter_login_id, session=session, election_id=election_id)
+    return await get_voter_by_login_id_and_election_id(username=username, session=session, election_id=election_id)
 
 
 async def create_voter(session: Session | AsyncSession, election_id: str, voter: schemas.VoterIn):
@@ -139,11 +140,21 @@ async def delete_election_voters(session: Session | AsyncSession, election_id: i
     await db_handler.commit(session)
 
 
-async def delete_election_voter(session: Session | AsyncSession,  election_id, voter_login_id):
+async def delete_election_voter(session: Session | AsyncSession,  election_id, username):
     query = delete(models.Voter).where(models.Voter.election_id ==
-                                       election_id, models.Voter.voter_login_id == voter_login_id)
+                                       election_id, models.Voter.username == username)
     await db_handler.execute(session, query)
     await db_handler.commit(session)
+
+async def has_valid_vote(session: Session | AsyncSession, election_id: int, username: str):
+    query = select(models.Voter).join(
+        models.CastVote, models.CastVote.voter_id == models.Voter.id).where(
+        models.Voter.election_id == election_id,
+        models.Voter.username == username,
+        models.CastVote.is_valid
+    )
+    result = await db_handler.execute(session, query)
+    return len(result.all()) > 0
 
 
 # ----- CastVote CRUD Utils -----
@@ -159,11 +170,19 @@ async def get_cast_vote_by_voter_id(session: Session | AsyncSession, voter_id: i
 
 async def get_cast_vote_by_hash(session: Session | AsyncSession, hash_vote: str):
     query = select(models.CastVote).where(
-        models.CastVote.vote_hash == hash_vote
+        models.CastVote.encrypted_ballot_hash == hash_vote
     )
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
+async def get_count_valid_cast_votes_by_election_id(session: Session | AsyncSession, election_id: int):
+    query = select(func.count(models.CastVote.id)).join(
+        models.Voter, models.Voter.id == models.CastVote.voter_id).where(
+        models.Voter.election_id == election_id,
+        models.CastVote.is_valid,
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalar()
 
 async def count_cast_vote_by_date(session: Session | AsyncSession, init_date, end_date, election_id: int):
 
@@ -238,9 +257,9 @@ async def get_by_login_id_and_election_id(session: Session | AsyncSession, trust
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
-async def get_trustee_by_login_id(session: Session | AsyncSession, trustee_login_id: str):
+async def get_trustee_by_username(session: Session | AsyncSession, username: str):
     query = select(models.Trustee).where(
-        models.Trustee.trustee_login_id == trustee_login_id
+        models.Trustee.username == username
     )
     result = await db_handler.execute(session, query)
     return result.scalars().first()
@@ -259,6 +278,17 @@ async def get_trustees_by_election_id(session: Session | AsyncSession, election_
     result = await db_handler.execute(session, query)
     result = result.scalars().all()
     return result
+
+async def get_trustees_params_by_election_id(session: Session | AsyncSession, election_id: int, params: list):
+    # Explicitly specify the initial table with select_from
+    query = (
+        select(*params)
+        .select_from(models.TrusteeCrypto)  # Start from TrusteeCrypto
+        .join(models.Trustee, models.TrusteeCrypto.trustee_id == models.Trustee.id)  # Explicit join condition
+        .where(models.TrusteeCrypto.election_id == election_id)  # Filter by election_id
+    )
+    result = await db_handler.execute(session, query)
+    return result.all()
 
 async def get_crypto_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
     query = select(models.TrusteeCrypto).where(
@@ -283,9 +313,8 @@ async def get_global_trustee_step(session: Session | AsyncSession, election_id: 
     return 0 if len(trustee_steps) == 0 else min(trustee_steps)
 
 
-async def create_trustee(session: Session | AsyncSession, uuid: str, trustee: schemas.TrusteeIn):
+async def create_trustee(session: Session | AsyncSession, trustee: schemas.TrusteeIn):
     db_trustee = models.Trustee(
-        uuid=uuid,
         **trustee.dict()
     )
     db_handler.add(session, db_trustee)
@@ -368,6 +397,13 @@ async def delete_trustee_crypto(session: Session | AsyncSession, trustee_id: int
     )
     await db_handler.execute(session, query)
     await db_handler.commit(session)
+
+async def get_total_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
+    query = select(func.count(models.Trustee.id)).where(
+        models.TrusteeCrypto.election_id == election_id
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalar()
 
 # ----- SharedPoint CRUD Utils -----
 
@@ -465,9 +501,9 @@ async def get_num_casted_votes(session: Session | AsyncSession, election_id: int
     return len([v for v in voters if v.valid_cast_votes >= 1])
 
 
-async def create_election(session: Session | AsyncSession, election: schemas.ElectionIn, admin_id: int, uuid: str):
+async def create_election(session: Session | AsyncSession, election: schemas.ElectionIn, admin_id: int):
     db_election = models.Election(
-        **election.dict(), admin_id=admin_id, uuid=uuid)
+        **election.dict(), admin_id=admin_id)
     db_handler.add(session, db_election)
     await db_handler.commit(session)
     await db_handler.refresh(session, db_election)
@@ -509,6 +545,20 @@ async def edit_questions(session: Session | AsyncSession, db_election: models.El
     await db_handler.refresh(session, db_election)
     return db_election
 
+async def get_question_by_election_id_and_index(session: Session | AsyncSession, election_id: int, index: int):
+    query = select(models.AbstractQuestion).where(
+        models.AbstractQuestion.election_id == election_id,
+        models.AbstractQuestion.index == index
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().first()
+
+async def get_questions_by_election_id(session: Session | AsyncSession, election_id: int):
+    query = select(models.AbstractQuestion).where(
+        models.AbstractQuestion.election_id == election_id
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
 
 async def get_groups_by_election_id(session: Session | AsyncSession, election_id: int):
     query = select(models.Voter.group).where(models.Voter.election_id == election_id).distinct()
@@ -518,13 +568,12 @@ async def get_groups_by_election_id(session: Session | AsyncSession, election_id
 
 # --- PsifosLog CRUD Utils ---
 
-async def log_to_db(session: Session | AsyncSession, election_id: int, log_level: str, event: str, event_params: str, created_at: str):
+async def log_to_db(session: Session | AsyncSession, election_id: int, log_level: str, event: str, event_params: str):
     db_log = models.ElectionLog(
         election_id=election_id,
         log_level=log_level,
         event=event,
         event_params=event_params,
-        created_at=created_at,
     )
     db_handler.add(session, db_log)
     await db_handler.commit(session)
@@ -555,16 +604,18 @@ async def get_logs_by_type(session: Session | AsyncSession, election_id: int, ty
 # --- Tally CRUD Utils ---
 async def get_tally_by_group(session: Session | AsyncSession, election_id: int, group: str):
     tally_polymorphic = with_polymorphic(models.Tally, "*")
-    query = select(tally_polymorphic).where(
-        models.Tally.election_id == election_id,
+    query = select(tally_polymorphic).join(
+        models.AbstractQuestion, models.AbstractQuestion.id == models.Tally.question_id).where(
+        models.AbstractQuestion.election_id == election_id,
         models.Tally.group == group
     )
     result = await db_handler.execute(session, query)
     return result.scalars().all()
 
 async def get_tally_by_election_id(session: Session | AsyncSession, election_id: int):
-    query = select(models.Tally).where(
-        models.Tally.election_id == election_id
+    query = select(models.Tally, models.AbstractQuestion.index).join(
+        models.AbstractQuestion, models.AbstractQuestion.id == models.Tally.question_id).where(
+        models.AbstractQuestion.election_id == election_id
     )
     result = await db_handler.execute(session, query)
     return result.scalars().all()
@@ -586,10 +637,11 @@ async def get_decryptions_by_trustee_id(session: Session | AsyncSession, trustee
     mixnet = await get_decryptions_mixnet_by_trustee_id(session=session, trustee_crypto_id=trustee_crypto_id)
     return homorphic + mixnet
 
-async def create_decryption(session: Session | AsyncSession, trustee_crypto_id: int, group: str, q_num: int, decryption: schemas.DecryptionIn):
+async def create_decryption(session: Session | AsyncSession, trustee_crypto_id: int, group: str, question: schemas.QuestionBase, decryption: schemas.DecryptionIn):
     decryption.group = group
     decryption.trustee_crypto_id = trustee_crypto_id
-    decryption.q_num = q_num
+    decryption.question = question
+    decryption.question_id = question.id
     db_handler.add(session, decryption)
     await db_handler.commit(session)
     await db_handler.refresh(session, decryption)

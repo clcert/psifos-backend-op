@@ -16,7 +16,7 @@ async def create_question(session: Session | AsyncSession, election_id: int, que
     return db_question
 
 async def edit_question(session: Session | AsyncSession, election_id, question_id: int, question: QuestionBase):
-    db_question = await get_question_by_q_num(session, election_id, question_id)
+    db_question = await get_question_by_index(session, election_id, question_id)
     for key, value in question.items():
         setattr(db_question, key, value)
     await session.commit()
@@ -26,8 +26,8 @@ async def edit_question(session: Session | AsyncSession, election_id, question_i
 async def get_questions_by_election_id(session: Session | AsyncSession, election_id: int):
     return await session.execute(select(AbstractQuestion).filter(AbstractQuestion.election_id == election_id))
 
-async def get_question_by_q_num(session: Session | AsyncSession, election_id: int, q_num: int):
-    db_question = await session.execute(select(AbstractQuestion).filter(AbstractQuestion.election_id == election_id, AbstractQuestion.q_num == q_num))
+async def get_question_by_index(session: Session | AsyncSession, election_id: int, index: int):
+    db_question = await session.execute(select(AbstractQuestion).filter(AbstractQuestion.election_id == election_id, AbstractQuestion.index == index))
     return db_question.scalars().first()
 
 
@@ -35,3 +35,8 @@ async def delete_question(session: Session | AsyncSession, question_id: int):
     await session.execute(delete(AbstractQuestion).filter(AbstractQuestion.id == question_id))
     await session.commit()
     return question_id
+
+async def delete_questions_by_election_id_index(session: Session | AsyncSession, election_id: int, index: int):
+    await session.execute(delete(AbstractQuestion).filter(AbstractQuestion.election_id == election_id, AbstractQuestion.index == index))
+    await session.commit()
+    return index

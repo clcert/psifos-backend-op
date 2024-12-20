@@ -22,7 +22,7 @@ async def get_auth_election(short_name: str, current_user: auth_models.User, ses
     if election_params:
         election_params = [*election_params, 
                            models.Election.id,
-                           models.Election.election_status,
+                           models.Election.status,
                            models.Election.admin_id]
         election = await crud.get_election_params_by_name(session=session, short_name=short_name, params=election_params)
     else:
@@ -31,54 +31,54 @@ async def get_auth_election(short_name: str, current_user: auth_models.User, ses
         raise HTTPException(status_code=404, detail="Election not found")
     if election.admin_id != current_user.id:
         raise HTTPException(status_code=401, detail="You are not the administrator of this election")
-    if status is not None and election.election_status != status:
+    if status is not None and election.status != status:
         raise HTTPException(status_code=400, detail="Election status check failed")
 
     return election
 
-async def get_auth_voter_and_election(short_name: str, voter_login_id: str, session: Session | AsyncSession, status: str = None, election_params: list = None):
+async def get_auth_voter_and_election(short_name: str, username: str, session: Session | AsyncSession, status: str = None, election_params: list = None):
 
     if election_params:
         election_params = [*election_params, 
                            models.Election.id,
-                           models.Election.election_login_type,
-                           models.Election.election_status]
+                           models.Election.voters_login_type,
+                           models.Election.status]
         election = await crud.get_election_params_by_name(session=session, short_name=short_name, params=election_params)
     else:
         election = await crud.get_election_by_short_name(session=session, short_name=short_name)
     if not election:
         raise HTTPException(status_code=404, detail="Election not found")
     
-    voter = await crud.get_voter_by_login_id_and_election_id(session=session, voter_login_id=voter_login_id, election_id=election.id)
+    voter = await crud.get_voter_by_login_id_and_election_id(session=session, username=username, election_id=election.id)
     
-    if election.election_login_type == ElectionLoginTypeEnum.close_p:
+    if election.voters_login_type == ElectionLoginTypeEnum.close_p:
         if not voter:
             raise HTTPException(status_code=400, detail="voter not found")
-        if voter.voter_login_id != voter_login_id:
+        if voter.username != username:
             raise HTTPException(status_code=401, detail="You are not allowed to access this voter")
     
-    if status is not None and election.election_status != status:
+    if status is not None and election.status != status:
         raise HTTPException(status_code=400, detail="Election status check failed")
     
     return voter, election
 
 
-async def get_auth_trustee_and_election(short_name:str, trustee_login_id: str, login_id: str, session: Session | AsyncSession, status: str = None, simple: bool = False):
+async def get_auth_trustee_and_election(short_name:str, username: str, login_id: str, session: Session | AsyncSession, status: str = None, simple: bool = False):
     election = await crud.get_election_by_short_name(session=session, short_name=short_name, simple=simple)
     if not election:
         raise HTTPException(status_code=404, detail="Election not found")
     
-    trustee = await crud.get_trustee_by_login_id(session=session, trustee_login_id=trustee_login_id)
+    trustee = await crud.get_trustee_by_username(session=session, username=username)
 
     if not trustee:
         raise HTTPException(status_code=400, detail="Trustee not found")
-    if trustee.trustee_login_id != login_id:
+    if trustee.username != login_id:
         raise HTTPException(status_code=401, detail="You are not allowed to access this trustee")
     
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(session=session, trustee_id=trustee.id, election_id=election.id)
     if not trustee_crypto:
         raise HTTPException(status_code=401, detail="This trustee doesn't belong to this election")
-    if status is not None and election.election_status != status:
+    if status is not None and election.status != status:
         raise HTTPException(status_code=400, detail="Election status check failed")
 
     

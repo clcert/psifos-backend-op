@@ -68,7 +68,7 @@ def do_cast_vote_checks(request, election, voter):
     if request.get_json().get("encrypted_vote") is None:
         return False, "Error al enviar el voto: no se envio el encrypted vote"
 
-    if election.election_login_type == ElectionLoginTypeEnum.close_p:
+    if election.voters_login_type == ElectionLoginTypeEnum.close_p:
         if voter is None:
             return False, "Error al enviar el voto: votante no encontrado"
     return True, None
