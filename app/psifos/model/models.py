@@ -168,43 +168,33 @@ class Election(Base):
         }
 
     def compute_tally(
-        self, encrypted_votes: list[EncryptedVote], weights: list[int], public_key: dict
+        self, encrypted_votes: list[EncryptedVote], weights: list[int], public_key: dict, with_votes: bool = True, group: str = ""
     ):
-        # First we instantiate the TallyManager class.
         question_list = self.questions
-        tally_params = [
-            {
-                "tally_type": q.tally_type,
-                "computed": False,
-                "num_tallied": 0,
-                "question_id": q.id,
-                "question": q,
-            }
-            for _, q in enumerate(question_list)
-        ]
         tally_array = []
-        for q_num, tally in enumerate(tally_params):
-            encrypted_answers = [
-                enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes
-            ]
-            width = self.questions[q_num].max_answers
-            tally_object = TallyFactory.create(**tally)
-            tally_object.compute(
-                public_key=public_key,
-                encrypted_answers=encrypted_answers,
-                weights=weights,
-                election=self,
-                width=width
+
+        for q_num, question in enumerate(question_list):
+            tally_object = TallyFactory.create(
+                tally_type=question.tally_type,
+                computed=False,
+                num_tallied=0,
+                question_id=question.id,
+                question=question,
             )
+
+            if with_votes:
+                encrypted_answers = [enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes]
+                tally_object.compute(
+                    public_key=public_key,
+                    encrypted_answers=encrypted_answers,
+                    weights=weights,
+                    election=self,
+                    width=question.max_answers
+                )
+            else:
+                tally_object.encrypted_tally = json.dumps([0] * question.total_options)
+
             tally_array.append(tally_object)
-
-        # enc_tally = TallyWrapper(
-        #    *tally_params, group=group, with_votes=with_votes)
-
-        # Then we compute the encrypted_tally
-        # enc_tally.compute(
-        #    encrypted_votes=encrypted_votes, weights=weights, election=self, public_key=public_key
-        # )
 
         return tally_array
 

@@ -120,7 +120,7 @@ def compute_tally(short_name: str, public_key: dict):
             ]
             pk = PublicKey(**public_key)
             with_votes = len(encrypted_votes) > 0
-            tally = election.compute_tally(encrypted_votes, weights, pk)
+            tally = election.compute_tally(encrypted_votes, weights, pk, with_votes, group)
         
             crud.create_group_tally(
                 session=session,
