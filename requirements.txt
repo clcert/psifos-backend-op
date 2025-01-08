@@ -86,3 +86,4 @@ zipp==3.19.1
 fastapi-analytics==1.1.4
 loguru==0.7.2
 gunicorn==22.0.0
+pyinstrument==5.0.0

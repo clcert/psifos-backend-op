@@ -22,11 +22,7 @@ from app.database import db_handler
 
 ELECTION_QUERY_OPTIONS = [
 
-    selectinload(models.Election.trustees),
     selectinload(models.Election.sharedpoints),
-    selectinload(models.Election.audited_ballots),
-    selectinload(models.Election.questions),
-    selectinload(models.Election.result),
     selectinload(models.Election.public_key),
 ]
 

@@ -304,12 +304,9 @@ class ElectionOut(ElectionBase):
     id: int
     status: ElectionStatusEnum
     public_key: PublicKeyBase | None
-    questions: list[QuestionBase] | None
     encrypted_tally_hash: str | None
-    result: object | None
     voters_by_weight_init: str | None
     voters_by_weight_end: str | None
-    trustees: object | None
 
     class Config:
         orm_mode = True
@@ -328,7 +325,6 @@ class SimpleElection(ElectionBase):
 
     id: int
     status: ElectionStatusEnum
-    decryptions_uploaded: int
 
 
     class Config:

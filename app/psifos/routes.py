@@ -172,10 +172,11 @@ async def create_questions(
     """
     Admin's route for creating questions for an election
     """
+    election_params = [models.Election.questions]
     election = await get_auth_election(
-        short_name=short_name, current_user=current_user, session=session
+        short_name=short_name, current_user=current_user, session=session, election_params=election_params
     )
-    total_questions = election.total_questions
+    total_questions = len(election.questions) if election.questions else 0
     for index, question in enumerate(data_questions["question"]):
         question["index"] = index + 1
 
@@ -390,7 +391,8 @@ async def ready_key_generation(
         short_name=short_name, 
         current_user=current_user, 
         session=session,
-        status=ElectionStatusEnum.setting_up
+        status=ElectionStatusEnum.setting_up,
+        simple=False
     )
     status, message = election.ready_key_generation() 
     if not status:
@@ -488,6 +490,7 @@ async def start_election(
         current_user=current_user,
         session=session,
         status=ElectionStatusEnum.ready_opening,
+        simple=False,
     )
     await crud.update_election(
         session=session, election_id=election.id, fields=await election.start(session=session)

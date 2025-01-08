@@ -17,7 +17,7 @@ from requests_oauthlib import OAuth2Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def get_auth_election(short_name: str, current_user: auth_models.User, session: Session | AsyncSession, status: str = None, election_params: list = None):
+async def get_auth_election(short_name: str, current_user: auth_models.User, session: Session | AsyncSession, status: str = None, election_params: list = None, simple: bool = True):
     
     if election_params:
         election_params = [*election_params, 
@@ -26,7 +26,7 @@ async def get_auth_election(short_name: str, current_user: auth_models.User, ses
                            models.Election.admin_id]
         election = await crud.get_election_params_by_name(session=session, short_name=short_name, params=election_params)
     else:
-        election = await crud.get_election_by_short_name(session=session, short_name=short_name)
+        election = await crud.get_election_by_short_name(session=session, short_name=short_name, simple=simple)
     if not election:
         raise HTTPException(status_code=404, detail="Election not found")
     if election.admin_id != current_user.id:

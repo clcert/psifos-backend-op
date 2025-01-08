@@ -17,6 +17,8 @@ async def create_question(session: Session | AsyncSession, election_id: int, que
 
 async def edit_question(session: Session | AsyncSession, election_id, question_id: int, question: QuestionBase):
     db_question = await get_question_by_index(session, election_id, question_id)
+    question_type = question.get("type", None)
+    db_question.tally_type = db_question.TALLY_TYPE_MAP.get(question_type, "CLOSED")
     for key, value in question.items():
         setattr(db_question, key, value)
     await session.commit()
