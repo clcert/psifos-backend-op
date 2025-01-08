@@ -145,6 +145,16 @@ def create_voter(session: Session, election_id: int, voter: schemas.VoterIn):
     except Exception as e:
         session.rollback()
         return None
+    
+def create_voters(session: Session, voters: list[models.Voter]):
+    try:
+        session.add_all(voters)
+        session.commit()
+        return len(voters)
+
+    except Exception as e:
+        session.rollback()
+        return None
 
 def update_voter(session: Session, voter_id: int, fields: dict):
     query = update(models.Voter).where(

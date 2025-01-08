@@ -156,36 +156,32 @@ def upload_voters(election_id: str, voter_file_content: str):
     """
     with SessionLocal() as session:
         election = crud.get_election_by_id(election_id=election_id, session=session)
-
+        login_voters = set()
+        voters = []
         try:
             grouped = election.grouped_voters
             buffer = StringIO(voter_file_content)
             csv_reader = csv.reader(buffer, delimiter=",")
             k = 0  # voter counter
-            n = 0 # total voters
+            n = 0  # total voters
             for voter in csv_reader:
                 n += 1
                 add_group = len(voter) > 3 and grouped
-                v_in =  {
-                        "username": voter[0],
-                        "name": voter[1],
-                        "weight_init": voter[2],
-                        "weight_end": voter[2],
-                        "username_election_id": f"{voter[0]}_{election.id}",
-                        "group": voter[3] if add_group else ""
-                    }
+                v_in = {
+                    "username": voter[0],
+                    "name": voter[1],
+                    "weight_init": voter[2],
+                    "weight_end": voter[2],
+                    "username_election_id": f"{voter[0]}_{election.id}",
+                    "group": voter[3] if add_group else ""
+                }
                 v_in = schemas.VoterIn(**v_in)
-
-                # add the voter to the database
-                new_voter = crud.create_voter(
-                    session=session,
-                    election_id=election.id,
-                    voter=v_in,
-                )
-                if new_voter:
-                    k += 1    
-
+                if v_in.username_election_id not in login_voters:
+                    login_voters.add(v_in.username_election_id)
+                    voters.append(models.Voter(election_id=election_id, **v_in.dict()))
+                    k += 1
+            crud.create_voters(session=session, voters=voters)
         except Exception as e:
             return False, 0, 0
-        
+
     return True, k, n
