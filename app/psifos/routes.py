@@ -172,11 +172,11 @@ async def create_questions(
     """
     Admin's route for creating questions for an election
     """
-    election_params = [models.Election.questions]
     election = await get_auth_election(
-        short_name=short_name, current_user=current_user, session=session, election_params=election_params
+        short_name=short_name, current_user=current_user, session=session
     )
-    total_questions = len(election.questions) if election.questions else 0
+    questions = await crud.get_questions_by_election_id(session=session, election_id=election.id)
+    total_questions = len(questions) if questions else 0
     for index, question in enumerate(data_questions["question"]):
         question["index"] = index + 1
 
