@@ -327,8 +327,8 @@ class OAuth2Auth(AbstractAuth):
             return await self.check_trustee(db_session, short_name, request)
         
         elif isPanel:
-            trustee = await crud.username(session=db_session, username=user)
+            trustee = await crud.get_trustee_by_username(session=db_session, username=user)
             if trustee:
-                request.session["trustee_uuid"] = trustee.uuid
+                request.session["trustee_id"] = trustee.id
 
             return RedirectResponse(url=APP_FRONTEND_URL + f"psifos/trustee/panel")
