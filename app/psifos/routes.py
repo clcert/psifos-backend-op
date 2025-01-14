@@ -1000,12 +1000,14 @@ async def election_get_eg_params(
         election = await crud.get_election_by_short_name(
             session=session, short_name=short_name
         )
-        total_trustees = await crud.get_total_trustees_by_election_id(
-            session=session, election_id=election.id
-        )
-        return election.get_eg_params(total_trustees=total_trustees)
+        # total_trustees = await crud.get_total_trustees_by_election_id(
+        #     session=session, election_id=election.id
+        # )
+        # return election.get_eg_params(total_trustees=total_trustees)        
+        return election.get_eg_params()
 
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=400, detail="Error al obtener los parametros de la eleccion."
         )
