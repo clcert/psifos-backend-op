@@ -259,8 +259,6 @@ class VoterOut(VoterBase):
     """
 
     id: int
-    valid_cast_votes: int
-    invalid_cast_votes: int
 
     cast_vote: CastVoteOut = None
 
