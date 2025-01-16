@@ -675,7 +675,9 @@ async def get_trustees(
     trustee_params = [
         models.TrusteeCrypto.current_step,
         models.TrusteeCrypto.public_key_hash,
-        models.Trustee.name
+        models.Trustee.name,
+        models.Trustee.username,
+        models.Trustee.email
     ]
     election = await get_auth_election(
         short_name=short_name, current_user=current_user, session=session, election_params=election_params
