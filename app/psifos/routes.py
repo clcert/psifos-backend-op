@@ -543,6 +543,9 @@ async def end_election(
             election_id=election.id,
             fields={"status": ElectionStatusEnum.decryptions_combined},
         )
+        await psifos_logger.info(
+            election_id=election.id, event=ElectionPublicEventEnum.VOTING_STOPPED
+        )
         return {"message": "The election was succesfully ended"}
 
     await crud.update_election(
