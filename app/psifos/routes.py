@@ -275,17 +275,21 @@ async def edit_voter(
     """
     Route for get a voter
     """
+    election_params = [models.Election.id]
     election = await get_auth_election(
-        short_name=short_name, current_user=current_user, session=session
+        short_name=short_name, current_user=current_user, session=session, election_params=election_params
     )
     username = fields_voter.get("username")
+    old_username = fields_voter.pop("old_username")
+    username_election_id = f"{username}_{election.id}"
+    fields_voter["username_election_id"] = username_election_id
     return await crud.edit_voter(
-        username=username,
+        old_username=old_username,
+        new_username=username,
         session=session,
         election_id=election.id,
         fields=fields_voter,
     )
-
 
 @api_router.post("/{short_name}/delete-voters", status_code=200)
 async def delete_voters(

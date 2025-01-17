@@ -105,15 +105,15 @@ async def get_voter_by_login_id_and_election_id(session: Session | AsyncSession,
     return result.scalars().first()
 
 
-async def edit_voter(username: str, session: Session | AsyncSession, election_id: int, fields: dict):
+async def edit_voter(old_username: str, new_username:str, session: Session | AsyncSession, election_id: int, fields: dict):
     query = update(models.Voter).where(
         models.Voter.election_id == election_id,
-        models.Voter.username == username
+        models.Voter.username == old_username
     ).values(fields)
     await db_handler.execute(session, query)
     await db_handler.commit(session)
 
-    return await get_voter_by_login_id_and_election_id(username=username, session=session, election_id=election_id)
+    return await get_voter_by_login_id_and_election_id(username=new_username, session=session, election_id=election_id)
 
 
 async def create_voter(session: Session | AsyncSession, election_id: str, voter: schemas.VoterIn):
