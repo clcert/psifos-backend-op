@@ -530,10 +530,13 @@ async def end_election(
 
     if not_null_voters < 1:
         groups = await crud.get_groups_by_election_id(session=session, election_id=election.id)
+        questions = await questions_crud.get_questions_by_election_id(
+            session=session, election_id=election.id
+        )
         await results_crud.create_result(
             session=session,
             election_id=election.id,
-            result=election.end_without_votes(groups=groups),
+            result=election.end_without_votes(groups=groups, questions=questions),
         )
         await crud.update_election(
             session=session,

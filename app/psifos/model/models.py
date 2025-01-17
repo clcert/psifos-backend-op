@@ -255,16 +255,15 @@ class Election(Base):
 
         return {"total_result": results_total, "grouped_result": result_per_group}
 
-    def end_without_votes(self, groups):
-        question_list = self.questions
+    def end_without_votes(self, groups: list, questions: list) -> dict:
         groups.append("Sin grupo")
         results = []
         results_group = []
         for group in groups:
             aux_group_results = []
-            for question in question_list:
+            for question in questions:
                 result_question = {
-                        "ans_results": [0] * int(question.total_closed_options),
+                        "ans_results": [0] * int(question.total_options),
                     }
                 aux_group_results.append(
                     result_question["ans_results"]

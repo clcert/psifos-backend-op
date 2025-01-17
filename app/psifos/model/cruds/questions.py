@@ -26,7 +26,8 @@ async def edit_question(session: Session | AsyncSession, election_id, question_i
 
 
 async def get_questions_by_election_id(session: Session | AsyncSession, election_id: int):
-    return await session.execute(select(AbstractQuestion).filter(AbstractQuestion.election_id == election_id))
+    db_questions = await session.execute(select(AbstractQuestion).filter(AbstractQuestion.election_id == election_id))
+    return db_questions.scalars().all()
 
 async def get_question_by_index(session: Session | AsyncSession, election_id: int, index: int):
     db_question = await session.execute(select(AbstractQuestion).filter(AbstractQuestion.election_id == election_id, AbstractQuestion.index == index))

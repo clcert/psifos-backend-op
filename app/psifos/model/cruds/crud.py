@@ -569,6 +569,7 @@ async def log_to_db(session: Session | AsyncSession, election_id: int, log_level
         election_id=election_id,
         log_level=log_level,
         event=event,
+        created_at=utils.tz_now(),
         event_params=event_params,
     )
     db_handler.add(session, db_log)
