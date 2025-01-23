@@ -1,3 +1,5 @@
+from itertools import groupby
+
 from app.psifos.model import models
 from app.psifos.model.decryptions import HomomorphicDecryption, MixnetDecryption
 from app.psifos.model.tally import TallyTypeEnum
@@ -109,6 +111,21 @@ def get_groups_voters(session: Session, election_id: int):
     ).distinct()
     result = session.execute(query)
     return result.fetchall()
+
+def get_groups_with_voters(session: Session, election_id: int) -> list[tuple[str, list]]:
+    # Obtener todos los votantes de la elección ordenados por grupo
+    voters_query = session.execute(
+        select(models.Voter)
+        .where(models.Voter.election_id == election_id)
+        .order_by(models.Voter.group)
+    ).scalars().all()
+
+    # Agrupar los votantes usando itertools.groupby
+    grouped_voters = []
+    for key, group in groupby(voters_query, key=lambda v: v.group):
+        grouped_voters.append((key, list(group)))
+
+    return grouped_voters
 
 def voter_has_valid_vote(session: Session, voter_id: int, election_id: int):
     query = select(models.Voter.username).join(

@@ -521,6 +521,7 @@ async def end_election(
         short_name=short_name,
         current_user=current_user,
         session=session,
+        simple=True,
         status=ElectionStatusEnum.started,
     )
 
@@ -1618,20 +1619,36 @@ async def get_questions(
     Route for get questions
     """
     try:
-
+        election_params = [models.Election.long_name, models.Election.short_name, models.Election.description,
+                           models.Election.type, models.Election.max_weight, models.Election.public_key_id]
         _, election = await get_auth_voter_and_election(
             session=session,
             short_name=short_name,
             username=username,
+            election_params=election_params,
             status="Started",
         )
 
+        questions = await crud.get_questions_by_election_id(
+            session=session, election_id=election.id
+        )
+
+        public_key = await crypto_crud.get_public_key(
+            session=session, id=election.public_key_id
+        )
+
+        election_schema = schemas.ElectionOut.from_orm(election)
+        election_schema.public_key = public_key
+        booth = schemas.BoothElectionOut(
+            election=election_schema,
+            questions=[schemas.QuestionBase.from_orm(q) for q in questions],
+        )
     except HTTPException: 
         logger.error("%s - Invalid Voter Access: %s (%s)" % (request.client.host, username, short_name))
         raise HTTPException(status_code=400, detail="voter not found")
     else:
         logger.log("PSIFOS", "%s - Valid Voter Access: %s (%s)" % (request.client.host, username, election.short_name))
-        return election
+        return booth
 
 @api_router.get("/{short_name}/get-certificate", status_code=200)
 async def get_pdf(

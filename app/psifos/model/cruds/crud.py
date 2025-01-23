@@ -260,6 +260,10 @@ async def get_trustee_by_username(session: Session | AsyncSession, username: str
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
+async def get_trustee_params_by_username(session: Session | AsyncSession, username: str, params: list):
+    query = select(*params).where(models.Trustee.username == username)
+    result = await db_handler.execute(session, query)
+    return result.first()
 
 async def get_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
     query = select(models.Trustee).join(

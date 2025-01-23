@@ -100,40 +100,66 @@ def compute_tally(short_name: str, public_key: dict):
     Computes the encrypted tally of an election.
     """
     with SessionLocal() as session:
-        election = crud.get_election_by_short_name(short_name=short_name, session=session)
-        voters_group = crud.get_groups_voters(session=session, election_id=election.id)
-        for voter_group in voters_group:
-            group = voter_group[0]
-            voters = crud.get_voters_by_election_id_and_group(
-                session=session, election_id=election.id, group=group
-            )
-            not_null_voters = [
-                v for v in voters if crud.voter_has_valid_vote(session=session, voter_id=v.id, election_id=election.id)
-            ]
-            serialized_encrypted_votes = [
-                EncryptedVote.serialize(v.cast_vote.encrypted_ballot) for v in not_null_voters
-            ]
-            weights = [v.weight_end for v in not_null_voters]
-            encrypted_votes = [
-                EncryptedVote(**(psifos_utils.from_json(v)))
-                for v in serialized_encrypted_votes
-            ]
-            pk = PublicKey(**public_key)
-            with_votes = len(encrypted_votes) > 0
-            tally = election.compute_tally(encrypted_votes, weights, pk, with_votes, group)
+        election = crud.get_election_by_short_name(
+            short_name=short_name,
+            session=session,
+        )
         
-            crud.create_group_tally(
+        # Obtenemos todos los grupos con sus votantes en una sola consulta
+        groups_with_voters = crud.get_groups_with_voters(session, election.id)
+        
+        # Procesamiento paralelo por grupo (todos los datos ya están en memoria)
+        for group, voters in groups_with_voters:
+            _process_group_voters(
                 session=session,
-                election_id=election.id,
+                election=election,
+                public_key=public_key,
                 group=group,
-                with_votes=with_votes,
-                tally_grouped=tally,
+                voters=voters
             )
+        
+        # Actualización final
+        crud.update_election(
+            session=session,
+            election_id=election.id,
+            fields={"status": ElectionStatusEnum.tally_computed}
+        )
 
-        fields = {
-            "status": ElectionStatusEnum.tally_computed,
-        }
-        crud.update_election(session=session, election_id=election.id, fields=fields)
+def _process_group_voters(session, election, public_key, group, voters):
+    """Procesa todos los votantes de un grupo en una sola operación"""
+    # Filtrado de votantes válidos
+    not_null_voters = [
+        v for v in voters 
+        if crud.voter_has_valid_vote(session=session, voter_id=v.id, election_id=election.id)
+    ]
+    
+    # Procesamiento de votos cifrados
+    encrypted_votes = [
+        EncryptedVote(**(psifos_utils.from_json(EncryptedVote.serialize(v.cast_vote.encrypted_ballot))))
+        for v in not_null_voters
+    ]
+    
+    # Cálculo del tally
+    weights = [v.weight_end for v in not_null_voters]
+    pk = PublicKey(**public_key)
+    with_votes = len(encrypted_votes) > 0
+    
+    tally = election.compute_tally(
+        encrypted_votes=encrypted_votes,
+        weights=weights,
+        public_key=pk,
+        with_votes=with_votes,
+        group=group
+    )
+    
+    # Registro en base de datos
+    crud.create_group_tally(
+        session=session,
+        election_id=election.id,
+        group=group,
+        with_votes=with_votes,
+        tally_grouped=tally,
+    )
 
 @celery.task(name="combine_decryptions", ignore_result=True)
 def combine_decryptions(short_name: str):

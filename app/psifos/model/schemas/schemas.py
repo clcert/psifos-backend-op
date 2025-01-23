@@ -311,11 +311,8 @@ class ElectionOut(ElectionBase):
 
 class BoothElectionOut(PsifosSchema):
 
-    id: int
-    status: ElectionStatusEnum
-    public_key: PublicKeyBase | None
-    questions: list[QuestionBase] | None
-    short_name: str | None
+    election: ElectionOut
+    questions: List[QuestionBase]
     class Config:
         orm_mode = True
 

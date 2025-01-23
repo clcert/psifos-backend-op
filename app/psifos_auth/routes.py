@@ -115,7 +115,6 @@ async def logout_trustee(short_name: str, request: Request):
 
 # OAuth2
 
-
 @auth_router.get("/authorized", status_code=200)
 async def authorized(request: Request, session_cookie: str | None = Cookie(default=None)):
 

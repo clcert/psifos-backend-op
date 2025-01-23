@@ -327,7 +327,8 @@ class OAuth2Auth(AbstractAuth):
             return await self.check_trustee(db_session, short_name, request)
         
         elif isPanel:
-            trustee = await crud.get_trustee_by_username(session=db_session, username=user)
+            trustee_params = [crud.models.Trustee.id]
+            trustee = await crud.get_trustee_params_by_username(session=db_session, username=user, params=trustee_params)
             if trustee:
                 request.session["trustee_id"] = trustee.id
 
