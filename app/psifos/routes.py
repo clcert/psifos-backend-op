@@ -1661,14 +1661,14 @@ async def get_pdf(
 
     """
     election = await crud.get_election_by_short_name(
-        session=session, short_name=short_name
+        session=session, short_name=short_name, simple=True
     )
     voter = await crud.get_voter_by_login_id_and_election_id(
         session=session, username=username, election_id=election.id
     )
     cast_vote = await crud.get_cast_vote_by_voter_id(session=session, voter_id=voter.id)
 
-    hash_vote = cast_vote.vote_hash
+    hash_vote = cast_vote.encrypted_ballot_hash
 
     link_ballot = (
         APP_FRONTEND_URL
@@ -1693,7 +1693,7 @@ async def get_pdf(
 
     pdf_data = {
         "hash_vote": hash_vote,
-        "election_name": election.name,
+        "election_name": election.long_name,
         "cast_at": cast_vote.cast_at,
         "font_str": font_str,
         "uch_str": uch_str,
