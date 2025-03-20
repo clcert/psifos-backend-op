@@ -77,11 +77,12 @@ class AbstractAuth(object):
                 event=ElectionAdminEventEnum.TRUSTEE_LOGIN,
                 user=request.session["user"],
             )
+            request.session["oauth_token"] = ""
             return RedirectResponse(
                 APP_FRONTEND_URL + f"psifos/{short_name}/trustee/{trustee.uuid}/home",
             )
 
-    async def check_voter(self, db_session, short_name: str, user_id: str):
+    async def check_voter(self, db_session, short_name: str, user_id: str, request: Request):
         """
         Check if the voter that logs in exists and redirects
         """
@@ -113,7 +114,7 @@ class AbstractAuth(object):
                 event=ElectionAdminEventEnum.VOTER_LOGIN_FAIL,
                 user=user_id,
             )
-
+        request.session["oauth_token"] = ""
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name)
 
 
@@ -316,12 +317,14 @@ class OAuth2Auth(AbstractAuth):
         if OAUTH_GOOGLE:
             user = user.get("email", "")
         else:
-            user = user["fields"]["username"]
+            # user = user["fields"]["username"]
+            user = user["preferred_username"]
 
         request.session["user"] = user
 
         if request.session["type_logout"] == "voter":
-            return await self.check_voter(db_session, short_name, user)
+            # return await self.check_voter(db_session, short_name, user)
+            return await self.check_voter(db_session, short_name, user, request)
 
         elif request.session["type_logout"] == "trustee" and not isPanel:
             return await self.check_trustee(db_session, short_name, request)
