@@ -56,14 +56,14 @@ async def login_voter(short_name: str, request: Request, redirect: bool = Query(
     """
     
     query_params = [
-        models.Election.election_login_type,
+        models.Election.voters_login_type,
     ]
 
     election = await crud.get_election_params_by_name(session=session, short_name=short_name, params=query_params)
     if not election:
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}
 
-    if election.election_login_type == ElectionLoginTypeEnum.open_p:
+    if election.voters_login_type == ElectionLoginTypeEnum.open_p:
         request.session["public_election"] = True
         request.session["user"] = str(uuid.uuid4())
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}
@@ -94,6 +94,14 @@ async def login_trustee(short_name: str, request: Request, session_cookie: str |
     auth = auth_factory.get_auth(protocol)
     return await auth.login_trustee(short_name=short_name, request=request, session=session_cookie)
 
+@auth_router.get("/trustee/login/panel", status_code=200)
+async def login_trustee_panel(request: Request, session_cookie: str | None = Cookie(default=None)):
+    """
+    Make the connection and verification with the CAS service
+    """
+    
+    auth = auth_factory.get_auth(protocol)
+    return await auth.login_trustee(request=request, session=session_cookie, panel=True)
 
 
 @auth_router.get("/{short_name}/trustee/logout", status_code=200)
@@ -106,7 +114,6 @@ async def logout_trustee(short_name: str, request: Request):
 
 
 # OAuth2
-
 
 @auth_router.get("/authorized", status_code=200)
 async def authorized(request: Request, session_cookie: str | None = Cookie(default=None)):

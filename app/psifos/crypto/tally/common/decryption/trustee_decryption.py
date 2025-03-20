@@ -19,10 +19,10 @@ class TrusteeDecryptions(SerializableList):
 
 
 class TrusteeDecryptionsGroup(SerializableObject):
-    def __init__(self, decryption) -> None:
+    def __init__(self, group, decryptions) -> None:
         super(TrusteeDecryptionsGroup, self).__init__()
-        self.group = decryption.group
-        self.decryptions = TrusteeDecryptions(*decryption.decryptions)
+        self.group = group
+        self.decryptions = TrusteeDecryptions(*decryptions)
 
 
 class TrusteeDecryptionsManager(SerializableList):

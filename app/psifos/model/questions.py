@@ -15,25 +15,31 @@ class AbstractQuestion(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
-    q_num = Column(Integer, nullable=False)
-    q_type = Column(Enum(QuestionTypeEnum), nullable=False)
-    q_text = Column(Text, nullable=False)
-    q_description = Column(Text, nullable=True)
-    total_options = Column(Integer, nullable=False)
-    total_closed_options = Column(Integer, nullable=False)
-    closed_options = Column(Text, nullable=True)
+    index = Column(Integer, nullable=False)
+    type = Column(Enum(QuestionTypeEnum), nullable=False)
+    title = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    formal_options = Column(JSON, nullable=True)
     max_answers = Column(Integer, nullable=False)
-    min_answers = Column(Integer, nullable=False)
-    include_blank_null = Column(String(50), nullable=True)
+    min_answers = Column(Integer, nullable=False) 
+    include_informal_options = Column(String(50), nullable=True)
     tally_type = Column(String(50), nullable=False)
-    group_votes = Column(String(50), nullable=True)
+    grouped_options = Column(String(50), nullable=True)
     num_of_winners = Column(Integer, nullable=True)
-    excluding_groups = Column(Boolean, nullable=True)
+    excluded_options = Column(Boolean, nullable=True)
     options_specifications = Column(JSON, nullable=True)
     open_option_max_size = Column(Integer, nullable=True)
     total_open_options = Column(Integer, nullable=True)
 
     election = relationship("Election", back_populates="questions", cascade="all, delete")
+    encrypted_tally = relationship("Tally", back_populates="question")
+
+    decryptions_homomorphic = relationship(
+        "HomomorphicDecryption", cascade="all, delete", back_populates="question"
+    )
+    decryptions_mixnet = relationship(
+        "MixnetDecryption", cascade="all, delete", back_populates="question"
+    )
 
     TALLY_TYPE_MAP = {
         QuestionTypeEnum.CLOSED: "HOMOMORPHIC",
@@ -43,12 +49,13 @@ class AbstractQuestion(Base):
 
     def __init__(self, *args, **kwargs):
         super(AbstractQuestion, self).__init__(*args, **kwargs)
-        self.tally_type = self.TALLY_TYPE_MAP.get(self.q_type, "CLOSED")
-
+        self.tally_type = self.TALLY_TYPE_MAP.get(self.type, "CLOSED")
+    
     @property
-    def closed_options_list(self):
-        return json.loads(self.closed_options) if self.closed_options else []
+    def total_options(self):
+        """Calculate the length of formal_options if it exists, otherwise return 0."""
+        if not self.formal_options:
+            return 0
 
-    @closed_options_list.setter
-    def closed_options_list(self, value):
-        self.closed_options = json.dumps(value)
+        informal_options_count = 2 if self.include_informal_options else 0
+        return len(self.formal_options) + informal_options_count
