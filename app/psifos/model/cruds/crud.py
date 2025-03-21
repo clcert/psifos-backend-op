@@ -333,9 +333,9 @@ async def update_trustee(session: Session | AsyncSession, trustee_id: int, field
     return await get_trustee_by_id(session=session, id=trustee_id)
 
 
-async def delete_trustee(session: Session | AsyncSession, uuid: str):
+async def delete_trustee(session: Session | AsyncSession, username: str):
     query = delete(models.Trustee).where(
-        models.Trustee.uuid == uuid
+        models.Trustee.username == username
     )
     await db_handler.execute(session, query)
     await db_handler.commit(session)
