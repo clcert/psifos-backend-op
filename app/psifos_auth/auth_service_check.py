@@ -79,7 +79,7 @@ class AuthOauthCheck(AuthServiceCheck):
     """
 
 
-    async def get_login_idget_login_id(self, request: Request):
+    async def get_login_id(self, request: Request):
 
         session_id = request.session.get("session_id", None)
         if not session_id:
