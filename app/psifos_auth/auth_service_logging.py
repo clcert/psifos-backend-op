@@ -115,7 +115,6 @@ class AbstractAuth(object):
                 event=ElectionAdminEventEnum.VOTER_LOGIN_FAIL,
                 user=user_id,
             )
-        request.session["oauth_token"] = ""
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name)
 
 
