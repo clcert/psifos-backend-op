@@ -14,6 +14,8 @@ class ElectionTypeEnum(str, enum.Enum):
 
 class ElectionStatusEnum(str, enum.Enum):
     setting_up = "Setting up"
+    ready_key_generation = "Ready for key generation"
+    ready_opening = "Ready for opening"
     started = "Started"
     ended = "Ended"
     computing_tally = "Computing Tally"
@@ -34,6 +36,9 @@ class ElectionPublicEventEnum(ElectionEventEnum):
     ELECTORAL_ROLL_MODIFIED = "electoral_roll_modified"
     TRUSTEE_CREATED = "trustee_created"
     PUBLIC_KEY_UPLOADED = "public_key_uploaded"
+    KEY_GENERATION_READY = "key_generation_ready"
+    BACK_TO_SETTING_UP = "back_to_setting_up"
+    OPENING_READY = "opening_ready"
     VOTING_STARTED = "voting_started"
     VOTING_STOPPED = "voting_stopped"
     TALLY_COMPUTED = "tally_computed"
@@ -53,3 +58,12 @@ class ElectionLoginTypeEnum(str, enum.Enum):
     close_p = "Close"
     open_p = "Open"
     semi_close_p = "Semi Public"
+
+class TrusteeStepEnum(int, enum.Enum):
+    config_step = 0
+    secret_key_step = 1
+    certificates_step = 2
+    coefficients_step = 3
+    points_step = 4
+    waiting_decryptions = 5
+    decryptions_sent = 6

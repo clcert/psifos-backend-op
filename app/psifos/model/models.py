@@ -23,11 +23,8 @@ from app.psifos.crypto.elgamal import ElGamal
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyWrapper, TallyFactory
 
-from app.psifos.model.enums import (
-    ElectionStatusEnum,
-    ElectionTypeEnum,
-    ElectionLoginTypeEnum,
-)
+from app.psifos.model.enums import ElectionStatusEnum, ElectionTypeEnum, ElectionLoginTypeEnum, TrusteeStepEnum
+from app.psifos.crypto.tally.common.decryption.trustee_decryption import TrusteeDecryptionsGroup
 
 from app.database.custom_fields import (
     EncryptedVoteField,
@@ -42,7 +39,7 @@ from app.psifos_auth.model.models import User
 from app.psifos.model.questions import AbstractQuestion  # Importar la clase de pregunta
 from app.psifos.model.crypto_models import PublicKey
 from app.psifos.model.results import Results
-from app.psifos.model.tally import Tally
+from app.psifos.model.tally import Tally, HomomorphicTally, MixnetTally, STVTally
 from app.psifos.model.decryptions import HomomorphicDecryption, MixnetDecryption
 
 class Election(Base):
@@ -50,13 +47,12 @@ class Election(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     admin_id = Column(Integer, ForeignKey("auth_user.id"))
-    uuid = Column(String(50), nullable=False, unique=True)
 
-    short_name = Column(String(100), nullable=False, unique=True)
-    name = Column(String(250), nullable=False)
-    election_type = Column(Enum(ElectionTypeEnum), nullable=False)
-    election_status = Column(Enum(ElectionStatusEnum), default="setting_up")
-    election_login_type =  Column(Enum(ElectionLoginTypeEnum), default="close_p")
+    short_name = Column(String(50), nullable=False, unique=True)
+    long_name = Column(String(150), nullable=False)
+    type = Column(Enum(ElectionTypeEnum), nullable=False)
+    status = Column(Enum(ElectionStatusEnum), default="setting_up")
+    voters_login_type =  Column(Enum(ElectionLoginTypeEnum), default="close_p")
     description = Column(Text)
     
     public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id", ondelete="CASCADE"), nullable=True, unique=True)
@@ -64,24 +60,12 @@ class Election(Base):
 
     questions = relationship("AbstractQuestion", cascade="all, delete", back_populates="election")
 
-    obscure_voter_names = Column(Boolean, default=False, nullable=False)
-    randomize_answer_order = Column(Boolean, default=False, nullable=False)
-    normalization = Column(Boolean, default=False, nullable=False)
-    grouped = Column(Boolean, default=False, nullable=False)
+    randomized_options = Column(Boolean, default=False, nullable=False)
+    normalized = Column(Boolean, default=False, nullable=False)
+    grouped_voters = Column(Boolean, default=False, nullable=False)
     max_weight = Column(Integer, nullable=False)
 
-    total_voters = Column(Integer, default=0)
-    total_trustees = Column(Integer, default=0)
-
-    encrypted_tally = relationship("Tally", back_populates="election")
-
     decryptions_uploaded = Column(Integer, default=0)
-
-    voting_started_at = Column(DateTime, nullable=True)
-    voting_ended_at = Column(DateTime, nullable=True)
-
-    voters_by_weight_init = Column(Text, nullable=True)
-    voters_by_weight_end = Column(Text, nullable=True)
 
     result = relationship("Results",uselist=False, cascade="all, delete", backref="psifos_election")
 
@@ -90,13 +74,26 @@ class Election(Base):
     voters = relationship("Voter", cascade="all, delete",
                           backref="psifos_election")
     trustees = relationship(
-        "Trustee", cascade="all, delete", backref="psifos_election")
+        "TrusteeCrypto", cascade="all, delete", backref="psifos_election")
     sharedpoints = relationship(
         "SharedPoint", cascade="all, delete", backref="psifos_election"
     ) # TODO: Check 
     audited_ballots = relationship(
         "AuditedBallot", cascade="all, delete", backref="psifos_election"
     )
+
+    @property
+    def total_trustees(self):
+        return len(self.trustees)
+    
+    @property
+    def decryptions_uploaded(self):
+        sent_decryptions_trustees = [t for t in self.trustees if t.current_step == TrusteeStepEnum.decryptions_sent]
+        return len(sent_decryptions_trustees)
+    
+    @property
+    def total_questions(self):
+        return len(self.questions)
 
     def get_eg_params(self, serialize=True):
         """
@@ -132,109 +129,72 @@ class Election(Base):
         }
 
         return params
+    
+    def ready_key_generation(self):
+        if not self.questions:
+            return False, "No questions found in the election"
+        
+        if not self.trustees:
+            return False, "No trustees found in the election"
+        
+        if self.voters_login_type == ElectionLoginTypeEnum.close_p and not self.voters:
+            return False, "No voters found in the election"
+        
+        return True, "The election is ready for key generation"
+    
+    def ready_opening(self):
+        not_ready_trustees = [t.trustee.name for t in self.trustees if t.current_step != TrusteeStepEnum.waiting_decryptions]
+        if not_ready_trustees:
+            return False, f"Trustees not ready to open the election: {', '.join(not_ready_trustees)}"
+        return True, "The election is ready to be opened"
 
     async def start(self, session):
-        normalized_weights = {}
-        voters_by_weight_init = {}
-        for v in self.voters:
-            v_g = v.group
-            v_w = v.voter_weight / self.max_weight
-            normalized_weights.setdefault(v_g, []).append(v_w)
-            voters_by_weight_init[v_w] = voters_by_weight_init.get(v_w, 0) + 1
-
-        voters_by_weight_init_grouped = [
-            {"group": group, "weights": {
-                str(w): weights_group.count(w) for w in weights_group}}
-            for group, weights_group in normalized_weights.items()
-        ]
-
-        weight_init = json.dumps({
-            "voters_by_weight_init": voters_by_weight_init,
-            "voters_by_weight_init_grouped": voters_by_weight_init_grouped
-        })
 
         election_pk = await utils.generate_election_pk(self.trustees, session)
-
         pk = await crypto_crud.create_public_key(
             session=session,
             public_key=election_pk
         )
 
         return {
-            "voting_started_at": utils.tz_now(),
-            "election_status": ElectionStatusEnum.started,
+            "status": ElectionStatusEnum.started,
             "public_key_id": pk.id,
-            "voters_by_weight_init": weight_init,
         }
 
     def end(self):
-        voters = [v for v in self.voters if v.valid_cast_votes >= 1]
-        voters_by_weight_end = {}
-        normalized_weights = {}
-        for v in voters:
-            v_w = v.voter_weight / self.max_weight
-            v_g = v.group
-            normalized_weights.setdefault(v_g, []).append(v_w)
-            voters_by_weight_end[v_w] = voters_by_weight_end.get(v_w, 0) + 1
-
-        voters_by_weight_end_grouped = [
-            {"group": group, "weights": {
-                str(w): weights_group.count(w) for w in weights_group}}
-            for group, weights_group in normalized_weights.items()
-        ]
-
-        weight_end = json.dumps({
-            "voters_by_weight_end": voters_by_weight_end,
-            "voters_by_weight_end_grouped": voters_by_weight_end_grouped
-        })
 
         return {
-            "voting_ended_at": utils.tz_now(),
-            "election_status": ElectionStatusEnum.ended,
-            "voters_by_weight_end": weight_end,
+            "status": ElectionStatusEnum.ended,
         }
 
     def compute_tally(
-        self, encrypted_votes: list[EncryptedVote], weights: list[int], public_key: dict
+        self, encrypted_votes: list[EncryptedVote], weights: list[int], public_key: dict, with_votes: bool = True, group: str = ""
     ):
-        # First we instantiate the TallyManager class.
         question_list = self.questions
-        tally_params = [
-            {
-                "tally_type": q.tally_type,
-                "computed": False,
-                "num_tallied": 0,
-                "q_num": q_num,
-                "max_answers": q.max_answers,
-                "num_options": q.total_closed_options,
-                "num_of_winners": q.num_of_winners,
-                "include_blank_null": q.include_blank_null,
-            }
-            for q_num, q in enumerate(question_list)
-        ]
         tally_array = []
-        for q_num, tally in enumerate(tally_params):
-            encrypted_answers = [
-                enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes
-            ]
-            width = self.questions[q_num].max_answers
-            tally_object = TallyFactory.create(**tally)
-            tally_object.compute(
-                public_key=public_key,
-                encrypted_answers=encrypted_answers,
-                weights=weights,
-                election=self,
-                width=width
+
+        for q_num, question in enumerate(question_list):
+            tally_object = TallyFactory.create(
+                tally_type=question.tally_type,
+                computed=False,
+                num_tallied=0,
+                question_id=question.id,
+                question=question,
             )
+
+            if with_votes:
+                encrypted_answers = [enc_vote.answers.instances[q_num] for enc_vote in encrypted_votes]
+                tally_object.compute(
+                    public_key=public_key,
+                    encrypted_answers=encrypted_answers,
+                    weights=weights,
+                    election=self,
+                    width=question.max_answers
+                )
+            else:
+                tally_object.encrypted_tally = json.dumps([0] * question.total_options)
+
             tally_array.append(tally_object)
-
-        # enc_tally = TallyWrapper(
-        #    *tally_params, group=group, with_votes=with_votes)
-
-        # Then we compute the encrypted_tally
-        # enc_tally.compute(
-        #    encrypted_votes=encrypted_votes, weights=weights, election=self, public_key=public_key
-        # )
 
         return tally_array
 
@@ -247,7 +207,7 @@ class Election(Base):
         def get_partial_decryptions(trustees, total_questions, group):
             return [
                 [
-                    (t.trustee_id, crud.get_decryptions_by_trustee_id(session, t.id, q_num, group).get_decryption_factors())
+                    (t.trustee_id, crud.get_decryptions_by_trustee_id(session, t.id, q_num + 1, group).get_decryption_factors())
                     for t in trustees
                 ]
                 for q_num in range(total_questions)
@@ -295,16 +255,15 @@ class Election(Base):
 
         return {"total_result": results_total, "grouped_result": result_per_group}
 
-    def end_without_votes(self, groups):
-        question_list = self.questions
+    def end_without_votes(self, groups: list, questions: list) -> dict:
         groups.append("Sin grupo")
         results = []
         results_group = []
         for group in groups:
             aux_group_results = []
-            for question in question_list:
+            for question in questions:
                 result_question = {
-                        "ans_results": [0] * int(question.total_closed_options),
+                        "ans_results": [0] * int(question.total_options),
                     }
                 aux_group_results.append(
                     result_question["ans_results"]
@@ -319,7 +278,7 @@ class Election(Base):
 
     def results_released(self):
         released_data = {
-            "election_status": ElectionStatusEnum.results_released,
+            "status": ElectionStatusEnum.results_released,
         }
         return released_data
 
@@ -339,14 +298,12 @@ class Voter(Base):
         ForeignKey("psifos_election.id",
                    onupdate="CASCADE", ondelete="CASCADE"),
     )
-    login_id_election_id = Column(String(50), nullable=False, unique=True)
+    username = Column(String(100), nullable=False)
+    name = Column(String(200), nullable=False)
 
-    voter_login_id = Column(String(100), nullable=False)
-    voter_name = Column(String(200), nullable=False)
-    voter_weight = Column(Integer, nullable=False)
-
-    valid_cast_votes = Column(Integer, default=0)
-    invalid_cast_votes = Column(Integer, default=0)
+    username_election_id = Column(String(50), nullable=False, unique=True)
+    weight_init = Column(Integer, nullable=False)
+    weight_end = Column(Integer, nullable=True)
 
     group = Column(String(200), nullable=True)
     # One-to-one relationship
@@ -363,7 +320,7 @@ class Voter(Base):
             add_group = len(voter) > 3 and grouped
             voters.append(
                 {
-                    "voter_login_id": voter[0],
+                    "username": voter[0],
                     "voter_name": voter[1],
                     "voter_weight": voter[2],
                     "group": voter[3] if add_group else ""
@@ -376,19 +333,16 @@ class Voter(Base):
     ):
         is_valid = encrypted_vote.verify(election, public_key, questions=questions)
         cast_vote_fields = {
-            "vote": encrypted_vote,
-            "vote_hash": crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)),
+            "encrypted_ballot": encrypted_vote,
+            "encrypted_ballot_hash": crypto_utils.hash_b64(EncryptedVote.serialize(encrypted_vote)),
             "is_valid": is_valid,
             "cast_at": utils.tz_now(),
         }
-
-        voter_fields = {}
-        if is_valid:
-            voter_fields["valid_cast_votes"] = self.valid_cast_votes + 1
-        else:
-            voter_fields["invalid_cast_votes"] = self.invalid_cast_votes + 1
-
-        return is_valid, voter_fields, cast_vote_fields
+        return is_valid, cast_vote_fields
+    
+    async def has_valid_vote(self, session):
+        from app.psifos.model.cruds import crud
+        return await crud.has_valid_vote(session=session, election_id=self.election_id, username=self.username)
 
 
 class CastVote(Base):
@@ -401,14 +355,11 @@ class CastVote(Base):
         unique=True,
     )
 
-    vote = Column(EncryptedVoteField, nullable=False)
-    vote_hash = Column(String(500), nullable=False)
-    # vote_tinyhash = Column(String(500), nullable=False)
+    encrypted_ballot = Column(EncryptedVoteField, nullable=False)
+    encrypted_ballot_hash = Column(String(500), nullable=False)
 
     is_valid = Column(Boolean, nullable=False)
-
     cast_at = Column(DateTime, nullable=False)
-
 
 class AuditedBallot(Base):
     __tablename__ = "psifos_audited_ballot"
@@ -429,46 +380,59 @@ class Trustee(Base):
     __tablename__ = "psifos_trustee"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String(200), nullable=False)
+    username = Column(String(100), nullable=False, unique=True)
+    email = Column(Text, nullable=False)
+    trustee_crypto = relationship(
+        "TrusteeCrypto", cascade="all, delete",
+        back_populates="trustee"
+    ) 
+
+class TrusteeCrypto(Base):
+    __tablename__ = "psifos_trustee_crypto"
+
+    id = Column(Integer, primary_key=True, index=True)
     election_id = Column(
         Integer,
         ForeignKey("psifos_election.id",
                    onupdate="CASCADE", ondelete="CASCADE"),
     )
     trustee_id = Column(
+        Integer,
+        ForeignKey("psifos_trustee.id",
+                   onupdate="CASCADE", ondelete="CASCADE"),
+    )
+
+    trustee_election_id = Column(
         Integer, nullable=False
     )  # TODO: rename to index for deambiguation with trustee_id func. param at await crud.py
-    uuid = Column(String(50), nullable=False, unique=True)
 
-    name = Column(String(200), nullable=False)
-    trustee_login_id = Column(String(100), nullable=False)
-    email = Column(Text, nullable=False)
+    current_step = Column(Enum(TrusteeStepEnum), default="config_step")
 
-    current_step = Column(Integer, default=0)
-
-    public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id"), nullable=True, unique=True)
     public_key = relationship("PublicKey", back_populates="trustees", uselist=False, single_parent=True)
+    public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id"), nullable=True, unique=True)
 
     public_key_hash = Column(String(100), nullable=True)
     decryptions_homomorphic = relationship(
-        "HomomorphicDecryption", cascade="all, delete", back_populates="psifos_trustee"
+        "HomomorphicDecryption", cascade="all, delete", back_populates="trustee_crypto"
     )
     decryptions_mixnet = relationship(
-        "MixnetDecryption", cascade="all, delete", back_populates="psifos_trustee"
+        "MixnetDecryption", cascade="all, delete", back_populates="trustee_crypto"
     )
     certificate = Column(CertificateField, nullable=True)
     coefficients = Column(CoefficientsField, nullable=True)
     acknowledgements = Column(AcknowledgementsField, nullable=True)
 
+    trustee = relationship("Trustee", back_populates="trustee_crypto")
 
     def get_decryptions_group(self, group):
         if self.decryptions:
             decryptions_group = filter(
-                lambda dic: dic.get(
-                    "group") == group, self.decryptions.instances
+                lambda dic: dic.group == group, self.decryptions.instances
             )
             return next(decryptions_group)
         return None
-
 
 class SharedPoint(Base):
     __tablename__ = "psifos_shared_point"
@@ -500,4 +464,4 @@ class ElectionLog(Base):
     event = Column(String(200), nullable=False)
     event_params = Column(String(200), nullable=False)
 
-    created_at = Column(String(200), nullable=False)
+    created_at = Column(DateTime, default=utils.tz_now())
