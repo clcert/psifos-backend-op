@@ -19,7 +19,7 @@ from app.psifos import utils
 import app.psifos.crypto.utils as crypto_utils
 from app.psifos.model.cruds import crypto_crud
 
-from app.psifos.crypto.elgamal import ElGamal
+from app.psifos.crypto.elgamal import ElGamal, DLog_challenge_generator
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from app.psifos.crypto.tally.tally import TallyWrapper, TallyFactory
 
@@ -37,7 +37,7 @@ from app.database.custom_fields import (
 from app.database import Base
 from app.psifos_auth.model.models import User
 from app.psifos.model.questions import AbstractQuestion  # Importar la clase de pregunta
-from app.psifos.model.crypto_models import PublicKey
+from app.psifos.model.crypto_models import PublicKey, Cryptosystem, SecretKey
 from app.psifos.model.results import Results
 from app.psifos.model.tally import Tally, HomomorphicTally, MixnetTally, STVTally
 from app.psifos.model.decryptions import HomomorphicDecryption, MixnetDecryption
@@ -58,12 +58,15 @@ class Election(Base):
     public_key_id = Column(Integer, ForeignKey("psifos_public_keys.id", ondelete="CASCADE"), nullable=True, unique=True)
     public_key = relationship("PublicKey", back_populates="elections", uselist=False, cascade="all, delete")
 
+    secret_keys = relationship("SecretKey", cascade="all, delete", back_populates="election")
+
     questions = relationship("AbstractQuestion", cascade="all, delete", back_populates="election")
 
     randomized_options = Column(Boolean, default=False, nullable=False)
     normalized = Column(Boolean, default=False, nullable=False)
     grouped_voters = Column(Boolean, default=False, nullable=False)
     max_weight = Column(Integer, nullable=False)
+    has_psifos_trustees = Column(Boolean, default=False, nullable=False)
 
     decryptions_uploaded = Column(Integer, default=0)
 
@@ -94,6 +97,42 @@ class Election(Base):
     @property
     def total_questions(self):
         return len(self.questions)
+
+    async def generate_trustee(self, session):
+        crypto_system = Cryptosystem(
+            p=16328632084933010002384055033805457329601614771185955389739167309086214800406465799038583634953752941675645562182498120750264980492381375579367675648771293800310370964745767014243638518442553823973482995267304044326777047662957480269391322789378384619428596446446984694306187644767462460965622580087564339212631775817895958409016676398975671266179637898557687317076177218843233150695157881061257053019133078545928983562221396313169622475509818442661047018436264806901023966236718367204710755935899013750306107738002364137917426595737403871114187750804346564731250609196846638183903982387884578266136503697493474682071,
+            q=61329566248342901292543872769978950870633559608669337131139375508370458778917,
+            g=14887492224963187634282421537186040801304008017743492304481737382571933937568724473847106029915040150784031882206090286938661464458896494215273989547889201144857352611058572236578734319505128042602372864570426550855201448111746579871811249114781674309062693442442368697449970648232621880001709535143047913661432883287150003429802392229361583608686643243349727791976247247948618930423866180410558458272606627111270040091203073580238905303994472202930783207472394578498507764703191288249547659899997131166130259700604433891232298182348403175947450284433411265966789131024573629546048637848902243503970966798589660808533
+        )
+
+        key_pair = crypto_system.generate_keypair()
+
+        secret_key = SecretKey(
+            x=key_pair.sk.x,
+            public_key=key_pair.pk,
+            proof_of_knowledge=key_pair.sk.prove_sk(DLog_challenge_generator),
+            election_id=self.id
+        )
+        await crypto_crud.create_secret_key(session=session, secret_key=secret_key)
+
+        public_key = await crypto_crud.create_public_key(session=session, public_key=key_pair.pk)
+
+        return public_key.id
+    
+    def decryption_factors_and_proofs(self, secret_key):
+        """
+        returns an array of decryption factors and a corresponding array of decryption proofs.
+        makes the decryption factors into strings, for general Helios / JS compatibility.
+        """
+        # for all choices of all questions (double list comprehension)
+        total_results = []
+        grouped_result = []
+        public_key = self.public_key
+
+        for question in self.questions:
+            total_results, grouped_result = question.decryption(secret_key, public_key, total_results, grouped_result)
+
+        return total_results, grouped_result
 
     def get_eg_params(self, serialize=True):
         """
@@ -134,7 +173,7 @@ class Election(Base):
         if not self.questions:
             return False, "No questions found in the election"
         
-        if not self.trustees:
+        if not self.trustees and not self.has_psifos_trustees:
             return False, "No trustees found in the election"
         
         if self.voters_login_type == ElectionLoginTypeEnum.close_p and not self.voters:
@@ -150,6 +189,11 @@ class Election(Base):
 
     async def start(self, session):
 
+        if self.has_psifos_trustees:
+            return {
+                "status": ElectionStatusEnum.started
+            }
+        
         election_pk = await utils.generate_election_pk(self.trustees, session)
         pk = await crypto_crud.create_public_key(
             session=session,

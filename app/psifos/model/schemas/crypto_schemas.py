@@ -11,3 +11,13 @@ class PublicKeyBase(PsifosSchema):
 
     class Config:
         orm_mode = True
+
+class SecretKeyBase(PsifosSchema):
+    """
+    Schema for creating a secret key.
+    """
+    x: int
+    proof_of_knowledge: object
+
+    class Config:
+        orm_mode = True
