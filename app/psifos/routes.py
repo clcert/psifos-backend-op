@@ -38,6 +38,7 @@ from app.psifos_auth.utils import (
     get_auth_voter_and_election,
 )
 from app.psifos_auth.auth_service_check import AuthUser
+from app.psifos_auth.redis_store import get_session_data
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from datetime import timedelta
@@ -901,7 +902,9 @@ async def get_trustee_panel(
     Trustee's route for getting his home
     """
 
-    username = request.session.get("user", None)
+    session_id = request.session.get("session_id")
+    session_data = await get_session_data(session_id)
+    username = session_data.get("user")
     if not username:
         raise HTTPException(status_code=400, detail="Custodio sin elecciones")
     trustee = await crud.get_trustee_by_username(session=session, username=username)

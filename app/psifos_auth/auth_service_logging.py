@@ -20,6 +20,8 @@ from starlette.responses import RedirectResponse
 from app.logger import psifos_logger, logger
 from app.psifos.model.enums import ElectionAdminEventEnum, ElectionLoginTypeEnum
 
+from app.psifos_auth.redis_store import store_session_data, get_session_data, delete_session_data, generate_session_id
+
 
 class AuthFactory:
     @staticmethod
@@ -81,7 +83,7 @@ class AbstractAuth(object):
                 APP_FRONTEND_URL + f"psifos/{short_name}/trustee/{trustee.uuid}/home",
             )
 
-    async def check_voter(self, db_session, short_name: str, user_id: str):
+    async def check_voter(self, db_session, short_name: str, user_id: str, request: Request):
         """
         Check if the voter that logs in exists and redirects
         """
@@ -113,7 +115,6 @@ class AbstractAuth(object):
                 event=ElectionAdminEventEnum.VOTER_LOGIN_FAIL,
                 user=user_id,
             )
-
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name)
 
 
@@ -251,56 +252,42 @@ class OAuth2Auth(AbstractAuth):
         )
         self.short_name = ""
         self.type_logout = ""
+        self.home_pages = {
+            "voter": APP_FRONTEND_URL + "psifos/booth/",
+            "trustee": APP_FRONTEND_URL + "psifos/trustee/",
+        }
 
-    @db_handler.method_with_session
-    async def login_voter(
-        self, db_session, short_name: str, request: Request = None, session: str = None
-    ):
-        request.session["short_name"] = short_name
-        request.session["type_logout"] = "voter"
+    async def login(self, short_name: str = None, user_type: str = None, request: Request = None, panel: bool = False):
+        session_id = generate_session_id()
+        request.session["session_id"] = session_id
         client = OAuth2Session(
             client_id=self.client_id,
             redirect_uri=APP_BACKEND_OP_URL + "authorized",
             scope=self.scope,
         )
-
         authorization_url, state = client.authorization_url(OAUTH_AUTHORIZE_URL)
-        request.session["oauth_state"] = state
+        await store_session_data(session_id, {"short_name": short_name, "type_logout": user_type, "oauth_state": state, "panel": panel}, expires_in=3600)
         return RedirectResponse(authorization_url)
-
-    def logout_voter(self, short_name: str, request: Request):
-        pass
+    
+    async def logout(self, user_type: str, request: Request):
+        session_id = request.session.get("session_id")
+        await delete_session_data(session_id)
+        request.session.clear()
+        return RedirectResponse(url=self.home_pages[user_type])
 
     @db_handler.method_with_session
-    async def login_trustee(
-        self, db_session, request: Request, session: str, panel: bool = False, short_name: str = None
-    ):
-        request.session["short_name"] = short_name
-        request.session["type_logout"] = "trustee"
-        request.session["panel"] = panel
+    async def authorized(self, db_session, request: Request):
+        session_id = request.session.get("session_id")
+        if not session_id:
+            raise HTTPException(status_code=400, detail="Sesión no encontrada.")
 
-        self.type_logout = "trustee"
-        client = OAuth2Session(
-            client_id=self.client_id,
-            redirect_uri=APP_BACKEND_OP_URL + "authorized",
-            scope=self.scope,
-        )
+        session_data = await get_session_data(session_id)
+        if not session_data:
+            raise HTTPException(status_code=400, detail="Datos de sesión no válidos.")
 
-        authorization_url, state = client.authorization_url(OAUTH_AUTHORIZE_URL)
-        request.session["oauth_state"] = state
-
-        return RedirectResponse(authorization_url)
-
-    def logout_trustee(self, short_name: str, request: Request):
-        pass
-
-    @db_handler.method_with_session
-    async def authorized(self, db_session, request: Request, session: str = None):
-        short_name = request.session["short_name"]
-        isPanel = request.session.get("panel", False)
         login = OAuth2Session(
             self.client_id,
-            state=request.session["oauth_state"],
+            state=session_data["oauth_state"],
             redirect_uri=APP_BACKEND_OP_URL + "authorized",
         )
         resp = login.fetch_token(
@@ -308,25 +295,27 @@ class OAuth2Auth(AbstractAuth):
             client_secret=self.client_secret,
             authorization_response=str(request.url),
         )
-        request.session["oauth_token"] = resp
+        session_data["oauth_token"] = resp
 
-        login = OAuth2Session(OAUTH_CLIENT_ID, token=request.session["oauth_token"])
+        login = OAuth2Session(OAUTH_CLIENT_ID, token=session_data["oauth_token"])
         user = login.get(OAUTH_USER_INFO_URL).json()
 
         if OAUTH_GOOGLE:
             user = user.get("email", "")
         else:
             user = user["fields"]["username"]
+            #user = user["preferred_username"]
+        session_data["user"] = user
+        await store_session_data(session_id, session_data, expires_in=3600)
 
-        request.session["user"] = user
+        if session_data["type_logout"] == "voter":
+            # return await self.check_voter(db_session, short_name, user)
+            return await self.check_voter(db_session, session_data["short_name"], user, request)
 
-        if request.session["type_logout"] == "voter":
-            return await self.check_voter(db_session, short_name, user)
-
-        elif request.session["type_logout"] == "trustee" and not isPanel:
-            return await self.check_trustee(db_session, short_name, request)
+        elif session_data["type_logout"] == "trustee" and not session_data["panel"]:
+            return await self.check_trustee(db_session, session_data["short_name"], request)
         
-        elif isPanel:
+        elif session_data["panel"]:
             trustee_params = [crud.models.Trustee.id]
             trustee = await crud.get_trustee_params_by_username(session=db_session, username=user, params=trustee_params)
             if trustee:
