@@ -759,10 +759,10 @@ async def get_decryptions(
     return decryptions
 
 
-@api_router.post("/{short_name}/delete-trustee/{trustee_uuid}", status_code=200)
+@api_router.post("/{short_name}/delete-trustee/{trustee_username}", status_code=200)
 async def delete_trustee(
     short_name: str,
-    trustee_uuid: str,
+    trustee_username: str,
     current_user: models.User = Depends(AuthAdmin()),
     session: Session | AsyncSession = Depends(get_session),
 ):
@@ -773,7 +773,7 @@ async def delete_trustee(
         short_name=short_name, current_user=current_user, session=session
     )
 
-    trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
+    trustee = await crud.get_trustee_by_username(session=session, username=trustee_username)
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
         session=session, trustee_id=trustee.id, election_id=election.id
     )
