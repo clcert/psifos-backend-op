@@ -626,7 +626,19 @@ async def combine_decryptions(
         current_user=current_user,
         session=session,
     )
-    if election.decryptions_uploaded < (election.total_trustees // 2) + 1:
+
+    trustees_crypto = await crud.get_trustees_crypto_by_election_id(
+        session=session, election_id=election.id
+    )
+
+    decryptions_uploaded = filter(lambda t: t.current_step == TrusteeStepEnum.decryptions_sent, trustees_crypto)
+    total_decryptions_uploaded = len(list(decryptions_uploaded))
+
+    total_trustees = await crud.get_total_trustees_by_election_id(
+        session=session, election_id=election.id
+    )
+
+    if total_decryptions_uploaded < (total_trustees // 2) + 1:
         return HTTPException(status_code=400, detail="Insuficientes desencriptaciones")
 
     task_params = {

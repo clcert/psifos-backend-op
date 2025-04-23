@@ -207,7 +207,7 @@ class Election(Base):
         def get_partial_decryptions(trustees, total_questions, group):
             return [
                 [
-                    (t.trustee_id, crud.get_decryptions_by_trustee_id(session, t.id, q_num + 1, group).get_decryption_factors())
+                    (t.trustee_election_id, crud.get_decryptions_by_trustee_id(session, t.id, q_num + 1, group).get_decryption_factors())
                     for t in trustees
                 ]
                 for q_num in range(total_questions)
@@ -224,7 +224,8 @@ class Election(Base):
             group = group if group else "Sin grupo"
 
             if tally_object[0].with_votes:
-                partial_decryptions = get_partial_decryptions(self.trustees, total_questions, tally_object[0].group)
+                trustee_with_decryptions = [t for t in self.trustees if t.current_step == TrusteeStepEnum.decryptions_sent]
+                partial_decryptions = get_partial_decryptions(trustee_with_decryptions, total_questions, tally_object[0].group)
                 decrypted_tally = [
                     tally.decrypt(
                         public_key=public_key,

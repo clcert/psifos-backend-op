@@ -399,7 +399,7 @@ async def delete_trustee_crypto(session: Session | AsyncSession, trustee_id: int
     await db_handler.commit(session)
 
 async def get_total_trustees_by_election_id(session: Session | AsyncSession, election_id: int):
-    query = select(func.count(models.Trustee.id)).where(
+    query = select(func.count(models.TrusteeCrypto.id)).where(
         models.TrusteeCrypto.election_id == election_id
     )
     result = await db_handler.execute(session, query)
