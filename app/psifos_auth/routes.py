@@ -69,17 +69,17 @@ async def login_voter(short_name: str, request: Request, redirect: bool = Query(
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}
 
     auth = auth_factory.get_auth(protocol)
-    return await auth.login_voter(short_name=short_name, request=request, session=session_cookie)
+    return await auth.login(short_name=short_name, user_type="voter", request=request)
 
 
 @auth_router.get("/vote/{short_name}/logout", status_code=200)
-async def logout_voter(short_name: str, request: Request):
+async def logout_voter(request: Request):
     """
     Logout a user
     """
 
     auth = auth_factory.get_auth(protocol)
-    return auth.logout_voter(short_name, request)
+    return auth.logout(user_type="voter", request=request)
 
 
 # Trustee Auth
@@ -92,31 +92,31 @@ async def login_trustee(short_name: str, request: Request, session_cookie: str |
     """
     
     auth = auth_factory.get_auth(protocol)
-    return await auth.login_trustee(short_name=short_name, request=request, session=session_cookie)
+    return await auth.login(short_name=short_name, user_type="trustee", request=request)
 
 @auth_router.get("/trustee/login/panel", status_code=200)
-async def login_trustee_panel(request: Request, session_cookie: str | None = Cookie(default=None)):
+async def login_trustee_panel(request: Request):
     """
     Make the connection and verification with the CAS service
     """
     
     auth = auth_factory.get_auth(protocol)
-    return await auth.login_trustee(request=request, session=session_cookie, panel=True)
+    return await auth.login(request=request, user_type="trustee", panel=True)
 
 
 @auth_router.get("/{short_name}/trustee/logout", status_code=200)
-async def logout_trustee(short_name: str, request: Request):
+async def logout_trustee(request: Request):
     """
     Logout a trustee
     """
     auth = auth_factory.get_auth(protocol)
-    return auth.logout_trustee(short_name, request)
+    return auth.logout(user_type="trustee", request=request)
 
 
 # OAuth2
 
 @auth_router.get("/authorized", status_code=200)
-async def authorized(request: Request, session_cookie: str | None = Cookie(default=None)):
+async def authorized(request: Request):
 
     auth = auth_factory.get_auth(protocol)
-    return await auth.authorized(request, session=session_cookie)
+    return await auth.authorized(request)

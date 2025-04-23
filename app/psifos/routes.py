@@ -38,6 +38,7 @@ from app.psifos_auth.utils import (
     get_auth_voter_and_election,
 )
 from app.psifos_auth.auth_service_check import AuthUser
+from app.psifos_auth.redis_store import get_session_data
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from datetime import timedelta
@@ -758,10 +759,10 @@ async def get_decryptions(
     return decryptions
 
 
-@api_router.post("/{short_name}/delete-trustee/{trustee_uuid}", status_code=200)
+@api_router.post("/{short_name}/delete-trustee/{trustee_username}", status_code=200)
 async def delete_trustee(
     short_name: str,
-    trustee_uuid: str,
+    trustee_username: str,
     current_user: models.User = Depends(AuthAdmin()),
     session: Session | AsyncSession = Depends(get_session),
 ):
@@ -772,7 +773,7 @@ async def delete_trustee(
         short_name=short_name, current_user=current_user, session=session
     )
 
-    trustee = await crud.get_trustee_by_uuid(session=session, uuid=trustee_uuid)
+    trustee = await crud.get_trustee_by_username(session=session, username=trustee_username)
     trustee_crypto = await crud.get_trustee_crypto_by_trustee_id_election_id(
         session=session, trustee_id=trustee.id, election_id=election.id
     )
@@ -901,7 +902,9 @@ async def get_trustee_panel(
     Trustee's route for getting his home
     """
 
-    username = request.session.get("user", None)
+    session_id = request.session.get("session_id")
+    session_data = await get_session_data(session_id)
+    username = session_data.get("user")
     if not username:
         raise HTTPException(status_code=400, detail="Custodio sin elecciones")
     trustee = await crud.get_trustee_by_username(session=session, username=username)
