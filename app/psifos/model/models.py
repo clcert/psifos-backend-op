@@ -209,6 +209,7 @@ class Election(Base):
                 [
                     (t.trustee_election_id, crud.get_decryptions_by_trustee_id(session, t.id, q_num + 1, group).get_decryption_factors())
                     for t in trustees
+                    if (decryption := crud.get_decryptions_by_trustee_id(session, t.id, q_num, group)) is not None
                 ]
                 for q_num in range(total_questions)
             ]
