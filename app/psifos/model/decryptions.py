@@ -34,13 +34,19 @@ class HomomorphicDecryption(Base):
     __tablename__ = "psifos_decryptions_homomorphic"
 
     id = Column(Integer, primary_key=True, index=True)
-    trustee_id = Column(Integer, ForeignKey("psifos_trustee.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    trustee_crypto_id = Column(Integer, ForeignKey("psifos_trustee_crypto.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    question_id = Column(Integer, ForeignKey("psifos_questions.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     group = Column(Text, nullable=False)
-    q_num = Column(Integer, nullable=False)
 
-    psifos_trustee = relationship("Trustee", back_populates="decryptions_homomorphic", cascade="all, delete")
+    trustee_crypto = relationship("TrusteeCrypto", back_populates="decryptions_homomorphic", cascade="all, delete")
+    question = relationship("AbstractQuestion", cascade="all, delete", back_populates="decryptions_homomorphic")
+
     decryption_factors = Column(ListOfIntegersField, nullable=True)
     decryption_proofs = Column(ListOfZKProofsField, nullable=True)
+
+    @property
+    def index(self):
+        return self.question.index
 
     def __init__(self, decryption_factors, decryption_proofs, decryption_type, **kwargs) -> None:
         super(HomomorphicDecryption, self).__init__(**kwargs)
@@ -97,13 +103,19 @@ class MixnetDecryption(Base):
     __tablename__ = "psifos_decryptions_mixnet"
 
     id = Column(Integer, primary_key=True, index=True)
-    trustee_id = Column(Integer, ForeignKey("psifos_trustee.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    trustee_crypto_id = Column(Integer, ForeignKey("psifos_trustee_crypto.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    question_id = Column(Integer, ForeignKey("psifos_questions.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     group = Column(Text, nullable=False)
-    q_num = Column(Integer, nullable=False)
 
-    psifos_trustee = relationship("Trustee", back_populates="decryptions_mixnet", cascade="all, delete")
+    trustee_crypto = relationship("TrusteeCrypto", back_populates="decryptions_mixnet", cascade="all, delete")
+    question = relationship("AbstractQuestion", cascade="all, delete", back_populates="decryptions_mixnet")
+
     decryption_factors = Column(ListOfDecryptionFactorsField, nullable=True)
     decryption_proofs = Column(ListOfDecryptionProofsField, nullable=True)
+
+    @property
+    def index(self):
+        return self.question.index
 
     def __init__(self, decryption_factors, decryption_proofs, decryption_type, **kwargs) -> None:
         super(MixnetDecryption, self).__init__(**kwargs)

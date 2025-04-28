@@ -21,8 +21,8 @@ class EncryptedVote(SerializableObject):
     An encrypted ballot
     """
 
-    def __init__(self, election_uuid, answers):
-        self.election_uuid : str = election_uuid
+    def __init__(self, short_name, answers):
+        self.short_name : str = short_name
         self.answers : ListOfEncryptedAnswers = ListOfEncryptedAnswers(*answers)
 
     def verify(self, election, public_key, questions):
@@ -37,10 +37,10 @@ class EncryptedVote(SerializableObject):
 
         # check ID
         # noinspection PyUnresolvedReferences
-        our_election_uuid = self.election_uuid if isinstance(self.election_uuid, str) else self.election_uuid.decode()
-        actual_election_uuid = election.uuid if isinstance(election.uuid, str) else election.uuid.decode()
-        if our_election_uuid != actual_election_uuid:
-            logging.error(f"Incorrect election_uuid {our_election_uuid} vs {actual_election_uuid} ")
+        our_short_name = self.short_name if isinstance(self.short_name, str) else self.short_name.decode()
+        actual_short_name = election.short_name if isinstance(election.short_name, str) else election.short_name.decode()
+        if our_short_name != actual_short_name:
+            logging.error(f"Incorrect short_name {our_short_name} vs {actual_short_name} ")
             return False
 
         # check proofs on all of answers

@@ -1,6 +1,8 @@
 from fastapi import Request, HTTPException
 from app.config import TYPE_AUTH
 
+from app.psifos_auth.redis_store import get_session_data
+
 
 class AuthUser:
     """
@@ -22,9 +24,9 @@ class AuthUser:
         if public_election:
             return request.session.get("user", None)
         if self.type_auth == "cas":
-            return self.cas.get_login_id(request)
+            return await self.cas.get_login_id(request)
         elif self.type_auth == "oauth":
-            return self.oauth.get_login_id(request)
+            return await self.oauth.get_login_id(request)
 
 
 
@@ -57,9 +59,12 @@ class AuthCasCheck(AuthServiceCheck):
     """
 
 
-    def get_login_id(self, request: Request):
-
-        user = request.session.get("user", None)
+    async def get_login_id(self, request: Request):
+        session_id = request.session.get("session_id", None)
+        if not session_id:
+            raise HTTPException(status_code=401, detail="unauthorized")
+        session_data = await get_session_data(session_id)
+        user = session_data.get("user", None)
         if not user:
             raise HTTPException(status_code=401, detail="unauthorized voter")
 
@@ -74,10 +79,14 @@ class AuthOauthCheck(AuthServiceCheck):
     """
 
 
-    def get_login_id(self, request: Request):
+    async def get_login_id(self, request: Request):
 
-        user = request.session.get("user", None)
-        if not user or 'oauth_state' not in request.session:
+        session_id = request.session.get("session_id", None)
+        if not session_id:
+            raise HTTPException(status_code=401, detail="unauthorized")
+        session_data = await get_session_data(session_id)
+        user = session_data.get("user", None)
+        if not user or 'oauth_state' not in session_data:
             raise HTTPException(status_code=401, detail="unauthorized voter")
 
         return self.get_user_without_domain(user)
