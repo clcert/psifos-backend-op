@@ -6,6 +6,7 @@ reworked for Psifos: 14-04-2022
 """
 
 from app.database.serialization import SerializableList, SerializableObject
+from app.psifos.crypto.utils import random
 from Crypto.Util import number
 from Crypto.Hash import SHA1
 
@@ -192,6 +193,32 @@ class ZKProof(SerializableObject):
         self.response = int(response or 0)
         commitment_params = commitment or {}
         self.commitment = ZKProofCommitment(**commitment_params)
+    
+    @classmethod
+    def generate(cls, little_g, little_h, x, p, q, challenge_generator):
+      """
+      generate a DDH tuple proof, where challenge generator is
+      almost certainly EG_fiatshamir_challenge_generator
+      """
+
+      # generate random w
+      w = random.mpz_lt(q)
+      
+      # create proof instance
+      proof = cls()
+
+      # compute A = little_g^w, B=little_h^w
+      proof.commitment.A = pow(little_g, w, p)
+      proof.commitment.B = pow(little_h, w, p)
+
+      # get challenge
+      proof.challenge = challenge_generator(proof.commitment)
+
+      # compute response
+      proof.response = (w + (x * proof.challenge)) % q
+
+      # return proof
+      return proof
 
     def verify(self, little_g=None, little_h=None, big_g=None, big_h=None, p=None, challenge_generator=None):
         """
@@ -256,6 +283,12 @@ class ZKDisjunctiveProof(SerializableList):
     @property
     def proofs(self):
         return self.instances
+
+class DLogProof(SerializableObject):
+  def __init__(self, commitment=None, challenge=None, response=None):
+    self.commitment = commitment
+    self.challenge = challenge
+    self.response = response
 
 class ListOfZKDisjunctiveProofs(SerializableList):
     def __init__(self, *args) -> None:

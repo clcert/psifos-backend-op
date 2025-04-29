@@ -283,6 +283,7 @@ class ElectionBase(PsifosSchema):
     voters_login_type: ElectionLoginTypeEnum =Field(max_length=100)
     normalized: bool | None
     grouped_voters: bool | None
+    has_psifos_trustees: bool | None
 
 
 class ElectionIn(ElectionBase):

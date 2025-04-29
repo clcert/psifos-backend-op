@@ -1,5 +1,5 @@
-from app.psifos.model.schemas.crypto_schemas import PublicKeyBase
-from app.psifos.model.crypto_models import PublicKey
+from app.psifos.model.schemas.crypto_schemas import SecretKeyBase
+from app.psifos.model.crypto_models import PublicKey, SecretKey
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from app.database import db_handler
@@ -43,3 +43,12 @@ async def delete_unused_public_keys(session: AsyncSession):
         await delete_public_key(session, key.id)
 
     return {"message": f"Deleted {len(unused_keys)} unused public keys."}
+
+## Secret Key
+async def create_secret_key(session: Session | AsyncSession, secret_key: SecretKeyBase) -> SecretKey:
+    db_secret_key = secret_key if isinstance(secret_key, SecretKey) else SecretKey(**secret_key.dict())
+    db_secret_key.x = str(db_secret_key.x)
+    db_handler.add(session, db_secret_key)
+    await db_handler.commit(session)
+    await db_handler.refresh(session, db_secret_key)
+    return db_secret_key

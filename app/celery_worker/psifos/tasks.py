@@ -117,13 +117,32 @@ def compute_tally(short_name: str, public_key: dict):
                 group=group,
                 voters=voters
             )
-        
-        # Actualización final
-        crud.update_election(
-            session=session,
-            election_id=election.id,
-            fields={"status": ElectionStatusEnum.tally_computed}
-        )
+
+        if election.has_psifos_trustees:
+            # Procesamiento de votantes con psi-trustees
+            secret_key = crud.get_secret_key(session=session, election_id=election.id)
+            total_result, grouped_result = election.decryption_factors_and_proofs(secret_key)
+            result = {
+                "total_result": total_result,
+                "grouped_result": grouped_result,
+            }
+            crud.create_result(
+                session=session,
+                election_id=election.id,
+                result=result,
+            )
+            crud.update_election(
+                session=session,
+                election_id=election.id,
+                fields={"status": ElectionStatusEnum.decryptions_combined}
+            )
+        else:
+            # Actualización final
+            crud.update_election(
+                session=session,
+                election_id=election.id,
+                fields={"status": ElectionStatusEnum.tally_computed}
+            )
 
 def _process_group_voters(session, election, public_key, group, voters):
     """Procesa todos los votantes de un grupo en una sola operación"""

@@ -403,22 +403,34 @@ async def ready_key_generation(
     if not status:
         raise HTTPException(status_code=400, detail=message)
     
-    await crud.update_election(
-        session=session, election_id=election.id, fields={"status": ElectionStatusEnum.ready_key_generation}
-    )
-    trustees = await crud.get_trustees_by_election_id(session=session, election_id=election.id)
-    for trustee in trustees:
-        await crud.update_trustee_crypto(
+    if election.has_psifos_trustees:
+        pk_id = await election.generate_trustee(session=session)
+        election = await crud.update_election(
             session=session,
-            trustee_id=trustee.id,
             election_id=election.id,
-            fields={"current_step": TrusteeStepEnum.secret_key_step}
+            fields={
+                "public_key_id": pk_id,
+                "status": ElectionStatusEnum.ready_opening
+            },
         )
+        
+    else:
+        election = await crud.update_election(
+            session=session, election_id=election.id, fields={"status": ElectionStatusEnum.ready_key_generation}
+        )
+        trustees = await crud.get_trustees_by_election_id(session=session, election_id=election.id)
+        for trustee in trustees:
+            await crud.update_trustee_crypto(
+                session=session,
+                trustee_id=trustee.id,
+                election_id=election.id,
+                fields={"current_step": TrusteeStepEnum.secret_key_step}
+            )
 
     await psifos_logger.info(
         election_id=election.id, event=ElectionPublicEventEnum.KEY_GENERATION_READY
     )
-    return {"message": message}
+    return {"message": message, "status": election.status}
 
 @api_router.post("/{short_name}/back-to-setting-up", status_code=200)
 async def back_to_setting_up(

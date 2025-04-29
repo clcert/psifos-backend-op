@@ -12,7 +12,7 @@ from app.psifos.crypto.tally.common.decryption.trustee_decryption import (
 from app.psifos.crypto.tally.common.encrypted_vote import EncryptedVote
 from sqlalchemy.dialects.mysql import LONGTEXT
 from app.psifos.crypto.tally.mixnet.decryption import ListOfDecryptionFactors, ListOfDecryptionProofs
-from app.psifos.crypto.elgamal import ListOfIntegers, ListOfZKProofs
+from app.psifos.crypto.elgamal import ListOfIntegers, ListOfZKProofs, DLogProof
 
 
 class SerializableField(types.TypeDecorator):
@@ -78,3 +78,7 @@ class ListOfDecryptionFactorsField(SerializableField):
 
 class ListOfDecryptionProofsField(SerializableField):
     class_type = ListOfDecryptionProofs
+
+class DLogProofField(SerializableField):
+    class_type = DLogProof
+    cache_ok = False
