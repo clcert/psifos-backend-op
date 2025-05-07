@@ -1,5 +1,5 @@
-from fastapi import Request, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Request, HTTPException, Depends, Cookie
+from fastapi.security import HTTPBearer
 from app.config import SECRET_KEY
 from sqlalchemy.orm import Session
 from app.dependencies import get_session
@@ -24,23 +24,17 @@ class AuthAdmin(HTTPBearer):
 
     """
 
-
     def __init__(self, auto_error: bool = True):
         super(AuthAdmin, self).__init__(auto_error=auto_error)
 
-    async def __call__(self, request: Request, session: Session | AsyncSession = Depends(get_session)):
-        credentials: HTTPAuthorizationCredentials = await super(AuthAdmin, self).__call__(request)
-        if credentials:
-            if not credentials.scheme == "Bearer":
-                raise HTTPException(status_code=403, detail="Invalid authentication scheme.")
-
-            admin_user = await self.verify_jwt(credentials.credentials, session)
+    async def __call__(self, request: Request, session: Session | AsyncSession = Depends(get_session), access_token: str = Cookie(None)):
+        if access_token:
+            admin_user = await self.verify_jwt(access_token, session)
             if not admin_user:
                 raise HTTPException(status_code=403, detail="Invalid token or expired token.")
-
             return admin_user
         else:
-            raise HTTPException(status_code=403, detail="Invalid authorization code.")
+            raise HTTPException(status_code=403, detail="Authorization token not provided.")
 
     async def verify_jwt(self, jwtoken: str, session: Session | AsyncSession) -> bool:
         try:
