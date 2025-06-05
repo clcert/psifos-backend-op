@@ -33,7 +33,7 @@ import csv
 
 @celery.task(name="process_castvote")
 def process_cast_vote(
-    election_login_type: str,
+    voters_login_type: str,
     election_short_name: str,
     serialized_encrypted_vote: str,
     **kwargs
@@ -47,28 +47,28 @@ def process_cast_vote(
 
         query_params = [
             models.Election.id,
-            models.Election.total_voters,
-            models.Election.uuid,
             models.Election.public_key_id,
+            models.Election.short_name
         ]
 
         election = crud.get_election_params_by_short_name(short_name=election_short_name, session=session, params=query_params)
         questions = crud.get_questions_by_election_id(election_id=election.id, session=session)
         public_key = crud.get_public_key(session=session, id=election.public_key_id)
-        if election_login_type == ElectionLoginTypeEnum.close_p:
+        if voters_login_type == ElectionLoginTypeEnum.close_p:
             voter_id = kwargs.get("voter_id")
             voter = crud.get_voter_by_voter_id(voter_id=voter_id, session=session)
         else:
-            voter_login_id = kwargs.get("voter_login_id")
+            username = kwargs.get("username")
             voter = crud.get_voter_by_login_id_and_election_id(
-                session=session, voter_login_id=voter_login_id, election_id=election.id
+                session=session, username=username, election_id=election.id
             )
             if not voter:
                 voter_in = schemas.VoterIn(
-                    voter_login_id=voter_login_id,
-                    voter_name=voter_login_id,
-                    login_id_election_id=f"{voter_login_id}_{election.id}",
-                    voter_weight=1,
+                    username=username,
+                    name=username,
+                    username_election_id=f"{username}_{election.id}",
+                    weight_init=1,
+                    weight_end=1,
                     group="",
                 )
                 voter = crud.create_voter(
@@ -76,15 +76,10 @@ def process_cast_vote(
                     election_id=election.id,
                     voter=voter_in,
                 )
-                crud.update_election(
-                    session=session,
-                    election_id=election.id,
-                    fields={"total_voters": election.total_voters + 1},
-                )
 
         enc_vote_data = psifos_utils.from_json(serialized_encrypted_vote)
         encrypted_vote = EncryptedVote(**enc_vote_data)
-        is_valid, voter_fields, cast_vote_fields = voter.process_cast_vote(
+        is_valid, cast_vote_fields = voter.process_cast_vote(
             encrypted_vote, election, public_key=public_key, questions=questions
         )
         cast_vote = crud.update_or_create_cast_vote(
@@ -92,113 +87,127 @@ def process_cast_vote(
             voter_id=voter.id,
             fields=cast_vote_fields,
         )
-        voter = crud.update_voter(
-            session=session, voter_id=voter.id, fields=voter_fields
-        )
 
     if is_valid:
-        return is_valid, cast_vote.vote_hash
+        return is_valid, cast_vote.encrypted_ballot_hash
 
     return is_valid, None
 
 
 @celery.task(name="compute_tally")
-def compute_tally(election_uuid: str, public_key: dict):
+def compute_tally(short_name: str, public_key: dict):
     """
     Computes the encrypted tally of an election.
     """
     with SessionLocal() as session:
-        election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
-        voters_group = crud.get_groups_voters(session=session, election_id=election.id)
-        for voter_group in voters_group:
-            group = voter_group[0]
-            voters = crud.get_voters_by_election_id_and_group(
-                session=session, election_id=election.id, group=group
-            )
-            not_null_voters = [
-                v for v in voters if (v.valid_cast_votes >= 1)
-            ]
-            serialized_encrypted_votes = [
-                EncryptedVote.serialize(v.cast_vote.vote) for v in not_null_voters
-            ]
-            weights = [v.voter_weight for v in not_null_voters]
-            encrypted_votes = [
-                EncryptedVote(**(psifos_utils.from_json(v)))
-                for v in serialized_encrypted_votes
-            ]
-            pk = PublicKey(**public_key)
-            with_votes = len(encrypted_votes) > 0
-            tally = election.compute_tally(encrypted_votes, weights, pk)
-
-            crud.create_group_tally(
+        election = crud.get_election_by_short_name(
+            short_name=short_name,
+            session=session,
+        )
+        
+        # Obtenemos todos los grupos con sus votantes en una sola consulta
+        groups_with_voters = crud.get_groups_with_voters(session, election.id)
+        
+        # Procesamiento paralelo por grupo (todos los datos ya están en memoria)
+        for group, voters in groups_with_voters:
+            _process_group_voters(
                 session=session,
-                election_id=election.id,
+                election=election,
+                public_key=public_key,
                 group=group,
-                with_votes=with_votes,
-                tally_grouped=tally,
+                voters=voters
             )
+        
+        # Actualización final
+        crud.update_election(
+            session=session,
+            election_id=election.id,
+            fields={"status": ElectionStatusEnum.tally_computed}
+        )
 
-        fields = {
-            "election_status": ElectionStatusEnum.tally_computed,
-        }
-        crud.update_election(session=session, election_id=election.id, fields=fields)
+def _process_group_voters(session, election, public_key, group, voters):
+    """Procesa todos los votantes de un grupo en una sola operación"""
+    # Filtrado de votantes válidos
+    not_null_voters = [
+        v for v in voters 
+        if crud.voter_has_valid_vote(session=session, voter_id=v.id, election_id=election.id)
+    ]
+    
+    # Procesamiento de votos cifrados
+    encrypted_votes = [
+        EncryptedVote(**(psifos_utils.from_json(EncryptedVote.serialize(v.cast_vote.encrypted_ballot))))
+        for v in not_null_voters
+    ]
+    
+    # Cálculo del tally
+    weights = [v.weight_end for v in not_null_voters]
+    pk = PublicKey(**public_key)
+    with_votes = len(encrypted_votes) > 0
+    
+    tally = election.compute_tally(
+        encrypted_votes=encrypted_votes,
+        weights=weights,
+        public_key=pk,
+        with_votes=with_votes,
+        group=group
+    )
+    
+    # Registro en base de datos
+    crud.create_group_tally(
+        session=session,
+        election_id=election.id,
+        group=group,
+        with_votes=with_votes,
+        tally_grouped=tally,
+    )
 
 @celery.task(name="combine_decryptions", ignore_result=True)
-def combine_decryptions(election_uuid: str):
+def combine_decryptions(short_name: str):
     """
     Combines the partial decryptions of the trustees and releases
     the election results.
     """
     with SessionLocal() as session:
-        election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
+        election = crud.get_election_by_short_name(session=session, short_name=short_name)
         tallies = crud.get_tallies_grouped_by_group_and_ordered_by_q_num(session=session, election_id=election.id)
         results = election.combine_decryptions(session=session, tallies=tallies)
         crud.create_result(session=session, election_id=election.id, result=results)
-        crud.update_election(session=session, election_id=election.id, fields={"election_status": ElectionStatusEnum.decryptions_combined})
+        crud.update_election(session=session, election_id=election.id, fields={"status": ElectionStatusEnum.decryptions_combined})
 
 
 @celery.task(name="upload_voters")
-def upload_voters(election_uuid: str, voter_file_content: str):
+def upload_voters(election_id: str, voter_file_content: str):
     """
     Handles the upload of a voter file.
     """
     with SessionLocal() as session:
-        election = crud.get_election_by_uuid(uuid=election_uuid, session=session)
-
+        election = crud.get_election_by_id(election_id=election_id, session=session)
+        login_voters = set()
+        voters = []
         try:
-            grouped = election.grouped
+            grouped = election.grouped_voters
             buffer = StringIO(voter_file_content)
             csv_reader = csv.reader(buffer, delimiter=",")
             k = 0  # voter counter
-            n = 0 # total voters
+            n = 0  # total voters
             for voter in csv_reader:
                 n += 1
                 add_group = len(voter) > 3 and grouped
-                v_in =  {
-                        "voter_login_id": voter[0],
-                        "voter_name": voter[1],
-                        "voter_weight": voter[2],
-                        "login_id_election_id": f"{voter[0]}_{election.id}",
-                        "group": voter[3] if add_group else ""
-                    }
+                v_in = {
+                    "username": voter[0],
+                    "name": voter[1],
+                    "weight_init": voter[2],
+                    "weight_end": voter[2],
+                    "username_election_id": f"{voter[0]}_{election.id}",
+                    "group": voter[3] if add_group else ""
+                }
                 v_in = schemas.VoterIn(**v_in)
-
-                # add the voter to the database
-                new_voter = crud.create_voter(
-                    session=session,
-                    election_id=election.id,
-                    voter=v_in,
-                )
-                if new_voter:
-                    k += 1    
-
-            # update the total_voters field of election
-            crud.update_election(
-                session=session,
-                election_id=election.id,
-                fields={"total_voters": election.total_voters + k},
-            )
+                if v_in.username_election_id not in login_voters:
+                    login_voters.add(v_in.username_election_id)
+                    voters.append(models.Voter(election_id=election_id, **v_in.dict()))
+                    k += 1
+            crud.create_voters(session=session, voters=voters)
         except Exception as e:
             return False, 0, 0
-        
+
     return True, k, n

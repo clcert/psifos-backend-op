@@ -12,7 +12,7 @@ class PublicKey(Base):
     _g = Column('g', Text, nullable=False)
     _q = Column('q', Text, nullable=False)
 
-    trustees = relationship("Trustee", back_populates="public_key", uselist=False, cascade="all, delete")
+    trustees = relationship("TrusteeCrypto", back_populates="public_key", uselist=False, cascade="all, delete")
     elections = relationship("Election", back_populates="public_key", uselist=False, cascade="all, delete")
 
     @property
