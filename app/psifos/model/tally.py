@@ -309,9 +309,9 @@ class STVTally(MixnetTally):
     def __init__(self, tally=None, **kwargs) -> None:
         MixnetTally.__init__(self, tally, **kwargs)
         self.tally_type = "stvnc"
-        self.num_of_winners = int(kwargs["num_of_winners"])
-        self.include_blank_null = kwargs["include_blank_null"]
-        self.max_answers = int(kwargs["max_answers"])
+        self.num_of_winners = int(kwargs["question"].num_of_winners)
+        self.include_blank_null = kwargs["question"].include_informal_options
+        self.max_answers = int(kwargs["question"].max_answers)
         
     def stv(
         self, blank_count, null_count, ballot_list, candidates_list,
@@ -327,7 +327,7 @@ class STVTally(MixnetTally):
         
         if len(ballot_list) > 0:
             election = STVElection()
-            election.runElection(self.num_of_winners, candidates_list, ballot_list)
+            election.runElection(self.question.num_of_winners, candidates_list, ballot_list)
             result["roundresumes"] = election.getRoundResumes()
             result["talliesresumes"] = election.getTalliesResumes()
             result["winnerslist"] = election.getWinnersList()
@@ -337,22 +337,22 @@ class STVTally(MixnetTally):
 
     def count_votes(self, votes, total_closed_options):
         # All ballots have the same length
-        num_of_formal_options = total_closed_options - 2 if self.include_blank_null else total_closed_options
+        num_of_formal_options = total_closed_options - 2 if self.question.include_informal_options else total_closed_options
         candidates_list = list(range(num_of_formal_options))
 
         blank_count = 0
         null_count = 0
         ballot_list = []
         for ballot in votes:
-            is_blank = is_blank_ballot(ballot, total_closed_options, self.max_answers)
-            is_null = is_null_ballot(ballot, total_closed_options, self.max_answers)
+            is_blank = is_blank_ballot(ballot, total_closed_options, self.question.max_answers)
+            is_null = is_null_ballot(ballot, total_closed_options, self.question.max_answers)
             is_invalid = is_invalid_ballot(
-                ballot, total_closed_options, num_of_formal_options, self.max_answers
+                ballot, total_closed_options, num_of_formal_options, self.question.max_answers
             )
-            if self.include_blank_null and is_blank:
+            if self.question.include_informal_options and is_blank:
                 blank_count += 1
             elif is_null or is_invalid or (
-                not self.include_blank_null and is_blank
+                not self.question.include_informal_options and is_blank
             ):
                 null_count += 1
             else:
