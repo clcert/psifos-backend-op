@@ -124,7 +124,6 @@ class ElectionLogger(object):
             election_id=election_id,
             event=event,
             event_params=json.dumps(kwargs),
-            created_at=tz_now().strftime("%Y-%m-%d %H:%M:%S"),
         )
         
     

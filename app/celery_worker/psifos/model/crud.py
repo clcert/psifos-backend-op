@@ -1,5 +1,8 @@
+from itertools import groupby
+
 from app.psifos.model import models
 from app.psifos.model.decryptions import HomomorphicDecryption, MixnetDecryption
+from app.psifos.model.tally import TallyTypeEnum
 from app.psifos.model.results import Results
 from app.psifos.model.questions import AbstractQuestion
 from app.psifos.model.schemas import schemas
@@ -109,10 +112,34 @@ def get_groups_voters(session: Session, election_id: int):
     result = session.execute(query)
     return result.fetchall()
 
+def get_groups_with_voters(session: Session, election_id: int) -> list[tuple[str, list]]:
+    # Obtener todos los votantes de la elección ordenados por grupo
+    voters_query = session.execute(
+        select(models.Voter)
+        .where(models.Voter.election_id == election_id)
+        .order_by(models.Voter.group)
+    ).scalars().all()
 
-def get_voter_by_login_id_and_election_id(session: Session, voter_login_id: int, election_id: int):
+    # Agrupar los votantes usando itertools.groupby
+    grouped_voters = []
+    for key, group in groupby(voters_query, key=lambda v: v.group):
+        grouped_voters.append((key, list(group)))
+
+    return grouped_voters
+
+def voter_has_valid_vote(session: Session, voter_id: int, election_id: int):
+    query = select(models.Voter.username).join(
+        models.CastVote, models.CastVote.voter_id == models.Voter.id).where(
+        models.Voter.id == voter_id,
+        models.Voter.election_id == election_id,
+        models.CastVote.is_valid
+    )
+    result = session.execute(query)
+    return result.scalars().first()
+
+def get_voter_by_login_id_and_election_id(session: Session, username: int, election_id: int):
     query = select(models.Voter).where(
-        models.Voter.voter_login_id == voter_login_id,
+        models.Voter.username == username,
         models.Voter.election_id == election_id
     )
     result = session.execute(query)
@@ -131,6 +158,16 @@ def create_voter(session: Session, election_id: int, voter: schemas.VoterIn):
         # session.commit()
         # session.refresh(db_cast_vote)
         return db_voter #, db_cast_vote
+
+    except Exception as e:
+        session.rollback()
+        return None
+    
+def create_voters(session: Session, voters: list[models.Voter]):
+    try:
+        session.add_all(voters)
+        session.commit()
+        return len(voters)
 
     except Exception as e:
         session.rollback()
@@ -188,9 +225,10 @@ def get_tally_by_election_id_and_group(session: Session, election_id: int, group
 def get_tallies_grouped_by_group_and_ordered_by_q_num(session: Session, election_id: int):
     # Consulta para obtener todos los Tallys, ordenados por group y luego por q_num
     query = (
-        select(models.Tally)
-        .where(models.Tally.election_id == election_id)
-        .order_by(models.Tally.group, models.Tally.q_num)  # Ordena por grupo y luego por q_num
+        select(models.Tally).join(
+        models.AbstractQuestion, models.Tally.question_id == models.AbstractQuestion.id).where(
+        models.AbstractQuestion.election_id == election_id).order_by(
+        models.Tally.group, models.AbstractQuestion.index)  # Ordena por grupo y luego por q_num
     )
     result = session.execute(query)
     tallies = result.scalars().all()
@@ -209,49 +247,44 @@ def create_group_tally(session: Session, election_id: int, group: str, with_vote
     """
     for item in tally_grouped:
         db_tally = models.Tally(
-            election_id=election_id,
             group=group,
             with_votes=with_votes,
             tally_type=item.tally_type,
             computed=item.computed,
             num_tallied=item.num_tallied,
-            tally=item.tally,
-            q_num=item.q_num,
-            num_options=item.num_options,
-            max_answers=item.max_answers,
-            num_of_winners=item.num_of_winners,
-            include_blank_null=bool(item.include_blank_null)
+            encrypted_tally=item.encrypted_tally,
+            question_id=item.question.id,
         )
-
+        session.rollback()  
         session.add(db_tally)
-    
-    session.commit()
+        session.commit()
     return tally_grouped
-        
 # Decryption
 
-def get_homomorphic_decryption_by_trustee_id(session: Session, trustee_id: int, q_num: int, group: str):
-    query = select(HomomorphicDecryption).where(
-        models.HomomorphicDecryption.trustee_id == trustee_id,
-        models.HomomorphicDecryption.q_num == q_num,
+def get_homomorphic_decryption_by_trustee_id(session: Session, trustee_crypto_id: int, q_num: int, group: str):
+    query = select(HomomorphicDecryption).join(
+        models.AbstractQuestion, models.HomomorphicDecryption.question_id == models.AbstractQuestion.id
+    ).where(
+        models.HomomorphicDecryption.trustee_crypto_id == trustee_crypto_id,
+        models.AbstractQuestion.index == q_num,
         models.HomomorphicDecryption.group == group
     )
     result = session.execute(query)
     return result.scalars().first()
 
-def get_mixnet_decryption_by_trustee_id(session: Session, trustee_id: int, q_num: int, group: str):
+def get_mixnet_decryption_by_trustee_id(session: Session, trustee_crypto_id: int, q_num: int, group: str):
     query = select(MixnetDecryption).where(
-        models.MixnetDecryption.trustee_id == trustee_id,
-        models.MixnetDecryption.q_num == q_num,
+        models.MixnetDecryption.trustee_crypto_id == trustee_crypto_id,
+        models.AbstractQuestion.index == q_num,
         models.MixnetDecryption.group == group
     )
     result = session.execute(query)
     return result.scalars().first()
 
-def get_decryptions_by_trustee_id(session: Session, trustee_id: int, q_num: int, group: str = ""):
-    h_decryption = get_homomorphic_decryption_by_trustee_id(session, trustee_id, q_num, group)
+def get_decryptions_by_trustee_id(session: Session, trustee_crypto_id: int, q_num: int, group: str = ""):
+    h_decryption = get_homomorphic_decryption_by_trustee_id(session, trustee_crypto_id, q_num, group)
     if h_decryption:
         return h_decryption
     
-    m_decryption = get_mixnet_decryption_by_trustee_id(session, trustee_id, q_num, group)
+    m_decryption = get_mixnet_decryption_by_trustee_id(session, trustee_crypto_id, q_num, group)
     return m_decryption

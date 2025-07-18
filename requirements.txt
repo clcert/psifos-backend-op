@@ -20,13 +20,13 @@ dnspython==2.6.1
 fastapi==0.115.3
 flower==2.0.1
 greenlet==3.0.1
-h11==0.13.0
+h11==0.16.0
 humanize==4.3.0
 idna==3.7
 importlib-metadata==6.8.0
 importlib-resources==6.1.1
 itsdangerous==2.1.2
-Jinja2==3.1.4
+Jinja2==3.1.6
 jsonschema==4.4.0
 kombu==5.3.2
 lxml==4.9.1
@@ -56,7 +56,7 @@ pytz==2023.3.post1
 PyYAML==6.0
 qrcode==7.3.1
 redis==5.0.1
-requests==2.32.0
+requests==2.32.4
 requests-oauthlib==1.2.0
 shellescape==3.8.1
 simpleeval==0.9.12
@@ -68,10 +68,10 @@ starlette-context==0.3.4
 psifospoll==2.0.0
 toml==0.10.2
 tomli==2.0.1
-tornado==6.4.2
+tornado==6.5.1
 tqdm==4.66.3
 typing_extensions==4.8.0
-urllib3==2.2.2
+urllib3==2.5.0
 uuid==1.30
 uvicorn==0.18.3
 vdf==3.4
@@ -85,4 +85,6 @@ xmltodict==0.12.0
 zipp==3.19.1
 fastapi-analytics==1.1.4
 loguru==0.7.2
-gunicorn==22.0.0
+pyinstrument==5.0.0
+cryptography==44.0.2
+gunicorn==23.0.0

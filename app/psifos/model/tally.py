@@ -35,34 +35,38 @@ class Tally(Base):
     __tablename__ = "psifos_tallies"
 
     id = Column(Integer, primary_key=True, index=True)
-    election_id = Column(Integer, ForeignKey("psifos_election.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    question_id = Column(Integer, ForeignKey("psifos_questions.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     group = Column(Text, nullable=False)
     with_votes = Column(Boolean, default=False)
     tally_type = Column(Enum(TallyTypeEnum), nullable=False)
-    q_num = Column(Integer, nullable=False)
-    num_options = Column(Integer, nullable=False, default=0)
     computed = Column(Boolean, default=False)
     num_tallied = Column(Integer, nullable=False, default=0)
-    max_answers = Column(Integer, nullable=True)
-    num_of_winners = Column(Integer, nullable=True)
-    include_blank_null = Column(Boolean, nullable=True)
-    tally = Column(LONGTEXT, nullable=False, default=[])
+    encrypted_tally = Column(LONGTEXT, nullable=False, default=[])
 
-    election = relationship("Election", back_populates="encrypted_tally", cascade="all, delete")
+    question = relationship("AbstractQuestion", cascade="all, delete", back_populates="encrypted_tally")
 
-    def __repr__(self):
-        return f"Tally(id={self.id}, tally_type={self.tally_type}, election_id={self.election_id}, group={self.group}, with_votes={self.with_votes})"
+    @property
+    def index(self):
+        """Calculate the length of formal_options if it exists, otherwise return 0."""
+        if not self.question:
+            return None
+        return self.question.index
+    
+    @property
+    def num_options(self):
+        """Calculate the length of formal_options if it exists, otherwise return 0."""
+        if not self.question:
+            return 0
+        return self.question.total_options
     
     __mapper_args__ = {
         'polymorphic_on': tally_type,
-        'polymorphic_identity': 'tally',
-        'with_polymorphic': '*'
     }
 
     def get_loads_tally(self):
-        if type(self.tally) == str:
-            return json.loads(self.tally)
-        return self.tally
+        if type(self.encrypted_tally) == str:
+            return json.loads(self.encrypted_tally)
+        return self.encrypted_tally
 
 class HomomorphicTally(Tally):
     """
@@ -73,7 +77,7 @@ class HomomorphicTally(Tally):
         'polymorphic_identity': TallyTypeEnum.HOMOMORPHIC,
     }
 
-    def __init__(self, tally=None, **kwargs) -> None:
+    def __init__(self, encrypted_tally=None, **kwargs) -> None:
         """
         HomomorphicTally constructor, allows the creation of this tally.
         
@@ -82,28 +86,28 @@ class HomomorphicTally(Tally):
         """
         super(HomomorphicTally, self).__init__(**kwargs)
         if not self.computed:
-            self.tally = [0] * self.num_options
+            self.encrypted_tally = [0] * self.question.total_options
 
         else:
-            self.tally = ListOfCipherTexts(*tally)
+            self.encrypted_tally = ListOfCipherTexts(*encrypted_tally) if type(encrypted_tally) == dict else encrypted_tally
     
     def get_tally(self):
-        return ListOfCipherTexts(*json.loads(self.tally))
+        return ListOfCipherTexts(*json.loads(self.encrypted_tally))
     
     def compute(self, public_key, encrypted_answers, weights, **kwargs):
         self.computed = True
         for enc_ans, weight in zip(encrypted_answers, weights):
             choices = enc_ans.get_choices()
-            for answer_num in range(len(self.tally)):
+            for answer_num in range(len(self.encrypted_tally)):
                 # do the homomorphic addition into the tally
                 choices[answer_num]._pk = public_key
                 choices[answer_num].alpha = pow(choices[answer_num].alpha, weight, public_key.p)
                 choices[answer_num].beta = pow(choices[answer_num].beta, weight, public_key.p)
-                self.tally[answer_num] = choices[answer_num] * self.tally[answer_num]
+                self.encrypted_tally[answer_num] = choices[answer_num] * self.encrypted_tally[answer_num]
             self.num_tallied += 1
         a_tally = ListOfCipherTexts()
-        a_tally.set_instances(self.tally)
-        self.tally = a_tally.serialize(s_list=a_tally, to_json=True)
+        a_tally.set_instances(self.encrypted_tally)
+        self.encrypted_tally = a_tally.serialize(s_list=a_tally, to_json=True)
 
     def decrypt(self, public_key, decryption_factors, t, max_weight=1, **kwargs):
         """
@@ -170,11 +174,14 @@ class MixnetTally(Tally):
 
     def __init__(self, tally=None, **kwargs) -> None:
         super(MixnetTally, self).__init__(**kwargs)
-        self.tally = ListOfEncryptedTexts(*tally) if self.computed else []
+        if self.computed or type(tally) == dict:
+            self.encrypted_tally = ListOfEncryptedTexts(*tally)
+        else:
+            self.encrypted_tally = []
         self.tally_type = "mixnet"
 
     def get_tally(self):
-        return ListOfEncryptedTexts(*json.loads(self.tally))
+        return ListOfEncryptedTexts(*json.loads(self.encrypted_tally))
         
     def compute(self, public_key, encrypted_answers, **kwargs) -> None:        
         # first we create the list of ciphertexts
@@ -186,13 +193,13 @@ class MixnetTally(Tally):
             ])
         election = kwargs.get("election")
         election_name = election.short_name
-        election_uuid = election.uuid
+        short_name = election.short_name
 
         mixnet_width = kwargs.get("width")
         server_names = [MIXNET_01_NAME, MIXNET_02_NAME, MIXNET_03_NAME]
         server_urls = [MIXNET_01_URL, MIXNET_02_URL, MIXNET_03_URL]
 
-        TOKEN = re.sub(r'[^a-zA-Z0-9]+', '', f'{election_name}{election_uuid}{time.time()}{self.q_num}')
+        TOKEN = re.sub(r'[^a-zA-Z0-9]+', '', f'{election_name}{short_name}{time.time()}{self.index}')
 
         for name, url in zip(server_names, server_urls):
             requests.post(url=f"{url}/configure-mixnet", json={
@@ -229,7 +236,7 @@ class MixnetTally(Tally):
             if r["status"] == "CIPHERTEXTS_COMPUTED":
                 response_content = [mixnet_output["ciphertexts"] for mixnet_output in r["content"]]
                 tally_result = ListOfEncryptedTexts(*response_content)
-                self.tally = tally_result.serialize(s_list=tally_result, to_json=True)
+                self.encrypted_tally = tally_result.serialize(s_list=tally_result, to_json=True)
                 break
             time.sleep(MIXNET_WAIT_INTERVAL)
 
@@ -272,20 +279,19 @@ class MixnetTally(Tally):
     def count_votes(self, votes, total_closed_options):
         # The votes come with a +1 from the front, take it into account when counting
         q_result = [0] * total_closed_options
-        null_vote = total_closed_options + 1
+        null_vote = total_closed_options
         blank_vote = null_vote - 1
-
         # Lets count by votes
         for vote in votes:
             set_vote = set(vote)
 
             # check null vote
             if null_vote in vote:
-                q_result[null_vote - 2] += 1
+                q_result[null_vote - 1] += 1
 
             # check blank vote
             elif len(set_vote) == 1 and blank_vote in set_vote:
-                q_result[blank_vote - 2] += 1
+                q_result[blank_vote - 1] += 1
 
             # count normal counts
             else:   
@@ -303,9 +309,9 @@ class STVTally(MixnetTally):
     def __init__(self, tally=None, **kwargs) -> None:
         MixnetTally.__init__(self, tally, **kwargs)
         self.tally_type = "stvnc"
-        self.num_of_winners = int(kwargs["num_of_winners"])
-        self.include_blank_null = kwargs["include_blank_null"]
-        self.max_answers = int(kwargs["max_answers"])
+        self.num_of_winners = int(kwargs["question"].num_of_winners)
+        self.include_blank_null = kwargs["question"].include_informal_options
+        self.max_answers = int(kwargs["question"].max_answers)
         
     def stv(
         self, blank_count, null_count, ballot_list, candidates_list,
@@ -321,7 +327,7 @@ class STVTally(MixnetTally):
         
         if len(ballot_list) > 0:
             election = STVElection()
-            election.runElection(self.num_of_winners, candidates_list, ballot_list)
+            election.runElection(self.question.num_of_winners, candidates_list, ballot_list)
             result["roundresumes"] = election.getRoundResumes()
             result["talliesresumes"] = election.getTalliesResumes()
             result["winnerslist"] = election.getWinnersList()
@@ -331,22 +337,22 @@ class STVTally(MixnetTally):
 
     def count_votes(self, votes, total_closed_options):
         # All ballots have the same length
-        num_of_formal_options = total_closed_options - 2 if self.include_blank_null else total_closed_options
+        num_of_formal_options = total_closed_options - 2 if self.question.include_informal_options else total_closed_options
         candidates_list = list(range(num_of_formal_options))
 
         blank_count = 0
         null_count = 0
         ballot_list = []
         for ballot in votes:
-            is_blank = is_blank_ballot(ballot, total_closed_options, self.max_answers)
-            is_null = is_null_ballot(ballot, total_closed_options, self.max_answers)
+            is_blank = is_blank_ballot(ballot, total_closed_options, self.question.max_answers)
+            is_null = is_null_ballot(ballot, total_closed_options, self.question.max_answers)
             is_invalid = is_invalid_ballot(
-                ballot, total_closed_options, num_of_formal_options, self.max_answers
+                ballot, total_closed_options, num_of_formal_options, self.question.max_answers
             )
-            if self.include_blank_null and is_blank:
+            if self.question.include_informal_options and is_blank:
                 blank_count += 1
             elif is_null or is_invalid or (
-                not self.include_blank_null and is_blank
+                not self.question.include_informal_options and is_blank
             ):
                 null_count += 1
             else:
