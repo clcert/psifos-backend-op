@@ -1652,11 +1652,16 @@ async def get_questions(
             session=session, id=election.public_key_id
         )
 
+        has_valid_vote = await crud.has_valid_vote(
+            session=session, election_id=election.id, username=username
+        )
+
         election_schema = schemas.ElectionOut.from_orm(election)
         election_schema.public_key = public_key
         booth = schemas.BoothElectionOut(
             election=election_schema,
             questions=[schemas.QuestionBase.from_orm(q) for q in questions],
+            has_valid_vote=has_valid_vote,
         )
     except HTTPException: 
         logger.error("%s - Invalid Voter Access: %s (%s)" % (request.client.host, username, short_name))

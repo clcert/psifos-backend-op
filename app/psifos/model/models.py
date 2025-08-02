@@ -12,7 +12,7 @@ import json
 
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, ForeignKey
-from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime
+from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime, Numeric
 
 from app.psifos import utils
 
@@ -69,6 +69,7 @@ class Election(Base):
 
     result = relationship("Results",uselist=False, cascade="all, delete", backref="psifos_election")
 
+    quorum = Column(Numeric(5, 4), nullable=True)
 
     # One-to-many relationships
     voters = relationship("Voter", cascade="all, delete",

@@ -279,6 +279,7 @@ class ElectionBase(PsifosSchema):
     description: str | None
     type: ElectionTypeEnum = Field(max_length=100)
     max_weight: int
+    quorum: float | None = None
     randomized_options: bool | None
     voters_login_type: ElectionLoginTypeEnum =Field(max_length=100)
     normalized: bool | None
@@ -313,6 +314,7 @@ class BoothElectionOut(PsifosSchema):
 
     election: ElectionOut
     questions: List[QuestionBase]
+    has_valid_vote: bool = False
     class Config:
         orm_mode = True
 
