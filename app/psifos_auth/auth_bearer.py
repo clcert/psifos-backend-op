@@ -25,8 +25,9 @@ class AuthAdmin(HTTPBearer):
     """
 
 
-    def __init__(self, auto_error: bool = True):
+    def __init__(self, role: list = ['super_admin'], auto_error: bool = True):
         super(AuthAdmin, self).__init__(auto_error=auto_error)
+        self.role = role
 
     async def __call__(self, request: Request, session: Session | AsyncSession = Depends(get_session)):
         credentials: HTTPAuthorizationCredentials = await super(AuthAdmin, self).__call__(request)
@@ -37,6 +38,8 @@ class AuthAdmin(HTTPBearer):
             admin_user = await self.verify_jwt(credentials.credentials, session)
             if not admin_user:
                 raise HTTPException(status_code=403, detail="Invalid token or expired token.")
+            if admin_user.role not in self.role:
+                raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
 
             return admin_user
         else:

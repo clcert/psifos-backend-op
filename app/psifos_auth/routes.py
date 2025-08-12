@@ -12,6 +12,7 @@ from app.psifos_auth.model import crud as auth_crud
 from app.psifos.model.cruds import crud
 from app.psifos.model import models
 from app.psifos.model.enums import ElectionLoginTypeEnum
+from app.psifos_auth.auth_bearer import AuthAdmin
 
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from starlette.responses import RedirectResponse
@@ -42,12 +43,20 @@ async def login_user(request: Request, credentials: HTTPBasicCredentials = Depen
     if check_password_hash(user.password, credentials.password):
         token = jwt.encode({"public_id": user.public_id}, SECRET_KEY)
         return {
-            "token": token
+            "token": token,
+            "role": user.role
         }
 
     else:
         raise HTTPException(status_code = 401, detail = "wrong username or passwords")
 
+@auth_router.get("/get-role", status_code=200)
+async def get_role(current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin']))):
+    """
+    Get the role of the user
+    """
+
+    return {"role": current_user.role}
 
 @auth_router.get("/{short_name}/vote", status_code=200)
 async def login_voter(short_name: str, request: Request, redirect: bool = Query(True), session_cookie: str | None = Cookie(default=None), session = Depends(get_session)):

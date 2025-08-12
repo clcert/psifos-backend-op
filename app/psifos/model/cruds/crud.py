@@ -12,6 +12,7 @@ from sqlalchemy import and_, func
 from app.psifos import utils
 from app.psifos.crypto.sharedpoint import Point
 from app.psifos.model import models
+from app.psifos_auth.model.models import ElectionAdmins, User
 from app.psifos.model.decryptions import DecryptionFactory, HomomorphicDecryption, MixnetDecryption
 from app.psifos.model.schemas import schemas
 from app.psifos.model.enums import TrusteeStepEnum
@@ -489,11 +490,26 @@ async def get_election_by_id(session: Session | AsyncSession, election_id: int):
 
 
 async def get_elections_by_user(session: Session | AsyncSession, admin_id: int):
-    query = select(models.Election).where(models.Election.admin_id == admin_id).options(
-        *ELECTION_QUERY_OPTIONS
+    query = (
+        select(models.Election)
+        .join(models.Election.admins)
+        .where(models.User.id == admin_id)
+        .options(selectinload(models.Election.admins))  # opcional
     )
     result = await db_handler.execute(session, query)
     return result.scalars().all()
+
+async def is_user_admin_of_election(session: AsyncSession, user_id: int, election_id: int) -> bool:
+    stmt = (
+        select(models.Election)
+        .join(ElectionAdmins, ElectionAdmins.election_id == models.Election.id)
+        .where(
+            models.Election.id == election_id,
+            User.id == user_id
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalars().first() is not None
 
 
 async def get_num_casted_votes(session: Session | AsyncSession, election_id: int):
@@ -501,9 +517,9 @@ async def get_num_casted_votes(session: Session | AsyncSession, election_id: int
     return len([v for v in voters if v.valid_cast_votes >= 1])
 
 
-async def create_election(session: Session | AsyncSession, election: schemas.ElectionIn, admin_id: int):
+async def create_election(session: Session | AsyncSession, election: schemas.ElectionIn):
     db_election = models.Election(
-        **election.dict(), admin_id=admin_id)
+        **election.dict())
     db_handler.add(session, db_election)
     await db_handler.commit(session)
     await db_handler.refresh(session, db_election)
