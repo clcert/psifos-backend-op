@@ -4,10 +4,10 @@ import json
 from cryptography.fernet import Fernet
 from uuid import uuid4
 
-from app.config import ENCRYPTION_KEY
+from app.config import ENCRYPTION_KEY, REDIS_URL
 
 # Configuración de Redis
-redis_client = redis.Redis(host='redis', port=6379, db=0)
+redis_client = redis.from_url(REDIS_URL)
 # Configuración de cifrado
 cipher_suite = Fernet(ENCRYPTION_KEY)
 
