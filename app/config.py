@@ -42,6 +42,8 @@ ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
 USE_ASYNC_ENGINE = bool(int(os.environ.get("USE_ASYNC_ENGINE", False)))
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND")
+REDIS_URL = os.environ.get("REDIS_URL")
+
 TIMEZONE = os.environ.get("TIMEZONE", "Chile/Continental")
 TOKEN_ANALYTICS_OP = os.environ.get("TOKEN_ANALYTICS_OP")
 
