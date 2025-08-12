@@ -46,7 +46,6 @@ class Election(Base):
     __tablename__ = "psifos_election"
 
     id = Column(Integer, primary_key=True, index=True)
-    admin_id = Column(Integer, ForeignKey("auth_user.id"))
 
     short_name = Column(String(50), nullable=False, unique=True)
     long_name = Column(String(150), nullable=False)
@@ -68,7 +67,11 @@ class Election(Base):
     decryptions_uploaded = Column(Integer, default=0)
 
     result = relationship("Results",uselist=False, cascade="all, delete", backref="psifos_election")
-
+    admins = relationship(
+        "User",
+        secondary="psifos_election_admins",
+        back_populates="admin_elections"
+    )
 
     # One-to-many relationships
     voters = relationship("Voter", cascade="all, delete",

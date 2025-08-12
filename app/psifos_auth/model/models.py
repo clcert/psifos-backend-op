@@ -1,7 +1,9 @@
-from sqlalchemy import Boolean, Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, Table
 from sqlalchemy.orm import relationship
+from sqlalchemy.types import Enum
 
 from app.database import Base
+from app.psifos_auth.model.enums import UserRole
 
 class User(Base):
 
@@ -17,8 +19,13 @@ class User(Base):
     username = Column(String(200), nullable=True)
     password = Column(String(200))
 
-    # One-to-many relationship
-    elections = relationship("Election", backref="auth_user")
+    role = Column(Enum(UserRole), nullable=False, default=UserRole.admin)
+
+    admin_elections = relationship(
+        "Election",
+        secondary="psifos_election_admins",
+        back_populates="admins"
+    )
 
     def __repr__(self):
         return '<User %r>' % self.id
@@ -35,4 +42,9 @@ class User(Base):
     def get_by_public_id(cls, public_id):
         query = cls.filter_by(public_id=public_id)
         return query[0] if len(query) > 0 else None
+    
+class ElectionAdmins(Base):
+    __tablename__ = "psifos_election_admins"
 
+    election_id = Column(Integer, ForeignKey("psifos_election.id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("auth_user.id"), primary_key=True)

@@ -30,3 +30,13 @@ async def update_user(session: Session | AsyncSession, username: str, fields: di
     await db_handler.commit(session)
 
     return await get_user_by_name(session=session, name=username)
+
+async def relation_election_admins(session: Session | AsyncSession, election_id: int, user_id: int):
+    db_election_admin = models.ElectionAdmins(
+        election_id=election_id,
+        user_id=user_id
+    )
+    db_handler.add(session, db_election_admin)
+    await db_handler.commit(session)
+    await db_handler.refresh(session, db_election_admin)
+    return db_election_admin

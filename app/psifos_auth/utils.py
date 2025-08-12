@@ -22,14 +22,14 @@ async def get_auth_election(short_name: str, current_user: auth_models.User, ses
     if election_params:
         election_params = [*election_params, 
                            models.Election.id,
-                           models.Election.status,
-                           models.Election.admin_id]
+                           models.Election.status]
         election = await crud.get_election_params_by_name(session=session, short_name=short_name, params=election_params)
     else:
         election = await crud.get_election_by_short_name(session=session, short_name=short_name, simple=simple)
     if not election:
         raise HTTPException(status_code=404, detail="Election not found")
-    if election.admin_id != current_user.id:
+    is_admin = await crud.is_user_admin_of_election(session=session, user_id=current_user.id, election_id=election.id)
+    if not is_admin:
         raise HTTPException(status_code=401, detail="You are not the administrator of this election")
     if status is not None and election.status != status:
         raise HTTPException(status_code=400, detail="Election status check failed")
@@ -86,16 +86,35 @@ async def get_auth_trustee_and_election(short_name:str, username: str, login_id:
 
 
 @db_handler.func_with_session
-async def create_user(session, username: str, password: str) -> str:
+async def create_user(session, username: str, password: str, role: str) -> str:
     """
     Create a new user
     :param username: username of the user
     :param password: password of the user
     """
     hashed_password = generate_password_hash(password, method="scrypt:32768:8:1")
-    user = auth_schemas.UserIn(username=username, password=hashed_password, public_id=str(uuid.uuid4()))
+    user = auth_schemas.UserIn(username=username, password=hashed_password, public_id=str(uuid.uuid4()), role=role)
     await auth_crud.create_user(session=session, user=user)
     logging.log(msg="User created successfully!", level=logging.INFO)
+
+
+@db_handler.func_with_session
+async def add_admin_to_lection(session, election_short_name: str, username: str) -> str:
+    """
+    Add an admin to an election
+    :param election_short_name: short name of the election
+    :param username: username of the user to be added as admin
+    """
+    election = await crud.get_election_by_short_name(session=session, short_name=election_short_name)
+    if not election:
+        raise HTTPException(status_code=404, detail="Election not found")
+    
+    user = await auth_crud.get_user_by_name(session=session, name=username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await auth_crud.relation_election_admins(session=session, election_id=election.id, user_id=user.id)
+    logging.log(msg=f"User {username} added as admin to election {election_short_name} successfully!", level=logging.INFO)
 
 @db_handler.func_with_session
 async def update_user(session, username: str, password: str) -> str:

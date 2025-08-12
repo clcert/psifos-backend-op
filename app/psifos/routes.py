@@ -39,6 +39,7 @@ from app.psifos_auth.utils import (
 )
 from app.psifos_auth.auth_service_check import AuthUser
 from app.psifos_auth.redis_store import get_session_data
+from app.psifos_auth.model.crud import relation_election_admins
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from datetime import timedelta
@@ -72,10 +73,14 @@ async def create_election(
     if election_exists:
         raise HTTPException(status_code=404, detail="The election already exists.")
 
-    await crud.create_election(
+    election = await crud.create_election(
         session=session,
-        election=election_in,
-        admin_id=current_user.get_id(),
+        election=election_in
+    )
+    await relation_election_admins(
+        session=session,
+        election_id=election.id,
+        user_id=current_user.get_id()
     )
     return {"message": "Elección creada con exito!"}
 
@@ -105,7 +110,7 @@ async def delete_election(
 )
 async def get_election(
     short_name: str,
-    current_user: models.User = Depends(AuthAdmin()),
+    current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin'])),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
@@ -120,7 +125,7 @@ async def get_election(
     "/get-elections", response_model=list[schemas.SimpleElection], status_code=200
 )
 async def get_elections(
-    current_user: models.User = Depends(AuthAdmin()),
+    current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin'])),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
@@ -208,7 +213,7 @@ async def create_questions(
 async def upload_voters(
     short_name: str,
     file: UploadFile,
-    current_user: models.User = Depends(AuthAdmin()),
+    current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin'])),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
@@ -243,7 +248,7 @@ async def upload_voters(
 async def get_voters(
     short_name: str,
     data: dict = {},
-    current_user: models.User = Depends(AuthAdmin()),
+    current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin'])),
     session: Session = Depends(get_session),
 ):
     """
@@ -270,7 +275,7 @@ async def get_voters(
 async def edit_voter(
     short_name: str,
     fields_voter: dict,
-    current_user: models.User = Depends(AuthAdmin()),
+    current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin'])),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
@@ -295,7 +300,7 @@ async def edit_voter(
 @api_router.post("/{short_name}/delete-voters", status_code=200)
 async def delete_voters(
     short_name: str,
-    current_user: models.User = Depends(AuthAdmin()),
+    current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin'])),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
@@ -314,7 +319,7 @@ async def delete_voters(
 async def delete_voter(
     short_name: str,
     username: str,
-    current_user: models.User = Depends(AuthAdmin()),
+    current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin'])),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
@@ -686,7 +691,7 @@ async def results_release(
 )
 async def get_trustees(
     short_name: str,
-    current_user: models.User = Depends(AuthAdmin()),
+    current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin'])),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
@@ -1727,7 +1732,7 @@ async def get_pdf(
 async def get_count_logs_by_date(
     short_name: str,
     data: dict = {},
-    current_user: models.User = Depends(AuthAdmin()),
+    current_user: models.User = Depends(AuthAdmin(role=['admin', 'super_admin'])),
     session: Session | AsyncSession = Depends(get_session),
 ):
     """
