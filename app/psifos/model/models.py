@@ -12,7 +12,7 @@ import json
 
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, ForeignKey
-from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime
+from sqlalchemy.types import Boolean, Integer, String, Text, Enum, DateTime, JSON
 
 from app.psifos import utils
 
@@ -147,18 +147,29 @@ class Election(Base):
         if not_ready_trustees:
             return False, f"Trustees not ready to open the election: {', '.join(not_ready_trustees)}"
         return True, "The election is ready to be opened"
+    
+    def ready_opening_public_vote(self):
+        if not self.questions:
+            return False, "No questions found in the election"
+        return True, "The election is ready to be opened"
 
     async def start(self, session):
 
-        election_pk = await utils.generate_election_pk(self.trustees, session)
-        pk = await crypto_crud.create_public_key(
-            session=session,
-            public_key=election_pk
-        )
+        if self.type != ElectionTypeEnum.public_vote_election:
 
+            election_pk = await utils.generate_election_pk(self.trustees, session)
+            pk = await crypto_crud.create_public_key(
+                session=session,
+                public_key=election_pk
+            )
+
+            return {
+                "status": ElectionStatusEnum.started,
+                "public_key_id": pk.id,
+            }
+        
         return {
             "status": ElectionStatusEnum.started,
-            "public_key_id": pk.id,
         }
 
     def end(self):
@@ -361,6 +372,20 @@ class CastVote(Base):
 
     is_valid = Column(Boolean, nullable=False)
     cast_at = Column(DateTime, nullable=False)
+
+class Vote(Base):
+    __tablename__ = "psifos_vote"
+
+    id = Column(Integer, primary_key=True, index=True)
+    voter_id = Column(
+        Integer,
+        ForeignKey("psifos_voter.id",
+                   onupdate="CASCADE", ondelete="CASCADE"),
+    )
+
+    vote = Column(JSON, nullable=False)
+    is_valid = Column(Boolean, nullable=False)
+    cast_at = Column(DateTime, default=utils.tz_now())
 
 class AuditedBallot(Base):
     __tablename__ = "psifos_audited_ballot"

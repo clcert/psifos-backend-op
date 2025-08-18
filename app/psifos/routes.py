@@ -9,7 +9,7 @@ import datetime
 import threading
 
 from fastapi import Depends, HTTPException, APIRouter, UploadFile, Request, Response
-from app.psifos.model.enums import ElectionStatusEnum, ElectionPublicEventEnum, ElectionLoginTypeEnum, TrusteeStepEnum
+from app.psifos.model.enums import ElectionStatusEnum, ElectionPublicEventEnum, ElectionLoginTypeEnum, TrusteeStepEnum, ElectionTypeEnum
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.psifos.crypto.tally.common.decryption.trustee_decryption import (
@@ -461,13 +461,20 @@ async def ready_opening(
     """
     Route for ready opening
     """
+    election_type = await crud.get_election_type_by_short_name(
+        session=session, short_name=short_name
+    )
+    election_status = ElectionStatusEnum.ready_key_generation
+    if election_type == ElectionTypeEnum.public_vote_election:
+        election_status = ElectionStatusEnum.ready_opening
+
     election = await get_auth_election(
         short_name=short_name, 
         current_user=current_user, 
         session=session,
-        status=ElectionStatusEnum.ready_key_generation
+        status=election_status
     )
-    status, message = election.ready_opening()
+    status, message = election.ready_opening() if election_type != ElectionTypeEnum.public_vote_election else election.ready_opening_public_vote()
     if not status:
         raise HTTPException(status_code=400, detail=message)
     
@@ -490,11 +497,20 @@ async def start_election(
     Route for starting an election, once it happens the election
     gets "frozen" which means it shouldn't be modified from now on.
     """
+
+    election_type = await crud.get_election_type_by_short_name(
+        session=session, short_name=short_name
+    )
+    print(f"Election type: {election_type}")
+    election_status = ElectionStatusEnum.ready_key_generation
+    if election_type == ElectionTypeEnum.public_vote_election:
+        election_status = ElectionStatusEnum.setting_up
+
     election = await get_auth_election(
         short_name=short_name,
         current_user=current_user,
         session=session,
-        status=ElectionStatusEnum.ready_opening,
+        status=election_status,
         simple=False,
     )
     await crud.update_election(

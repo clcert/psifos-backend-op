@@ -35,7 +35,7 @@ def upgrade() -> None:
     sa.Column('uuid', sa.String(length=50), nullable=False),
     sa.Column('short_name', sa.String(length=100), nullable=False),
     sa.Column('name', sa.String(length=250), nullable=False),
-    sa.Column('election_type', sa.Enum('query', 'election', name='electiontypeenum'), nullable=False),
+    sa.Column('election_type', sa.Enum('query', 'election', 'public_vote_election', name='electiontypeenum'), nullable=False),
     sa.Column('election_status', sa.Enum('setting_up', 'started', 'ended', 'tally_computed', 'decryptions_uploaded', 'decryptions_combined', 'results_released', name='electionstatusenum'), nullable=True),
     sa.Column('private_p', sa.Boolean(), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),

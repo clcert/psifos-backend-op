@@ -467,6 +467,11 @@ async def get_election_by_short_name(session: Session | AsyncSession, short_name
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
+async def get_election_type_by_short_name(session: Session | AsyncSession, short_name: str):
+    query = select(models.Election.type).where(models.Election.short_name == short_name)
+    result = await db_handler.execute(session, query)
+    return result.scalar()
+
 async def get_election_params_by_name(session: Session | AsyncSession, short_name: str, params: list):
     query = select(*params).where(models.Election.short_name == short_name)
     result = await db_handler.execute(session, query)

@@ -10,6 +10,7 @@ import enum
 class ElectionTypeEnum(str, enum.Enum):
     query = "Query"
     election = "Election"
+    public_vote_election = "Public Vote Election"
 
 
 class ElectionStatusEnum(str, enum.Enum):
