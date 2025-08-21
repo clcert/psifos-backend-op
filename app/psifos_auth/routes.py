@@ -67,6 +67,10 @@ async def login_voter(short_name: str, request: Request, redirect: bool = Query(
         request.session["public_election"] = True
         request.session["user"] = str(uuid.uuid4())
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}
+    
+    if request.session.get("public_election") and request.session.get("user"):
+        request.session.pop("public_election")
+        request.session.pop("user")
 
     auth = auth_factory.get_auth(protocol)
     return await auth.login(short_name=short_name, user_type="voter", request=request)
