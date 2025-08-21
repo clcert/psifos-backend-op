@@ -542,6 +542,20 @@ async def end_election(
         status=ElectionStatusEnum.started,
     )
 
+    if election.type == ElectionTypeEnum.public_vote_election:
+        result = await election.end_public_vote_election(session=session)
+        await results_crud.create_result(
+            session=session,
+            election_id=election.id,
+            result=result,
+        )
+        await crud.update_election(
+            session=session,
+            election_id=election.id,
+            fields={"status": ElectionStatusEnum.decryptions_combined},
+        )   
+        return {"message": "The public vote election was successfully ended"}
+
     not_null_voters = await crud.get_count_valid_cast_votes_by_election_id(
         session=session, election_id=election.id
     )
@@ -859,7 +873,8 @@ async def cast_vote(
     query_params = [
         models.Election.voters_login_type,
         models.Election.short_name,
-        models.Election.questions
+        models.Election.questions,
+        models.Election.type,
     ]
 
     voter, election = await get_auth_voter_and_election(
@@ -869,6 +884,22 @@ async def cast_vote(
         status=ElectionStatusEnum.started,
         election_params=query_params
     )
+    if election.type == ElectionTypeEnum.public_vote_election:
+        task = tasks.process_public_vote.delay(election_id=election.id, public_vote={
+            "voter_id": voter.id,
+            "vote": cast_vote.ballot
+        })
+        is_valid, vote_hash = task.get()
+        if not is_valid:
+            logger.error("%s - Invalid Public Vote: %s (%s)" % (request.client.host, username, election.short_name))
+            return {"message": "Invalid public vote", "verified": False}
+
+        return {
+            "message": "Public vote received successfully",
+            "verified": True,
+            "ballot_hash": vote_hash,
+        }
+    
     task_params = {
         "serialized_encrypted_vote": cast_vote.encrypted_vote,
     }
@@ -1691,15 +1722,25 @@ async def get_pdf(
     Return the certificate of the last vote cast by the authenticated voter
 
     """
-    election = await crud.get_election_by_short_name(
-        session=session, short_name=short_name, simple=True
+    election_params = [
+        models.Election.id,
+        models.Election.long_name,
+        models.Election.type,
+    ]
+    election = await crud.get_election_params_by_name(
+        session=session, short_name=short_name, params=election_params
     )
     voter = await crud.get_voter_by_login_id_and_election_id(
         session=session, username=username, election_id=election.id
     )
-    cast_vote = await crud.get_cast_vote_by_voter_id(session=session, voter_id=voter.id)
-
-    hash_vote = cast_vote.encrypted_ballot_hash
+    if election.type == ElectionTypeEnum.public_vote_election:
+        cast_vote = await crud.get_public_cast_vote_by_voter_id(
+            session=session, voter_id=voter.id
+        )
+        hash_vote = cast_vote.vote_hash
+    else:
+        cast_vote = await crud.get_cast_vote_by_voter_id(session=session, voter_id=voter.id)
+        hash_vote = cast_vote.encrypted_ballot_hash
 
     link_ballot = (
         APP_FRONTEND_URL

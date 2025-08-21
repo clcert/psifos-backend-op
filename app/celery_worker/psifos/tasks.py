@@ -211,3 +211,23 @@ def upload_voters(election_id: str, voter_file_content: str):
             return False, 0, 0
 
     return True, k, n
+
+@celery.task(name="process_public_vote")
+def process_public_vote(election_id: str, public_vote: dict) -> bool:
+    """
+    Checks if the public vote is valid.
+    """
+    with SessionLocal() as session:
+
+        questions = crud.get_questions_by_election_id(election_id=election_id, session=session)
+        public_vote = models.Vote(**public_vote)
+        public_vote.is_valid = public_vote.verify(questions=questions)
+        public_vote.vote_hash = uuid.uuid4()
+        if not public_vote.is_valid:
+            return public_vote
+        
+        crud.save_public_vote(
+            session=session,
+            public_vote=public_vote
+        )
+        return public_vote.is_valid, public_vote.vote_hash

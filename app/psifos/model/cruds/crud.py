@@ -163,6 +163,12 @@ async def get_cast_vote_by_voter_id(session: Session | AsyncSession, voter_id: i
     result = await db_handler.execute(session, query)
     return result.scalars().first()
 
+async def get_public_cast_vote_by_voter_id(session: Session | AsyncSession, voter_id: int):
+    query = select(models.Vote).where(
+        models.Vote.voter_id == voter_id,
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().first()
 
 async def get_cast_vote_by_hash(session: Session | AsyncSession, hash_vote: str):
     query = select(models.CastVote).where(
@@ -208,6 +214,39 @@ async def update_cast_vote(session: Session | AsyncSession, voter_id: int, field
 
     return await get_cast_vote_by_voter_id(session=session, voter_id=voter_id)
 
+async def save_public_vote(session: Session | AsyncSession, voter_id: int, public_vote: list[int]):
+    db_vote = models.Vote(
+        voter_id=voter_id,
+        vote= public_vote,
+    )
+    db_handler.add(session, db_vote)
+    await db_handler.commit(session)
+    await db_handler.refresh(session, db_vote)
+    return db_vote
+
+async def get_all_public_valid_last_votes_by_group(session: Session | AsyncSession, election_id: int, group: str):
+    subquery = (
+        select(
+            models.Vote.voter_id,
+            func.max(models.Vote.cast_at).label("max_cast_at")
+        )
+        .join(models.Voter, models.Voter.id == models.Vote.voter_id)
+        .where(
+            models.Voter.election_id == election_id,
+            models.Vote.is_valid,
+            models.Voter.group == group
+        )
+        .group_by(models.Vote.voter_id)
+        .subquery()
+    )
+
+    query = (
+        select(models.Vote)
+        .join(subquery, (models.Vote.voter_id == subquery.c.voter_id) & (models.Vote.cast_at == subquery.c.max_cast_at))
+        .order_by(models.Vote.cast_at.desc())
+    )
+    result = await db_handler.execute(session, query)
+    return result.scalars().all()
 
 # ----- AuditedBallot CRUD Utils -----
 # (TODO)

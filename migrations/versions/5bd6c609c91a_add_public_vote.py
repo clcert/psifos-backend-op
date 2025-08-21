@@ -24,6 +24,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('voter_id', sa.Integer(), nullable=True),
     sa.Column('vote', sa.JSON(), nullable=False),
+    sa.Column('vote_hash', sa.String(length=64), nullable=True),
     sa.Column('is_valid', sa.Boolean(), nullable=False),
     sa.Column('cast_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['voter_id'], ['psifos_voter.id'], onupdate='CASCADE', ondelete='CASCADE'),

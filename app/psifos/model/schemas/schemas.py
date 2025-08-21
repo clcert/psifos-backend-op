@@ -202,6 +202,7 @@ class CastVoteBase(PsifosSchema):
     """
 
     encrypted_vote: str | None
+    ballot: object | None
 
 
 class CastVoteIn(CastVoteBase):

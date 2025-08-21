@@ -38,6 +38,11 @@ def get_election_params_by_short_name(session: Session, short_name: str, params:
     result = session.execute(query)
     return result.first()
 
+def get_election_params_by_id(session: Session, election_id: int, params: list):
+    query = select(*params).where(models.Election.id == election_id)
+    result = session.execute(query)
+    return result.first()
+
 def get_voter_by_voter_id(session: Session, voter_id: int):
     query = select(models.Voter).where(models.Voter.id == voter_id)
     result = session.execute(query)
@@ -49,6 +54,12 @@ def get_cast_vote_by_voter_id(session: Session, voter_id: int):
     )
     result = session.execute(query)
     return result.scalars().first()
+
+def save_public_vote(session: Session, public_vote: models.Vote):
+    session.add(public_vote)
+    session.commit()
+    session.refresh(public_vote)
+    return public_vote
 
 def update_or_create_cast_vote(session: Session, voter_id: int, fields: dict):
     voter_query = select(models.Voter).where(

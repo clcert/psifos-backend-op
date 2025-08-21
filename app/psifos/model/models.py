@@ -299,7 +299,38 @@ class Election(Base):
 
     def voting_has_ended(self):
         return True if self.voting_ended_at is not None else False
+    
+    async def end_public_vote_election(self, session):
+        """
+        Ends the public vote election by setting the status to ended.
+        Optimized for efficiency.
+        """
+        from app.psifos.model.cruds import crud
 
+        groups = await crud.get_groups_by_election_id(session=session, election_id=self.id)
+        questions = await crud.get_questions_by_election_id(session=session, election_id=self.id)
+        total_results = [[0] * question.total_options for question in questions]
+        results_group = []
+
+        # Pre-fetch all votes for all groups in a single query if possible
+        for group in groups:
+            group_result = [[0] * question.total_options for question in questions]
+            votes = await crud.get_all_public_valid_last_votes_by_group(
+                session=session, election_id=self.id, group=group
+            )
+            for vote in votes:
+                voter_weight = getattr(vote.voter, "weight_end", 1) if hasattr(vote, "voter") else 1
+                for q_num, _ in enumerate(questions):
+                    # vote.vote[q_num] is a list of selected option indexes
+                    for option in vote.vote[q_num]:
+                        group_result[q_num][option] += voter_weight
+                        total_results[q_num][option] += voter_weight
+            results_group.append({
+                "result": group_result,
+                "group": group
+            })
+
+        return {"total_result": total_results, "grouped_result": results_group}
 
 class Voter(Base):
     __tablename__ = "psifos_voter"
@@ -384,8 +415,24 @@ class Vote(Base):
     )
 
     vote = Column(JSON, nullable=False)
+    vote_hash = Column(String(500), nullable=False)
     is_valid = Column(Boolean, nullable=False)
     cast_at = Column(DateTime, default=utils.tz_now())
+
+    def verify(self, questions: AbstractQuestion):
+        """
+        Verify if the vote is valid against the election and questions.
+        """        
+        # Check if the number of answers matches the number of questions
+        if len(self.vote) != len(questions):
+            return False
+        
+        # Check each answer against the corresponding question
+        for i, question in enumerate(questions):
+            if len(self.vote[i]) < question.min_answers or len(self.vote[i]) > question.max_answers:
+                return False
+        
+        return True
 
 class AuditedBallot(Base):
     __tablename__ = "psifos_audited_ballot"
