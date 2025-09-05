@@ -81,17 +81,15 @@ class AuthOauthCheck(AuthServiceCheck):
 
     async def get_login_id(self, request: Request):
 
-        session_id = request.session.get("session_id", None)
-        if not session_id:
-            raise HTTPException(status_code=401, detail="unauthorized")
-        session_data = await get_session_data(session_id)
-        user = session_data.get("user", None)
-        if not user or 'oauth_state' not in session_data:
-            raise HTTPException(status_code=401, detail="unauthorized voter")
+        try:
+            session_id = request.session.get("session_id", None)
+            if not session_id:
+                raise HTTPException(status_code=401, detail="unauthorized")
+            session_data = await get_session_data(session_id)
+            user = session_data.get("user", None)
+            if not user or 'oauth_state' not in session_data:
+                raise HTTPException(status_code=401, detail="unauthorized voter")
 
-        return self.get_user_without_domain(user)
-        
-
-
-
-
+            return self.get_user_without_domain(user)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"error in authentication: {e}")

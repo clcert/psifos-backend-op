@@ -14,7 +14,7 @@ from app.psifos.model import models
 from app.psifos.model.enums import ElectionLoginTypeEnum
 
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, JSONResponse
 
 auth_factory = AuthFactory()
 protocol = TYPE_AUTH
@@ -24,7 +24,7 @@ auth_router = APIRouter()
 
 security = HTTPBasic()
 
-@auth_router.post("/login", status_code = 201)
+@auth_router.post("/login", status_code = 200)
 async def login_user(request: Request, credentials: HTTPBasicCredentials = Depends(security), session = Depends(get_session)):
     """
     Login a admin user
@@ -32,22 +32,38 @@ async def login_user(request: Request, credentials: HTTPBasicCredentials = Depen
     """
 
     if not credentials or not credentials.username or not credentials.password:
-        raise HTTPException(status_code = 401, detail="an error occurred, please try again")    
+        raise HTTPException(status_code=401, detail="an error occurred, please try again")    
 
     user = await auth_crud.get_user_by_name(session=session, name=credentials.username)
 
     if not user:
-        raise HTTPException(status_code = 401, detail = "wrong username or passwords")
+        raise HTTPException(status_code=401, detail="wrong username or passwords")
 
     if check_password_hash(user.password, credentials.password):
         token = jwt.encode({"public_id": user.public_id}, SECRET_KEY)
-        return {
-            "token": token
-        }
+        response = JSONResponse(content={"message": "Login successful"})
+        response.set_cookie(key="access_token", value=token, httponly=True, secure=True)
+        return response
 
     else:
-        raise HTTPException(status_code = 401, detail = "wrong username or passwords")
+        raise HTTPException(status_code=401, detail="wrong username or passwords")
+    
+@auth_router.post("/logout")
+async def logout():
+    response = JSONResponse(content={"message": "Logged out successfully"})
+    response.delete_cookie(key="access_token")
+    return response
+    
+@auth_router.get("/check-auth")
+async def check_auth(access_token: str = Cookie(None)):
+    if not access_token:
+        return {"authenticated": False}
 
+    try:
+        jwt.decode(access_token, SECRET_KEY, algorithms=["HS256"])
+        return {"authenticated": True}
+    except jwt.PyJWTError:
+        return {"authenticated": False}
 
 @auth_router.get("/{short_name}/vote", status_code=200)
 async def login_voter(short_name: str, request: Request, redirect: bool = Query(True), session_cookie: str | None = Cookie(default=None), session = Depends(get_session)):
@@ -67,6 +83,10 @@ async def login_voter(short_name: str, request: Request, redirect: bool = Query(
         request.session["public_election"] = True
         request.session["user"] = str(uuid.uuid4())
         return RedirectResponse(url=APP_FRONTEND_URL + "psifos/booth/" + short_name) if redirect else {"message": "success"}
+    
+    if request.session.get("public_election") and request.session.get("user"):
+        request.session.pop("public_election")
+        request.session.pop("user")
 
     auth = auth_factory.get_auth(protocol)
     return await auth.login(short_name=short_name, user_type="voter", request=request)

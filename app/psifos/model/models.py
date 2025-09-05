@@ -67,7 +67,7 @@ class Election(Base):
 
     decryptions_uploaded = Column(Integer, default=0)
 
-    result = relationship("Results",uselist=False, cascade="all, delete", backref="psifos_election")
+    result = relationship("Results", uselist=False, cascade="all, delete", back_populates="election")
 
 
     # One-to-many relationships
