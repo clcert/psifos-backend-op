@@ -288,3 +288,8 @@ def get_decryptions_by_trustee_id(session: Session, trustee_crypto_id: int, q_nu
     
     m_decryption = get_mixnet_decryption_by_trustee_id(session, trustee_crypto_id, q_num, group)
     return m_decryption
+
+def get_secret_key(session: Session, election_id: int):
+    query = select(models.SecretKey).where(models.SecretKey.election_id == election_id)
+    result = session.execute(query)
+    return result.scalars().first()

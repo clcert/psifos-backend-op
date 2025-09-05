@@ -5,7 +5,6 @@ Abstract tally for Psifos
 """
 
 from app.database.serialization import SerializableObject
-from app.psifos.crypto.elgamal import PublicKey
 
 
 class AbstractTally(SerializableObject):

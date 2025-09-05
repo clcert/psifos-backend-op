@@ -1,4 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, Boolean, JSON
+from app.psifos.crypto.tally.common.dlogtable import DLogTable
+
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -59,3 +61,48 @@ class AbstractQuestion(Base):
 
         informal_options_count = 2 if self.include_informal_options else 0
         return len(self.formal_options) + informal_options_count
+    
+    # TODO: revisar max_weight
+    def decryption(self, secret_key, public_key, total_results, results_per_group=None, max_weight=1):
+        """
+        Perform decryption and generate proof for the encrypted tally of the question.
+
+        Args:
+            secret_key: The secret key used for decryption.
+            public_key: The public key used for verification.
+            max_weight: The maximum weight for precomputing the discrete log table.
+
+        Returns:
+            list: A list of dictionaries containing decryption factors, proofs, results, and group information.
+        """
+        results = [0] * self.total_options
+        dlog_table = DLogTable(base=public_key.g, modulus=public_key.p)
+        dlog_table.precompute(max_weight * max(tally.num_tallied for tally in self.encrypted_tally))
+
+        for tally_entry in self.encrypted_tally:
+            question_factors, question_proofs, result_per_group = self.process_tally_entry(tally_entry, dlog_table, secret_key, public_key)
+            results = [results[i] + result_per_group[i] for i in range(len(result_per_group))]
+            total_results.append(results)
+            group_dict = next((item for item in results_per_group if item['group'] == tally_entry.group), None)
+            if not group_dict:
+                group = "Sin grupo" if tally_entry.group == "" else tally_entry.group
+                results_per_group.append({
+                    "group": group,
+                    "results": [result_per_group],
+                })
+            else:
+                group_dict["results"].append(result_per_group)
+
+        return total_results, results_per_group
+
+    def process_tally_entry(self, tally_entry, dlog_table, secret_key, public_key):
+        """Process a single tally entry and return its decryption results."""
+        question_factors, question_proofs = [], []
+        for answer_index in range(self.total_options):
+            tally = tally_entry.get_tally().instances[answer_index]
+            dec_factor, proof = secret_key.decryption_factor_and_proof(tally, public_key)
+            raw_value = secret_key.decrypt(tally, public_key, dec_factor)
+            question_factors.append(raw_value)
+            question_proofs.append(proof)
+        result_per_group = [dlog_table.lookup(result) for result in question_factors]
+        return question_factors, question_proofs, result_per_group
