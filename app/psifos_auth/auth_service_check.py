@@ -13,6 +13,7 @@ class AuthUser:
     def __init__(self) -> None:
         self.cas = AuthCasCheck()
         self.oauth = AuthOauthCheck()
+        self.oidc = AuthOIDCCheck()
         self.type_auth = TYPE_AUTH
 
     async def __call__(self, request: Request) -> object:
@@ -27,6 +28,8 @@ class AuthUser:
             return await self.cas.get_login_id(request)
         elif self.type_auth == "oauth":
             return await self.oauth.get_login_id(request)
+        elif self.type_auth == "oidc":
+            return await self.oidc.get_login_id(request)
 
 
 
@@ -35,7 +38,7 @@ class AuthServiceCheck(object):
 
     """
     Abstract class to check the user in the system
-    with Auth Service (CAS / OAuth2)     
+    with Auth Service (CAS / OAuth2 / OIDC)     
     
     """
 
@@ -75,6 +78,30 @@ class AuthOauthCheck(AuthServiceCheck):
 
     """
     Check if the user is authenticated with OAuth2
+    
+    """
+
+
+    async def get_login_id(self, request: Request):
+
+        try:
+            session_id = request.session.get("session_id", None)
+            if not session_id:
+                raise HTTPException(status_code=401, detail="unauthorized")
+            session_data = await get_session_data(session_id)
+            user = session_data.get("user", None)
+            if not user or 'oauth_state' not in session_data:
+                raise HTTPException(status_code=401, detail="unauthorized voter")
+
+            return self.get_user_without_domain(user)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"error in authentication: {e}")
+
+
+class AuthOIDCCheck(AuthServiceCheck):
+    
+    """
+    Check if the user is authenticated with OIDC
     
     """
 

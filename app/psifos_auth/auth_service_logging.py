@@ -1,4 +1,8 @@
 from cas import CASClient
+from oic.oic import Client
+from oic.utils.authn.client import CLIENT_AUTHN_METHOD
+from oic.oic.message import AuthorizationResponse, RegistrationResponse, ProviderConfigurationResponse
+from oic import rndstr
 from app.database import SessionLocal
 from app.config import (
     APP_BACKEND_OP_URL,
@@ -10,10 +14,19 @@ from app.config import (
     OAUTH_TOKEN_URL,
     OAUTH_USER_INFO_URL,
     OAUTH_GOOGLE,
+    OIDC_CLIENT_ID,
+    OIDC_CLIENT_SECRET,
+    OIDC_PROVIDER_URL,
+    OIDC_AUTHORIZE_URL,
+    OIDC_TOKEN_URL,
 )
 from app.psifos.model.cruds import crud
 from requests_oauthlib import OAuth2Session
 from app.database import db_handler
+from urllib.parse import urlparse, parse_qs
+import requests
+import json
+import base64
 
 from fastapi import Request, HTTPException
 from starlette.responses import RedirectResponse
@@ -34,6 +47,8 @@ class AuthFactory:
             return CASAuth()
         elif type_auth == "oauth":
             return OAuth2Auth()
+        elif type_auth == "oidc":
+            return OIDCAuth()
 
 
 class AbstractAuth(object):
@@ -326,3 +341,187 @@ class OAuth2Auth(AbstractAuth):
         except Exception as e:
             logger.error(f"Error during OAuth2 authorization: {e}")
             return self.logout(session_data["type_logout"], request)
+
+
+class OIDCAuth(AbstractAuth):
+    def __init__(self) -> None:
+        config = {
+            "client_id": OIDC_CLIENT_ID,
+            "client_secret": OIDC_CLIENT_SECRET,
+            "redirect_uri": APP_BACKEND_OP_URL + "authorized",
+            "provider_url": OIDC_PROVIDER_URL,
+            "scopes": ["openid", "email"] if "google" in OIDC_PROVIDER_URL else ["openid"],
+            "dynamic_registration": False,
+            "provider_info": {
+                "issuer": OIDC_PROVIDER_URL,
+                "authorization_endpoint": OIDC_AUTHORIZE_URL,
+                "token_endpoint": OIDC_TOKEN_URL
+            }
+        }
+        
+        self.config = config
+        self.client = Client(client_authn_method=CLIENT_AUTHN_METHOD)
+        self.client.clock_skew = 300
+        
+        self.state = None
+        self.nonce = None
+
+        self.short_name = ""
+        self.type_logout = ""
+        self.home_pages = {
+            "voter": APP_FRONTEND_URL + "psifos/booth/",
+            "trustee": APP_FRONTEND_URL + "psifos/trustee/",
+        }
+
+        op_info = ProviderConfigurationResponse(**self.config['provider_info'])
+        self.client.handle_provider_config(op_info, op_info['issuer'])
+
+        client_reg = RegistrationResponse(
+                client_id=self.config['client_id'],
+                client_secret=self.config.get('client_secret'),
+                redirect_uris=[self.config['redirect_uri']]
+            )
+        self.client.store_registration_info(client_reg)
+
+    def base64url_decode(self, encoded_str, to_string=True):
+        # Reemplazar caracteres de Base64URL
+        encoded_str = encoded_str.replace('-', '+').replace('_', '/')
+        
+        # Añadir padding con '=' si es necesario
+        padding = len(encoded_str) % 4
+        if padding:
+            encoded_str += '=' * (4 - padding)
+        
+        # Decodificar
+        decoded_bytes = base64.b64decode(encoded_str)
+        
+        if to_string:
+            return decoded_bytes.decode('utf-8')
+        else:
+            return decoded_bytes
+    
+    def split_jwt(self, token):
+        """
+        Divide un JWT en sus tres componentes: header, payload y signature
+        """
+        parts = token.split('.')
+        
+        if len(parts) != 3:
+            raise ValueError(f"Token JWT invÃ¡lido. Esperaba 3 partes, obtuvo {len(parts)}")
+        
+        header, payload, signature = parts
+        return header, payload, signature
+    
+    def decode_jwt_param(self, param_encoded):
+        try:
+            param_decoded = self.base64url_decode(param_encoded)
+            param_json = json.loads(param_decoded)
+            return param_json
+        except (base64.binascii.Error, json.JSONDecodeError) as e:
+            raise ValueError(f"Error decodificando el header: {str(e)}")
+    
+    async def login(self, short_name: str = None, user_type: str = None, request: Request = None, panel: bool = False):
+        self.state = rndstr()
+        self.nonce = rndstr() 
+
+        args = {
+            "client_id": self.client.client_id,
+            "response_type": "code",
+            "scope": self.config['scopes'],
+            "nonce": self.nonce,
+            "redirect_uri": self.config['redirect_uri'],
+            "state": self.state,
+            "access_type": "offline",
+            "prompt": "consent"
+        }
+
+        session_id = generate_session_id()
+        request.session["session_id"] = session_id
+        
+        auth_req = self.client.construct_AuthorizationRequest(request_args=args)
+        await store_session_data(session_id, {"short_name": short_name, "type_logout": user_type, "oauth_state": self.state, "panel": panel}, expires_in=3600)
+
+        auth_url = auth_req.request(self.client.authorization_endpoint)
+        return RedirectResponse(auth_url)
+
+    async def logout(self, user_type: str, request: Request):
+        session_id = request.session.get("session_id")
+        await delete_session_data(session_id)
+        request.session.clear()
+        return RedirectResponse(url=self.home_pages[user_type])
+
+    @db_handler.method_with_session
+    async def authorized(self, db_session, request: Request):
+        redirect_url = str(request.url)
+        
+        session_id = request.session.get("session_id")
+        if not session_id:
+            raise HTTPException(status_code=400, detail="Sesión no encontrada")
+
+        session_data = await get_session_data(session_id)
+        if not session_data:
+            raise HTTPException(status_code=400, detail="Datos de sesión no válidos")
+        
+        parsed = urlparse(redirect_url)
+        params = parse_qs(parsed.query)
+        returned_state = params['state'][0]
+        
+        if returned_state != session_data["oauth_state"]:
+            print("returned_state: ", returned_state)
+            print("self.state: ", session_data["oauth_state"])
+            raise ValueError("Error: El state no coincide. Posible ataque CSRF.")
+        
+        # Parsear la respuesta de autorizaciÃ³n
+        auth_response = self.client.parse_response(
+            AuthorizationResponse,
+            info=redirect_url,
+            sformat="urlencoded"
+        )
+
+        args = {
+            "code": auth_response['code'],
+            "client_id": self.client.client_id,
+            "client_secret": self.config.get('client_secret'),
+            "redirect_uri": self.config['redirect_uri'],
+            "grant_type": "authorization_code"
+        }
+        
+        token_response = requests.post(
+            self.client.token_endpoint,
+            data=args,
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+        
+        token_info = token_response.json()
+        if "error" in token_info:
+            raise ValueError(f"Error al obtener tokens: {token_info}")
+
+        id_token = token_info.get('id_token')
+        _, payload, _ = self.split_jwt(id_token)
+
+        # header_decoded = self.decode_jwt_param(header)
+        payload_decoded = self.decode_jwt_param(payload)
+        # signature_decoded = self.base64url_decode(signature, to_string=False).hex()
+
+        issuer =  payload_decoded.get('iss', '')
+        if 'google' in issuer:
+            user = payload_decoded.get('email', '')
+        else:
+            user = payload_decoded.get('sub', '')
+
+        session_data["user"] = user
+        await store_session_data(session_id, session_data, expires_in=3600)
+
+        if session_data["type_logout"] == "voter":
+            return await self.check_voter(db_session, session_data["short_name"], user, request)
+
+        elif session_data["type_logout"] == "trustee" and not session_data["panel"]:
+            return await self.check_trustee(db_session, session_data["short_name"], request)
+        
+        elif session_data["panel"]:
+            trustee_params = [crud.models.Trustee.id]
+            trustee = await crud.get_trustee_params_by_username(session=db_session, username=user, params=trustee_params)
+            if trustee:
+                request.session["trustee_id"] = trustee.id
+
+            return RedirectResponse(url=APP_FRONTEND_URL + f"psifos/trustee/panel")
