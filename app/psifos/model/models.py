@@ -95,7 +95,7 @@ class Election(Base):
     def total_questions(self):
         return len(self.questions)
 
-    def get_eg_params(self, serialize=True):
+    def get_eg_params(self, tally_type="", serialize=True):
         """
         Returns the current election params for elgamal encryption.
 
@@ -119,14 +119,27 @@ class Election(Base):
             t=self.total_trustees // 2,
         )
 
-        params = {
-            "homomorphic_params": ElGamal.serialize(homomorphic_params)
-            if serialize
-            else homomorphic_params,
-            "mixnet_params": ElGamal.serialize(mixnet_params)
-            if serialize
-            else mixnet_params,
-        }
+        if tally_type == "":
+            params = {
+                "homomorphic_params": ElGamal.serialize(homomorphic_params)
+                if serialize
+                else homomorphic_params,
+                "mixnet_params": ElGamal.serialize(mixnet_params)
+                if serialize
+                else mixnet_params,
+            }
+        elif tally_type == "homomorphic":
+            params = {
+                "params": ElGamal.serialize(homomorphic_params)
+                if serialize
+                else homomorphic_params
+            }
+        else: # mixnet
+            params = {
+                "params": ElGamal.serialize(mixnet_params)
+                if serialize
+                else mixnet_params,
+            }
 
         return params
     
