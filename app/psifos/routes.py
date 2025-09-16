@@ -1032,8 +1032,14 @@ async def election_get_eg_params(
         #     session=session, election_id=election.id
         # )
         # return election.get_eg_params(total_trustees=total_trustees)        
-        return election.get_eg_params()
-
+        questions = await crud.get_questions_by_election_id(
+            session=session, election_id=election.id
+        )
+        if questions[0].type == "CLOSED":
+            return election.get_eg_params("homomorphic")
+        else:
+            return election.get_eg_params("mixnet")
+        
     except Exception as e:
         print(e)
         raise HTTPException(

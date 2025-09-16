@@ -37,6 +37,12 @@ OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID")
 OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET")
 OAUTH_USER_INFO_URL = os.environ.get("OAUTH_USER_INFO_URL")
 
+OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID")
+OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET")
+OIDC_PROVIDER_URL = os.environ.get("OIDC_PROVIDER_URL")
+OIDC_AUTHORIZE_URL = os.environ.get("OIDC_AUTHORIZE_URL")
+OIDC_TOKEN_URL = os.environ.get("OIDC_TOKEN_URL")
+
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
 
 USE_ASYNC_ENGINE = bool(int(os.environ.get("USE_ASYNC_ENGINE", False)))

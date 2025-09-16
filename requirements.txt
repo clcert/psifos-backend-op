@@ -88,3 +88,4 @@ loguru==0.7.2
 pyinstrument==5.0.0
 cryptography==44.0.2
 gunicorn==23.0.0
+oic==1.6.0
