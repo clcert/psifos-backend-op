@@ -467,8 +467,7 @@ class OIDCAuth(AbstractAuth):
         returned_state = params['state'][0]
         
         if returned_state != session_data["oauth_state"]:
-            print("returned_state: ", returned_state)
-            print("self.state: ", session_data["oauth_state"])
+            # State mismatch detected; possible CSRF attack.
             raise ValueError("Error: El state no coincide. Posible ataque CSRF.")
         
         # Parsear la respuesta de autorizaciÃ³n
